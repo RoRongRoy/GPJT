@@ -2,7 +2,31 @@
 class WorldView {
  constructor(canvas, minimap) {
   this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.minimap=minimap;this.art=new FieldArt(this.ctx);
-  this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;
+  this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;
+ }
+ predictMove(state,{dx,dy}){
+  const p=state.world.player,m=state.map.movement;
+  const mounted=p.mounted&&!(p.species==='vampire'&&p.blood<=5);
+  const step=m.step*(mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1),norm=Math.hypot(dx,dy);
+  if(!norm)return;
+  this.prediction={x:Math.max(1,Math.min(state.map.size-2,p.x+dx/norm*step)),y:Math.max(1,Math.min(state.map.size-2,p.y+dy/norm*step))};
+ }
+ endMove(accepted){this.prediction=null;if(!accepted)this.player=null;}
+ prepareScenery(state){
+  if(this.mapSource===state.map&&this.poiSource===state.pois)return;
+  this.mapSource=state.map;this.poiSource=state.pois;
+  const key=JSON.stringify([state.map,state.pois]);if(key===this.mapKey)return;this.mapKey=key;
+  this.scenery=[];this.ponds=[];
+  for(let y=0;y<state.map.size;y++)for(let x=0;x<state.map.size;x++){
+   if(state.pois.some(n=>Math.hypot(x-n.x,y-n.y)<1.7))continue;
+   const region=this.region(state,x,y).id,n=this.noise(x,y),road=[10,32,50].includes(x)||[10,32,50].includes(y);
+   if(road){if([10,32,50].includes(x)&&y%7===0)this.scenery.push({x:x+.65,y,type:'lantern'});continue;}
+   if(region==='marsh'&&n>.73)this.ponds.push({x,y});
+   if(x%2||y%2||n<=(region==='forest'?.42:.72))continue;
+   const type=region==='works'||(region==='outskirts'&&n>.88)?'ruin':'tree';
+   if(type==='ruin'&&(x%4||y%4))continue;
+   this.scenery.push({x,y,type,seed:region==='marsh'?this.noise(y+12,x)*.4:region==='forest'?.5+this.noise(y,x)*.5:this.noise(y+7,x)});
+  }
  }
  setZoom(value) { this.zoom=Math.max(.65,Math.min(1.6,value)); return this.zoom; }
  toWorld(x,y) {
@@ -22,16 +46,16 @@ class WorldView {
    this.canvas.width=Math.round(width*ratio);this.canvas.height=Math.round(height*ratio);
   }
   c.setTransform(ratio,0,0,ratio,0,0);
-  const w=state.world,p=w.player,size=state.map.size;
-  if(!this.player||Math.hypot(this.player.x-p.x,this.player.y-p.y)>5)this.player={x:p.x,y:p.y};
-  const moving=Math.hypot(this.player.x-p.x,this.player.y-p.y)>.025;
-  const follow=1-Math.exp(-18*dt);
-  this.player.x+=(p.x-this.player.x)*follow;this.player.y+=(p.y-this.player.y)*follow;
+  const w=state.world,p=w.player,size=state.map.size,visual=this.prediction||p;
+  if(!this.player||Math.hypot(this.player.x-visual.x,this.player.y-visual.y)>5)this.player={x:visual.x,y:visual.y};
+  const moving=Math.hypot(this.player.x-visual.x,this.player.y-visual.y)>.025;
+  const follow=1-Math.exp(-30*dt);
+  this.player.x+=(visual.x-this.player.x)*follow;this.player.y+=(visual.y-this.player.y)*follow;
   if(!this.camera)this.camera={...this.player};
-  this.camera.x+=(this.player.x-this.camera.x)*(1-Math.exp(-10*dt));
-  this.camera.y+=(this.player.y-this.camera.y)*(1-Math.exp(-10*dt));
+  this.camera.x+=(this.player.x-this.camera.x)*(1-Math.exp(-16*dt));
+  this.camera.y+=(this.player.y-this.camera.y)*(1-Math.exp(-16*dt));
   const scale=this.zoom*(width<600?.85:1),tw=34*scale,th=17*scale;
-  this.projection={scale,tw,th,ox:width/2-(this.camera.x-this.camera.y)*tw,oy:height*.52-(this.camera.x+this.camera.y)*th};
+  this.projection={scale,tw,th,width,height,ox:width/2-(this.camera.x-this.camera.y)*tw,oy:height*.52-(this.camera.x+this.camera.y)*th};
   const art=this.art;art.sky(width,height,now);
   this.canvas.dataset.art=art.failed.length?'fallback':art.loaded===Object.keys(FIELD_SPRITES).length?'ready':'loading';
   const project=(x,y,z=0)=>this.project(x,y,z);
@@ -53,24 +77,15 @@ class WorldView {
   const minX=Math.max(0,Math.floor(Math.min(...corners.map(n=>n.x)))),maxX=Math.min(size-1,Math.ceil(Math.max(...corners.map(n=>n.x))));
   const minY=Math.max(0,Math.floor(Math.min(...corners.map(n=>n.y)))),maxY=Math.min(size-1,Math.ceil(Math.max(...corners.map(n=>n.y))));
   const visible=(x,y)=>x>=minX&&x<=maxX&&y>=minY&&y<=maxY;
-  const nearLandmark=(x,y)=>Math.hypot(x-w.base.x,y-w.base.y)<3||state.pois.some(n=>Math.hypot(x-n.x,y-n.y)<1.7);
-  const palettes={outskirts:['#3c4045','#404449','#42464b','#3e4347'],forest:['#2b3837','#2f3b39','#313e3b','#33403c'],marsh:['#304047','#33434a','#37474d','#35454c'],works:['#48464a','#4d494b','#49474a','#504b4c']};
-  const scenery=[],textured=art.ground(state,this.projection);
-  for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){
-   const region=this.region(state,x,y).id,n=this.noise(x,y),road=[10,32,50].includes(x)||[10,32,50].includes(y);
-   if(!textured)tile(x,y,road?'#515257':palettes[region][Math.floor(n*4)]);
-   const [sx,sy]=project(x,y);
-   if(road){
-    if((x===10||x===32||x===50)&&y%7===0&&!nearLandmark(x,y))scenery.push({x:x+.65,y,type:'lantern'});
-   }else{
-    // Ground details remain decorative; travel is intentionally unobstructed.
-    if(region==='marsh'&&n>.73&&!nearLandmark(x,y)){
-     ellipse(sx,sy,22,9,'#253842');ellipse(sx+3*scale,sy,14,4,'#93a8b02c');
-    }
-    if(!nearLandmark(x,y)&&x%2===0&&y%2===0&&n>(region==='forest'?.42:.72))scenery.push({x,y,type:region==='works'||(region==='outskirts'&&n>.88)?'ruin':'tree',seed:region==='marsh'?this.noise(y+12,x)*.4:region==='forest'?.5+this.noise(y,x)*.5:this.noise(y+7,x)});
-   }
+  this.prepareScenery(state);
+  const outsideCamp=e=>Math.hypot(e.x-w.base.x,e.y-w.base.y)>=3;
+  const scenery=this.scenery.filter(e=>visible(e.x,e.y)&&outsideCamp(e));
+  if(!art.ground(state,this.projection)){
+   const palettes={outskirts:'#404449',forest:'#2f3b39',marsh:'#33434a',works:'#4d494b'};
+   for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++)tile(x,y,[10,32,50].includes(x)||[10,32,50].includes(y)?'#515257':palettes[this.region(state,x,y).id]);
   }
-  for(let x=-2;x<=2;x++)for(let y=-2;y<=2;y++)if(!art.terrain('stone',this.projection,w.base.x+x,w.base.y+y,'#34303b16'))tile(w.base.x+x,w.base.y+y,'#5c5757');
+  for(const pond of this.ponds){if(!visible(pond.x,pond.y)||!outsideCamp(pond))continue;const [sx,sy]=project(pond.x,pond.y);ellipse(sx,sy,22,9,'#253842');ellipse(sx+3*scale,sy,14,4,'#93a8b02c');}
+  if(!art.campGround(w.base.x,w.base.y,this.projection))for(let x=-2;x<=2;x++)for(let y=-2;y<=2;y++)tile(w.base.x+x,w.base.y+y,'#5c5757');
   if(target){
    const [tx,ty]=project(target.x,target.y),[px,py]=project(this.player.x,this.player.y);
    c.setLineDash([3,9]);c.strokeStyle='#ead3a488';c.lineWidth=1.5;c.beginPath();c.moveTo(px,py);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);
@@ -83,6 +98,7 @@ class WorldView {
   const tree=(x,y,seed=0)=>{const [sx,sy]=project(x,y);art.tree(sx,sy,scale,seed);};
   for(const e of entities){
    const [sx,sy]=project(e.x,e.y),near=Math.hypot(p.x-e.x,p.y-e.y);
+   if(sx < -150*scale || sx > width+150*scale || sy < -40*scale || sy > height+290*scale)continue;
    const [px,py]=project(this.player.x,this.player.y);
    const tall=e.type==='base'||e.type==='ruin',treeLike=e.type==='tree'||e.kind==='wood';
    const occludes=(tall||treeLike||e.type==='facility'||['water','metal','blood'].includes(e.kind))&&Math.abs(px-sx)<(tall?95:treeLike?60:35)*scale&&py<sy+(tall?36:5)*scale&&py>sy-(tall?260:treeLike?205:95)*scale;
@@ -144,10 +160,8 @@ class WorldView {
   }
   for(const args of labels)label(...args);
   art.atmosphere(width,height,now);
-  const shade=c.createRadialGradient(width*.5,height*.45,height*.18,width*.5,height*.5,Math.max(width,height)*.68);
-  shade.addColorStop(0,'#080e1900');shade.addColorStop(1,'#080e1970');c.fillStyle=shade;c.fillRect(0,0,width,height);
   if(now<(effects.hurtUntil||0)){c.fillStyle='#9e294b2b';c.fillRect(0,0,width,height);}
-  this.drawMinimap(state,target);
+  if(!this.lastMinimap||now-this.lastMinimap>=100){this.drawMinimap(state,target);this.lastMinimap=now;}
  }
  drawMinimap(state,target) {
   const canvas=this.minimap,c=canvas.getContext('2d'),d=160,size=state.map.size,k=d/size;

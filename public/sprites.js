@@ -2,7 +2,7 @@
    sampled at render time. Rules and collision remain on the server. */
 class FieldArt extends GothicArt {
  constructor(context) {
-  super(context);this.images={};this.failed=[];this.loaded=0;this.patterns={};this.actors=new Map();
+  super(context);this.images={};this.failed=[];this.loaded=0;this.actors=new Map();this.rasters=new Map();
   if(typeof Image==='undefined')return; // Headless controller checks use the vector fallback.
   for(const key of Object.keys(FIELD_SPRITES)){
    const img=new Image();this.images[key]=img;
@@ -10,14 +10,46 @@ class FieldArt extends GothicArt {
    img.src='/art/gameplay/'+key+'.png';
   }
  }
+ screenLayer(name,width,height,paint){
+  if(typeof document==='undefined')return false;
+  const id=name+':'+width+':'+height;
+  if(!this.screenLayers||this.screenSize!==width+':'+height){this.screenLayers=new Map();this.screenSize=width+':'+height;}
+  if(!this.screenLayers.has(id)){
+   const canvas=document.createElement('canvas');canvas.width=Math.ceil(width/2);canvas.height=Math.ceil(height/2);
+   const g=canvas.getContext('2d');g.scale(.5,.5);paint(g);this.screenLayers.set(id,canvas);
+  }
+  this.c.drawImage(this.screenLayers.get(id),0,0,width,height);return true;
+ }
+ sky(width,height,now){
+  if(!this.screenLayer('sky',width,height,g=>new GothicArt(g).sky(width,height,0)))super.sky(width,height,now);
+ }
+ atmosphere(width,height,now){
+  if(!this.screenLayer('atmosphere',width,height,g=>{
+   new GothicArt(g).atmosphere(width,height,0);
+   const shade=g.createRadialGradient(width*.5,height*.45,height*.18,width*.5,height*.5,Math.max(width,height)*.68);
+   shade.addColorStop(0,'#080e1900');shade.addColorStop(1,'#080e1970');g.fillStyle=shade;g.fillRect(0,0,width,height);
+  }))super.atmosphere(width,height,now);
+ }
  ready(key){const img=this.images[key];return img?.complete&&img.naturalWidth>0;}
  sprite(key,x,y,height,frame=0,flip=false,bottom=0){
   if(!this.ready(key))return false;
   const c=this.c,img=this.images[key],rect=FIELD_SPRITES[key].frames[frame], [sx,sy,sw,sh]=rect;
   const width=height*sw/sh;
+  let source=img,sourceRect=[sx,sy,sw,sh];
+  if(typeof document!=='undefined'){
+   const id=key+':'+frame;let raster=this.rasters.get(id);
+   if(!raster){
+    // Fixed, bounded runtime mip level. Original artwork files remain intact.
+    const h=Math.min(sh,['pine','dead-tree','refuge','ruin'].includes(key)?640:320);
+    raster=document.createElement('canvas');raster.height=h;raster.width=Math.ceil(h*sw/sh);
+    const g=raster.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(img,sx,sy,sw,sh,0,0,raster.width,raster.height);
+    this.rasters.set(id,raster);
+   }
+   source=raster;sourceRect=[0,0,raster.width,raster.height];
+  }
   c.save();c.translate(x,y+bottom);if(flip)c.scale(-1,1);
-  c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
-  c.drawImage(img,sx,sy,sw,sh,-width/2,-height,width,height);c.restore();return true;
+  c.imageSmoothingEnabled=true;c.imageSmoothingQuality='low';
+  c.drawImage(source,...sourceRect,-width/2,-height,width,height);c.restore();return true;
  }
  shadow(x,y,width,scale){this.oval(x+4*scale,y+3*scale,width*scale,width*.34*scale,'#070b1080');}
  tree(x,y,scale,seed=.7){
@@ -56,33 +88,46 @@ class FieldArt extends GothicArt {
  ground(state,projection){
   if(!this.ready('earth')||!this.ready('stone')||typeof DOMMatrix==='undefined')return false;
   const size=state.map.size;
-  if(!this.groundCache){
-   // Bake static terrain once, rather than resampling two large textures for
-   // hundreds of tiny diamonds on every animation frame (especially on mobile).
-   const canvas=document.createElement('canvas'),density=48;canvas.width=canvas.height=size*density;
-   const g=canvas.getContext('2d');g.scale(density,density);
+  if(!this.groundCache||this.groundSize!==size){
+   // Project static terrain once. Frames copy only the visible rectangle;
+   // they never rotate/resample the entire 64x64 terrain texture again.
+   const canvas=document.createElement('canvas');canvas.width=size*68;canvas.height=size*34;
+   const g=canvas.getContext('2d');g.setTransform(34,17,-34,17,size*34,17);
    const patterns={};
-   for(const key of ['stone','earth']){patterns[key]=g.createPattern(this.images[key],'repeat');patterns[key].setTransform(new DOMMatrix().scale(8/this.images[key].naturalWidth));}
-   for(let y=0;y<size;y++)for(let x=0;x<size;x++){
-    const region=state.map.regions.find(r=>x>=r.x&&y>=r.y&&x<r.x+r.width&&y<r.y+r.height)?.id||'outskirts';
-    const road=[10,32,50].includes(x)||[10,32,50].includes(y);
-    g.fillStyle=patterns[road||region==='works'?'stone':'earth'];g.fillRect(x,y,1,1);
-    g.fillStyle=road?'#14202a16':{outskirts:'#252b3230',forest:'#1d393c24',marsh:'#25425055',works:'#312b3538'}[region];g.fillRect(x,y,1,1);
+   for(const key of ['stone','earth']){
+    const texture=document.createElement('canvas');texture.width=texture.height=384;
+    texture.getContext('2d').drawImage(this.images[key],0,0,384,384);
+    patterns[key]=g.createPattern(texture,'repeat');patterns[key].setTransform(new DOMMatrix().scale(8/384));
    }
-   this.groundCache=canvas;
+   for(const r of state.map.regions){
+    g.fillStyle=patterns[r.id==='works'?'stone':'earth'];g.fillRect(r.x-.5,r.y-.5,r.width,r.height);
+    g.fillStyle={outskirts:'#252b3230',forest:'#1d393c24',marsh:'#25425055',works:'#312b3538'}[r.id];g.fillRect(r.x-.5,r.y-.5,r.width,r.height);
+   }
+   for(const n of [10,32,50]){
+    g.fillStyle=patterns.stone;g.fillRect(n-.5,-.5,1,size);g.fillRect(-.5,n-.5,size,1);
+    g.fillStyle='#14202a16';g.fillRect(n-.5,-.5,1,size);g.fillRect(-.5,n-.5,size,1);
+   }
+   this.groundCache=canvas;this.groundSize=size;
   }
-  const c=this.c,{tw,th,ox,oy}=projection;c.save();c.transform(tw,th,-tw,th,ox,oy);
-  c.drawImage(this.groundCache,-.5,-.5,size,size);c.restore();return true;
+  const c=this.c,{scale,ox,oy,width,height}=projection,img=this.groundCache;
+  const left=ox-size*34*scale,top=oy-17*scale;
+  const sx=Math.max(0,-left/scale),sy=Math.max(0,-top/scale);
+  const sw=Math.min(img.width-sx,(width-left)/scale-sx),sh=Math.min(img.height-sy,(height-top)/scale-sy);
+  if(sw>0&&sh>0)c.drawImage(img,sx,sy,sw,sh,left+sx*scale,top+sy*scale,sw*scale,sh*scale);
+  return true;
  }
- terrain(key,projection,x,y,tint){
-  if(!this.ready(key)||typeof DOMMatrix==='undefined')return false;
-  const c=this.c,{tw,th,ox,oy}=projection;
-  if(!this.patterns[key]){
-   const pattern=c.createPattern(this.images[key],'repeat');
-   pattern.setTransform(new DOMMatrix().scale(8/this.images[key].naturalWidth));this.patterns[key]=pattern;
+
+ campGround(x,y,projection){
+  if(!this.ready('stone')||typeof DOMMatrix==='undefined')return false;
+  const c=this.c,{scale,tw,th,ox,oy,width,height}=projection;
+  const sx=ox+(x-y)*tw,sy=oy+(x+y)*th;
+  if(sx+170*scale<0||sx-170*scale>width||sy+85*scale<0||sy-85*scale>height)return true;
+  if(!this.campCache){
+   const canvas=document.createElement('canvas');canvas.width=340;canvas.height=170;
+   const g=canvas.getContext('2d');g.setTransform(34,17,-34,17,170,85);
+   const pattern=g.createPattern(this.images.stone,'repeat');pattern.setTransform(new DOMMatrix().scale(8/this.images.stone.naturalWidth));
+   g.fillStyle=pattern;g.fillRect(-2.5,-2.5,5,5);g.fillStyle='#34303b16';g.fillRect(-2.5,-2.5,5,5);this.campCache=canvas;
   }
-  c.save();c.transform(tw,th,-tw,th,ox,oy);c.fillStyle=this.patterns[key];
-  c.fillRect(x-.505,y-.505,1.01,1.01);
-  if(tint){c.fillStyle=tint;c.fillRect(x-.505,y-.505,1.01,1.01);}c.restore();return true;
+  c.drawImage(this.campCache,sx-170*scale,sy-85*scale,340*scale,170*scale);return true;
  }
 }

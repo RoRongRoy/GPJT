@@ -52,16 +52,21 @@ async function command(action, fields={}) {
   if(action!=='move'){pendingAction={action,fields};schedulePending();}
   return;
  }
- busy=true;
+ busy=true;lastCommandAt=performance.now();
+ if(action==='move')view.predictMove(state,fields);
  try {
-  accept(await api('/api/action',{revision:state.world.revision,command:{action,...fields}}));
+  const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
+  if(action==='move')view.endMove(true);
+  accept(result);
   if(action==='attack')attackUntil=performance.now()+260;
  }catch(e){
+  if(action==='move')view.endMove(false);
   if(e.status===409){
    try{accept(await api('/api/state'));}catch{connected=false;clearMovement();}
   }else if(!e.status){connected=false;clearMovement();}
   if(action!=='move')toast(e.message);
  }finally{
+  // The server rate limit starts after its commit; retain this safety gap.
   lastCommandAt=performance.now();busy=false;schedulePending();
  }
 }
@@ -110,7 +115,6 @@ function update() {
  $('mobility').textContent=`이동 연구: ${forms[tier]} · ${p.mounted?'사용 중':'미사용'}`;
  document.querySelectorAll('[data-item]').forEach(b=>{const id=b.dataset.item;b.disabled=w.paused||!w.inventory[id]||(p.species==='human'?['blood','elixir'].includes(id):['soup','water'].includes(id));});
  renderRecipe();
- draw();
 }
 function draw(){view.draw(state,target,selected,{attackUntil,hurtUntil});}
 function clearMovement(){held.clear();touchHeld.clear();target=null;document.querySelectorAll('[data-direction]').forEach(b=>b.classList.remove('pressed'));}
@@ -260,7 +264,7 @@ for(const button of document.querySelectorAll('[data-direction]')){
 }
 function stepMovement(){
  if(!state||!connected||busy||pendingAction||state.world.paused||!state.world.player.chosen||document.hidden)return;
- const now=performance.now();if(now-lastMove<140)return;
+ const now=performance.now();if(now-lastMove<140||now-lastCommandAt<75)return;
  let {dx,dy}=screenDirection();
  if(target&&!dx&&!dy){
   const p=state.world.player,m=state.map.movement;

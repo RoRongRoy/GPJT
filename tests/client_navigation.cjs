@@ -11,6 +11,7 @@ vm.runInContext(fs.readFileSync('public/sprite-manifest.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/sprites.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/world.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/app.js','utf8'),sandbox);
+const originalCommand=vm.runInContext('command',sandbox);
 const python=process.env.PYTHON || 'python';
 const fixture=JSON.parse(execFileSync(python,['-c',"import json;from server.game import new_world,POIS,ITEMS,RECIPES;from server.worldmap import WORLD_MAP;print(json.dumps({'world':new_world(),'pois':POIS,'items':ITEMS,'map':WORLD_MAP,'recipes':RECIPES}))"],{encoding:'utf8'}));
 sandbox.fixture=fixture;
@@ -70,3 +71,33 @@ assert.equal(vm.runInContext('openPanel("bag")',sandbox),true);
 vm.runInContext('connected=false;updateContext()',sandbox);
 assert.equal(vm.runInContext('activePanel',sandbox),null);
 console.log('Contextual menu checks passed: camp radius, leaving camp, remote access and disconnect.');
+
+// Use the real async command path with a delayed transport. Visual prediction must
+// never spend resources, mutate authoritative positions or queue released input.
+(async()=>{
+ sandbox.originalCommand=originalCommand;now+=10000;let requests=[];
+ sandbox.fetch=(url,options)=>new Promise(resolve=>requests.push({url,body:JSON.parse(options.body),resolve}));
+ vm.runInContext("command=originalCommand;state.world.paused=false;state.world.player.chosen=true;state.world.player.mounted=false;state.world.player.x=6;state.world.player.y=7;connected=true;busy=false;pendingAction=null;clearMovement();lastMove=-Infinity;lastCommandAt=performance.now()-20;view.player={x:6,y:7};",sandbox);
+ key('keydown','d');assert.equal(requests.length,0);assert.equal(vm.runInContext('lastMove',sandbox),-Infinity,'Blocked input must not start the movement cooldown');
+ now+=60;intervals[0]();assert.equal(requests.length,1);
+ const start=vm.runInContext('({x:state.world.player.x,y:state.world.player.y})',sandbox);
+ const predicted=vm.runInContext('({...view.prediction})',sandbox);
+ assert.ok(predicted.x>start.x&&predicted.y<start.y);
+ assert.ok(Math.abs(Math.hypot(predicted.x-start.x,predicted.y-start.y)-fixture.map.movement.step)<1e-8);
+ vm.runInContext('draw()',sandbox);assert.ok(vm.runInContext('view.player.x>state.world.player.x',sandbox),'Move should be visible before the response');
+ assert.equal(vm.runInContext('state.world.player.x',sandbox),start.x,'Prediction must not mutate server state');
+ key('keyup','d');now+=200;intervals[0]();assert.equal(requests.length,1,'No catch-up movement while a request is pending');
+ const accepted=vm.runInContext('JSON.parse(JSON.stringify(state))',sandbox);accepted.world.player.x=predicted.x;accepted.world.player.y=predicted.y;accepted.world.revision++;
+ requests[0].resolve({ok:true,json:async()=>accepted});await new Promise(setImmediate);
+ assert.equal(vm.runInContext('view.prediction',sandbox),null);assert.equal(vm.runInContext('busy',sandbox),false);
+ intervals[0]();assert.equal(requests.length,1,'Key release must prevent another command after a delayed response');
+ // Respect the server commit-rate gap, then send the current held direction
+ // rather than an old queued movement or a fresh 140ms input penalty.
+ key('keydown','w');assert.equal(requests.length,1);now+=76;intervals[0]();assert.equal(requests.length,2);assert.equal(requests[1].body.command.dx,-1);assert.equal(requests[1].body.command.dy,-1);key('keyup','w');
+ requests[1].resolve({ok:false,status:400,json:async()=>({error:'Rejected move'})});await new Promise(setImmediate);
+ assert.equal(vm.runInContext('view.prediction',sandbox),null);assert.equal(vm.runInContext('view.player',sandbox),null,'Rejected prediction must snap back on the next frame');
+ assert.equal(vm.runInContext('state.world.player.x',sandbox),predicted.x);
+ vm.runInContext('state.world.player.x=62;state.world.player.y=62;view.predictMove(state,{dx:1,dy:1})',sandbox);
+ assert.equal(vm.runInContext('view.prediction.x',sandbox),62,'Prediction must respect map boundaries');
+ console.log('Input latency checks passed: throttled input retry, one-step prediction, authoritative reconciliation, delayed response/key release, reversal, rejection and map bounds.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

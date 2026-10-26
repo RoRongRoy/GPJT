@@ -28,3 +28,11 @@ art.images.pine.complete=false;art.images.pine.naturalWidth=0;art.images.pine.on
 assert.deepEqual(Array.from(art.failed),['pine']);assert.equal(art.sprite('pine',0,0,200),false);
 assert.doesNotThrow(()=>art.tree(0,0,1,.8),'Failed assets must retain a drawable fallback');
 console.log('Field art passed: 11 PNG dimensions, atlas bounds, directional movement/idle/pause, frame sampling and loading/error fallback.');
+
+// Repeated zooms must reuse bounded raster frames instead of re-sampling PNGs.
+let samples=0;
+sandbox.document={createElement:()=>({width:0,height:0,getContext:()=>({drawImage(){samples++;}})})};
+for(let i=0;i<100;i++)art.sprite('refuge',100,100,180+i*2);
+assert.equal(samples,1);assert.equal(art.rasters.size,1);
+assert.ok(art.rasters.get('refuge:0').height<=640);
+console.log('Runtime sprite cache passed: repeated zooms reuse one bounded raster.');

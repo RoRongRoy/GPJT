@@ -79,6 +79,23 @@ async function until(check,message,timeout=10000){
   const up=(await readState()).world.player;
   assert.ok(up.x+up.y<after.x+after.y,'W must move up on screen');
   assert.equal(await page.locator('#menu-dialog').isVisible(),false,'Moving should close the menu');
+  // Delay an actual movement request: its first visual response must precede
+  // server acceptance, and releasing the key must not leave queued movement.
+  await page.evaluate(()=>{
+   const original=WorldView.prototype.draw;
+   WorldView.prototype.draw=function(...args){const result=original.apply(this,args);window.inputProbe={player:{...this.player},prediction:this.prediction&&{...this.prediction}};return result;};
+  });
+  const delayMove=async route=>{if(route.request().postDataJSON()?.command?.action==='move')await delay(400);await route.continue();};
+  await page.route('**/api/action',delayMove);
+  await delay(180);const latencyStart=(await readState()).world.player;
+  await page.keyboard.down('d');
+  await until(()=>page.evaluate(()=>Boolean(window.inputProbe?.prediction)&&window.inputProbe.player.x>window.inputProbe.prediction.x-.33),'Movement did not appear while the request was delayed',300);
+  await page.keyboard.up('d');
+  assert.equal((await readState()).world.player.x,latencyStart.x,'Visual prediction must not bypass server authority');
+  await until(async()=> (await readState()).world.player.x>latencyStart.x,'Delayed move did not reconcile');
+  await delay(250);const latencyEnd=(await readState()).world.player;
+  assert.ok(Math.abs(Math.hypot(latencyEnd.x-latencyStart.x,latencyEnd.y-latencyStart.y)-initial.map.movement.step)<.001,'Released input queued extra movement');
+  await page.unroute('**/api/action',delayMove);
   const atlas=await page.locator('#minimap').boundingBox();
   async function mapClick(x,y){await page.mouse.click(atlas.x+x/64*atlas.width,atlas.y+y/64*atlas.height);}
   // Click the upper part of the visible tree, not only its ground coordinate.

@@ -2,7 +2,7 @@
 
 **싱글 생존·하우징 중심의 2D 쿼터뷰 웹게임 프로토타입.** 개인 PC에서 서버를 실행하고 브라우저 링크로 접속합니다. 시즌·과금은 없습니다.
 
-현재 버전은 **P0 / 0.5.0**입니다. GDD v0.7의 모든 기능을 구현한 완성 게임이 아닙니다. 전체 기획과 개발 문서는 포함하며, 실행 코드는 핵심 생활 루프를 검증하는 수직 단면입니다. 프로젝트 전용으로 생성한 건물·나무·시설 스프라이트, 인간/뱀파이어·감염체의 방향별 보행 프레임과 석재·흙 지형 텍스처를 Canvas 쿼터뷰 필드에 사용합니다.
+현재 버전은 **P0 / 0.5.1**입니다. GDD v0.7의 모든 기능을 구현한 완성 게임이 아닙니다. 전체 기획과 개발 문서는 포함하며, 실행 코드는 핵심 생활 루프를 검증하는 수직 단면입니다. 프로젝트 전용으로 생성한 건물·나무·시설 스프라이트, 인간/뱀파이어·감염체의 방향별 보행 프레임과 석재·흙 지형 텍스처를 Canvas 쿼터뷰 필드에 사용합니다.
 
 ## 바로 실행
 
@@ -36,7 +36,7 @@ python3 -m server.main
 
 `M`: 연구한 이동 형태 사용/해제. `일시정지`: 서버 월드 정지. 브라우저를 닫거나 숨기면 마지막 heartbeat 이후 약 1.2초 안에 활동 시간이 멈춥니다. 서버는 접속을 기다립니다.
 
-## 0.5.0 · Nocturne 아트워크
+## 0.5.1 · Nocturne 아트워크
 
 다크에덴 PC판의 고딕 도시·인간/뱀파이어 대비를 분위기 참고로 삼아 **BLOODFALL용 신규 아트**를 적용했습니다.
 
@@ -110,6 +110,8 @@ node --check public/world.js
 node --check public/gothic.js
 node tests/client_navigation.cjs
 node tests/field_art.cjs
+# 선택 성능 측정 (Playwright/Chromium 필요)
+node tests/render_performance.cjs
 ```
 
 Node는 JavaScript 문법·클라이언트 자동 검사에 쓰며 게임 실행에는 필요하지 않습니다. GitHub Actions도 포함되어 있습니다. Playwright와 Chromium이 있는 환경에서는 `node tests/browser_smoke.cjs`로 임시 월드를 사용한 실제 브라우저 검사를 실행할 수 있습니다. [검증 기록](docs/VALIDATION.md)을 참고하세요.
