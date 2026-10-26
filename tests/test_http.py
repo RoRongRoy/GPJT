@@ -40,6 +40,8 @@ class HttpTests(unittest.TestCase):
         status, body = self.request('/api/state')
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(body)['map']['size'], 64)
+        self.assertEqual(json.loads(body)['map']['base_radius'], 2.8)
+        self.assertEqual(json.loads(body)['recipes']['soup']['facility'], 'kitchen')
         self.assertEqual(self.request('/api/state', session='second-test-session')[0], 409)
 
     def test_action_persists_and_replay_rejected(self):
@@ -57,6 +59,24 @@ class HttpTests(unittest.TestCase):
         payload = {'revision':0, 'command': {'action':'build', 'facility':'kitchen'}}
         self.assertEqual(self.request('/api/action', payload)[0], 400)
         self.assertEqual(before, self.runtime.store.load())
+
+    def test_all_camp_operations_reject_remote_requests_without_spending(self):
+        world = self.runtime.world
+        world['player'].update(chosen=True, x=40, y=40)
+        world['base']['facilities'].update(kitchen=1, medical=1)
+        self.runtime.store.save(world)
+        before = self.runtime.store.load()
+        for command in [
+            {'action': 'craft', 'recipe': 'soup'},
+            {'action': 'build', 'facility': 'alchemy'},
+            {'action': 'enhance'}, {'action': 'research'},
+            {'action': 'convert'}, {'action': 'dispatch'},
+        ]:
+            with self.subTest(command=command):
+                status, _ = self.request('/api/action', {'revision': world['revision'], 'command': command})
+                self.assertEqual(status, 400)
+                self.assertEqual(self.runtime.store.load(), before)
+                self.assertEqual(world, before)
 
     def test_bad_action_shape(self):
         self.assertEqual(self.request('/api/action', {'command': []})[0], 400)

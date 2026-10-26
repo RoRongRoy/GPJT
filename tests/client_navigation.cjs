@@ -3,13 +3,13 @@ const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/st
 const {execFileSync}=require('node:child_process');
 const nodes=new Map(),intervals=[],windowEvents={},documentEvents={};let now=0;
 const ctx=new Proxy({}, {get:(_,key)=>key==='measureText'?()=>({width:30}):key==='createRadialGradient'?()=>({addColorStop(){}}):()=>{},set:()=>true});
-function node(){return {textContent:'',hidden:false,style:{},classList:{add(){},remove(){}},append(){},replaceChildren(){},addEventListener(){},getBoundingClientRect:()=>({width:1000,height:600,left:0,top:0}),getContext:()=>ctx,focus(){}};}
+function node(){return {textContent:'',hidden:false,style:{},classList:{add(){},remove(){}},append(){},replaceChildren(){},addEventListener(){},setAttribute(){},show(){this.open=true;},close(){this.open=false;},getBoundingClientRect:()=>({width:1000,height:600,left:0,top:0}),getContext:()=>ctx,focus(){}};}
 const sandbox={console,URLSearchParams,location:{hash:'',pathname:'/'},sessionStorage:{getItem:()=>null},crypto:{randomUUID:()=> 'test-session-id'},history:{},document:{hidden:false,getElementById:id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},createElement:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>documentEvents[name]=fn},window:{devicePixelRatio:1,addEventListener:(name,fn)=>windowEvents[name]=fn},performance:{now:()=>now},setInterval:fn=>intervals.push(fn),setTimeout:()=>0,clearTimeout(){},requestAnimationFrame(){},AbortSignal,fetch:()=>new Promise(()=>{})};
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync('public/world.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/app.js','utf8'),sandbox);
 const python=process.env.PYTHON || 'python';
-const fixture=JSON.parse(execFileSync(python,['-c',"import json;from server.game import new_world,POIS,ITEMS;from server.worldmap import WORLD_MAP;print(json.dumps({'world':new_world(),'pois':POIS,'items':ITEMS,'map':WORLD_MAP}))"],{encoding:'utf8'}));
+const fixture=JSON.parse(execFileSync(python,['-c',"import json;from server.game import new_world,POIS,ITEMS,RECIPES;from server.worldmap import WORLD_MAP;print(json.dumps({'world':new_world(),'pois':POIS,'items':ITEMS,'map':WORLD_MAP,'recipes':RECIPES}))"],{encoding:'utf8'}));
 sandbox.fixture=fixture;
 vm.runInContext('state=fixture;connected=true;state.world.player.chosen=true;command=(action,fields={})=>{if(action===\'move\'){const p=state.world.player,m=state.map.movement,s=m.step*(p.mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1),n=Math.hypot(fields.dx,fields.dy);p.x+=fields.dx/n*s;p.y+=fields.dy/n*s;}else globalThis.lastAction={action,...fields};};update();',sandbox);
 for(const mounted of [false,true])for(const destination of [[1,1],[20,20],[1,20],[20,1],[6.2,7.1],[8,4],[62,62],[1,62],[62,1],[43,15],[9,51],[55,52]]){
@@ -50,3 +50,20 @@ for(const zoom of [.65,1,1.6]){
 }
 vm.runInContext('view.setZoom(99)',sandbox);assert.equal(vm.runInContext('view.zoom',sandbox),1.6);
 console.log('Client navigation: 24 walking/mounted destinations, gathering, screen-relative controls, cancellation, camera projection and guide completion passed.');
+
+// Camp details share the server radius and close if authoritative position changes.
+vm.runInContext('state.world.paused=false;state.world.player.x=6;state.world.player.y=7;connected=true;update()',sandbox);
+assert.equal(vm.runInContext('openPanel("craft")',sandbox),true);
+assert.equal(vm.runInContext('activePanel',sandbox),'craft');
+vm.runInContext('state.world.player.x=40;state.world.player.y=40;update()',sandbox);
+assert.equal(vm.runInContext('activePanel',sandbox),null);
+assert.equal(nodes.get('menu-camp').hidden,true);
+assert.equal(vm.runInContext('openPanel("craft")',sandbox),false);
+vm.runInContext('state.world.player.x=6;state.world.player.y=8.79;update()',sandbox);
+assert.equal(vm.runInContext('canUseCamp()',sandbox),true);
+vm.runInContext('state.world.player.y=8.81;update()',sandbox);
+assert.equal(vm.runInContext('canUseCamp()',sandbox),false);
+assert.equal(vm.runInContext('openPanel("bag")',sandbox),true);
+vm.runInContext('connected=false;updateContext()',sandbox);
+assert.equal(vm.runInContext('activePanel',sandbox),null);
+console.log('Contextual menu checks passed: camp radius, leaving camp, remote access and disconnect.');

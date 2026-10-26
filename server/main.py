@@ -10,7 +10,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
-from .game import act, tick, RuleError, POIS, ITEMS
+from .game import act, tick, RuleError, POIS, ITEMS, RECIPES
 from .storage import Store
 from .worldmap import WORLD_MAP
 
@@ -33,7 +33,7 @@ class Runtime:
         self.session, self.last_seen = token, now
 
     def snapshot(self):
-        return {'world': self.world, 'pois': POIS, 'items': ITEMS, 'map': WORLD_MAP}
+        return {'world': self.world, 'pois': POIS, 'items': ITEMS, 'map': WORLD_MAP, 'recipes': RECIPES}
 
 
 def make_handler(runtime, access_key):

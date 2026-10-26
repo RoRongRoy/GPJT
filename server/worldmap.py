@@ -1,5 +1,6 @@
 """Authored world layout shared with clients; existing landmark IDs stay stable."""
 SIZE = 64
+BASE_USE_RADIUS = 2.8
 MOVEMENT = {'step': .48, 'interval': .10, 'mount_base': 1.55, 'mount_tier': .25}
 REGIONS = [
     {'id': 'outskirts', 'name': '버려진 외곽', 'subtitle': '옛 야영지와 생존자의 길',
@@ -11,7 +12,7 @@ REGIONS = [
     {'id': 'works', 'name': '침묵의 공업지대', 'subtitle': '녹슨 지붕 아래 남은 물자',
      'x': 32, 'y': 32, 'width': 32, 'height': 32, 'color': '#8c705c'},
 ]
-WORLD_MAP = {'size': SIZE, 'regions': REGIONS, 'movement': MOVEMENT}
+WORLD_MAP = {'size': SIZE, 'regions': REGIONS, 'movement': MOVEMENT, 'base_radius': BASE_USE_RADIUS}
 POIS = [
     {'id': 'grove', 'x': 4, 'y': 8, 'label': '숲 · 목재', 'kind': 'wood'},
     {'id': 'well', 'x': 8, 'y': 4, 'label': '샘 · 식수', 'kind': 'water'},

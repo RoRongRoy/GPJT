@@ -2,7 +2,7 @@
 import math
 import random
 
-from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy
+from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS
 
 RECIPES = {
     'soup': {'cost': {'crop': 2, 'water': 1}, 'facility': 'kitchen', 'name': '채소 수프'},
@@ -52,7 +52,7 @@ def spend(w, costs):
 
 
 def at_base(w):
-    require(dist(w['player'], w['base']) <= 2.8, '아지트 가까이에서 이용하세요.')
+    require(dist(w['player'], w['base']) <= BASE_USE_RADIUS, '아지트 가까이에서 이용하세요.')
 
 
 def threat(w):

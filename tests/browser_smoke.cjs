@@ -37,7 +37,7 @@ async function until(check,message,timeout=10000){
   await until(()=>Boolean(session),'Session missing');
   await until(()=>page.locator('#connection').textContent().then(t=>t.includes('자동 저장')),'Client did not connect');
   assert.equal(await page.evaluate(()=>location.hash),'');
-  if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-welcome.png'),fullPage:true});
+  if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-welcome.png'),fullPage:true,animations:'disabled'});
   async function readState(activePage=page){
    return activePage.evaluate(async session=>{
     const response=await fetch('/api/state',{headers:{'X-Access-Key':sessionStorage.getItem('bloodfall-key'),'X-Session-ID':session}});
@@ -48,8 +48,24 @@ async function until(check,message,timeout=10000){
   await page.locator('[data-species=human]').click();
   await page.locator('#welcome').waitFor({state:'hidden'});
   const initial=await readState();assert.equal(initial.map.size,64);assert.equal(initial.map.regions.length,4);
-  await page.locator('#tab-bag').click();
-  assert.equal(await page.locator('#panel-bag').isVisible(),true);
+  assert.equal(await page.locator('#menu-dialog').isVisible(),false,'Details must start closed');
+  assert.equal(await page.locator('#meters').isVisible(),false);
+  assert.equal(await page.locator('#craft-submit').isVisible(),false);
+  await page.locator('#menu-bag').click();
+  assert.equal(await page.locator('[data-view=bag]').isVisible(),true);
+  await page.locator('[data-filter=supplies]').click();
+  assert.equal(await page.locator('[data-filter=supplies]').getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator('[data-filter=materials]').getAttribute('aria-pressed'),'false');
+  assert.ok((await page.locator('#inventory').textContent()).includes('채소 수프'));
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#menu-dialog').isVisible(),false);
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'menu-bag','Closing must return focus');
+  await page.locator('#menu-journal').click();await page.locator('[data-panel=quests]').click();
+  assert.equal(await page.locator('[data-view=quests]').isVisible(),true);
+  assert.equal(await page.locator('[data-view]:not([hidden])').count(),1,'Only one category can be shown');
+  await page.locator('#menu-back').click();assert.equal(await page.locator('[data-view=journal]').isVisible(),true);
+  await page.locator('#menu-close').click();
+  await page.locator('#menu-bag').click();
   const before=(await readState()).world.player;
   await page.keyboard.down('d');await delay(550);await page.keyboard.up('d');
   const after=(await readState()).world.player;
@@ -57,7 +73,7 @@ async function until(check,message,timeout=10000){
   await page.keyboard.down('w');await delay(400);await page.keyboard.up('w');
   const up=(await readState()).world.player;
   assert.ok(up.x+up.y<after.x+after.y,'W must move up on screen');
-  await page.locator('#tab-camp').click();
+  assert.equal(await page.locator('#menu-dialog').isVisible(),false,'Moving should close the menu');
   const atlas=await page.locator('#minimap').boundingBox();
   async function mapClick(x,y){await page.mouse.click(atlas.x+x/64*atlas.width,atlas.y+y/64*atlas.height);}
   // Click the upper part of the visible tree, not only its ground coordinate.
@@ -78,22 +94,44 @@ async function until(check,message,timeout=10000){
   await page.locator('#go-home').click();
   await until(async()=>{const w=(await readState()).world;return Math.hypot(w.player.x-w.base.x,w.player.y-w.base.y)<.5;},'Home navigation failed');
   await delay(300);
+  assert.equal(await page.locator('#menu-camp').isVisible(),true,'Camp category must be available at home');
+  await page.locator('#menu-camp').click();
+  assert.equal(await page.locator('[data-view=camp]').isVisible(),true);
+  assert.equal(await page.locator('#craft-submit').isVisible(),false,'Camp landing should show categories, not all controls');
+  await page.locator('[data-panel=craft]').click();
+  assert.equal(await page.locator('#craft-submit').isDisabled(),true,'Missing kitchen should block crafting');
+  assert.ok((await page.locator('#recipe-status').textContent()).includes('주방'));
+  await page.locator('[data-craft=elixir]').click();assert.equal(await page.locator('#recipe-name').textContent(),'안정화 혈액');
+  await page.locator('[data-craft=soup]').click();
+  await page.locator('#menu-back').click();await page.locator('[data-panel=build]').click();
   const build=page.locator('#facilities .facility').first().getByRole('button');
   const original=await build.elementHandle();await delay(500);
   assert.equal(await original.evaluate(e=>e.isConnected),true,'Polling replaced the focused build button');
   await build.click();
   await until(async()=> (await readState()).world.base.facilities.kitchen===1,'Kitchen construction failed');
-  await page.locator('[data-recipe=soup]').click();
+  await page.locator('#menu-back').click();await page.locator('[data-panel=craft]').click();
+  assert.equal(await page.locator('#craft-submit').isDisabled(),false);
+  if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-crafting.png'),fullPage:true,animations:'disabled'});
+  await page.locator('#craft-submit').click();
   await until(async()=> (await readState()).world.milestones.includes('craft:soup'),'Craft failed');
+  await page.locator('#menu-survival').click();
   await delay(100);await page.locator('[data-item=soup]').click();
   await until(async()=> (await readState()).world.milestones.includes('consume:soup'),'Consumption failed');
-  if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-camp.png'),fullPage:true});
+  await page.locator('#menu-close').click();
+  if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-camp.png'),fullPage:true,animations:'disabled'});
   // Cross the old 22-tile boundary and visit a new region using actual movement requests.
   const forestWood=(await readState()).world.inventory.wood;
+  await page.locator('#menu-camp').click();await page.locator('[data-panel=craft]').click();
+  await page.keyboard.down('d');await delay(160);await page.keyboard.up('d');
+  assert.equal(await page.locator('#menu-dialog').isVisible(),false,'Movement must dismiss crafting');
   await mapClick(37,9);
   await until(async()=>{const s=await readState();return s.world.inventory.wood>=forestWood+3;},'Expanded-map navigation/gather failed',25000);
   assert.equal(await page.locator('#region-name').textContent(),'잿빛 소나무숲');
-  if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-forest.png'),fullPage:true});
+  assert.equal(await page.locator('#menu-camp').isVisible(),false,'Camp category must disappear outside camp');
+  assert.equal(await page.locator('#camp-access').isVisible(),false);
+  assert.equal(await page.locator('#craft-submit').isVisible(),false);
+  await page.keyboard.press('b');assert.equal(await page.locator('#menu-dialog').isVisible(),false,'Shortcut cannot open remote crafting');
+  if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-forest.png'),fullPage:true,animations:'disabled'});
   await mapClick(54,24);await page.keyboard.press('Escape');await delay(250);
   const stopped=(await readState()).world.player;await delay(400);
   const still=(await readState()).world.player;assert.equal(still.x,stopped.x);assert.equal(still.y,stopped.y);
@@ -104,8 +142,13 @@ async function until(check,message,timeout=10000){
   await mobile.goto(url+'/#key='+key);
   await until(()=>mobile.locator('#connection').textContent().then(t=>t.includes('자동 저장')),'Mobile did not connect');
   assert.equal(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile horizontal overflow');
-  await mobile.locator('#tab-bag').tap();assert.equal(await mobile.locator('#panel-bag').isVisible(),true);
-  await mobile.locator('#tab-camp').tap();
+  assert.equal(await mobile.locator('#menu-camp').isVisible(),false);
+  await mobile.locator('#menu-bag').tap();assert.equal(await mobile.locator('[data-view=bag]').isVisible(),true);
+  await mobile.locator('[data-filter=supplies]').tap();
+  assert.equal(await mobile.locator('[data-filter=supplies]').getAttribute('aria-pressed'),'true');
+  assert.equal(await mobile.locator('[data-filter=materials]').getAttribute('aria-pressed'),'false');
+  if(screenshots)await mobile.screenshot({path:path.join(screenshots,'mobile-inventory.png'),fullPage:true,animations:'disabled'});
+  await mobile.locator('#menu-close').tap();
   const mobileBefore=(await readState(mobile)).world.player;
   await mobile.locator('[data-direction=down]').scrollIntoViewIfNeeded();
   const down=await mobile.locator('[data-direction=down]').boundingBox();
@@ -116,10 +159,19 @@ async function until(check,message,timeout=10000){
   assert.ok(mobileAfter.x>mobileBefore.x&&mobileAfter.y>mobileBefore.y,'Touch direction pad did not move down');
   await delay(200);const released=(await readState(mobile)).world.player;await delay(400);
   assert.equal((await readState(mobile)).world.player.x,released.x,'Pointer release did not stop movement');
-  if(screenshots)await mobile.screenshot({path:path.join(screenshots,'mobile-forest.png'),fullPage:true});
+  if(screenshots)await mobile.screenshot({path:path.join(screenshots,'mobile-forest.png'),fullPage:true,animations:'disabled'});
+  // Return through real world movement and open the contextual menu on mobile.
+  await mobile.locator('#go-home').tap();
+  await until(async()=>{const w=(await readState(mobile)).world;return Math.hypot(w.player.x-w.base.x,w.player.y-w.base.y)<.6;},'Mobile return to camp failed',25000);
+  await mobile.locator('#camp-access').tap();await mobile.locator('[data-panel=craft]').tap();
+  assert.equal(await mobile.locator('#craft-submit').isVisible(),true);
+  const menuBox=await mobile.locator('#menu-dialog').boundingBox();
+  assert.ok(menuBox.x>=0&&menuBox.y>=0&&menuBox.x+menuBox.width<=390&&menuBox.y+menuBox.height<=844,'Mobile menu must fit viewport');
+  if(screenshots)await mobile.screenshot({path:path.join(screenshots,'mobile-crafting.png'),fullPage:true,animations:'disabled'});
+  await mobile.locator('#menu-back').tap();assert.equal(await mobile.locator('[data-view=camp]').isVisible(),true);
   await mobileContext.close();
   assert.deepEqual(errors,[],'Browser errors');
-  console.log('Browser smoke passed: desktop/mobile layout, real HTTP gameplay, expanded map, keyboard, click gathering, camera tools, pause, cancellation, tabs and direction-pad release.');
+  console.log('Browser smoke passed: desktop/mobile layout, real HTTP gameplay, expanded map, keyboard, click gathering, camera tools, pause, cancellation, category navigation/focus, contextual camp crafting and direction-pad release.');
  }finally{
   if(browser)await browser.close();
   if(server.exitCode===null){server.kill('SIGINT');await new Promise(resolve=>server.once('exit',resolve));}
