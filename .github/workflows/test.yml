@@ -15,5 +15,8 @@ jobs:
       - run: node --check public/app.js
       - run: node --check public/world.js
       - run: node --check public/gothic.js
+      - run: node --check public/sprites.js
+      - run: node --check public/sprite-manifest.js
+      - run: node tests/field_art.cjs
       - run: node tests/client_navigation.cjs
       - run: python tools/check_docs.py

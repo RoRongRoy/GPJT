@@ -50,6 +50,14 @@ class HttpTests(unittest.TestCase):
                 status, body = self.request('/art/'+name+'.png')
                 self.assertEqual(status, 200)
                 self.assertTrue(body.startswith(bytes.fromhex('89504e470d0a1a0a')))
+        for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'vampire', 'ghoul', 'brute', 'props', 'earth', 'stone'):
+            with self.subTest(gameplay=name):
+                status, body = self.request('/art/gameplay/'+name+'.png')
+                self.assertEqual(status, 200)
+                self.assertTrue(body.startswith(b'\x89PNG\r\n\x1a\n'))
+        for name in ('sprite-manifest', 'sprites'):
+            self.assertEqual(self.request('/'+name+'.js')[0], 200)
+        self.assertEqual(self.request('/art/gameplay/unknown.png')[0], 404)
         self.assertEqual(self.request('/gothic.js')[0], 200)
         self.assertEqual(self.request('/gothic.css')[0], 200)
         self.assertEqual(self.request('/art/unknown.png')[0], 404)

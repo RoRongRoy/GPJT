@@ -85,6 +85,10 @@ def make_handler(runtime, access_key):
                      '/art/human-warden.png': ('art/human-warden.png','image/png'),
                      '/art/vampire-scholar.png': ('art/vampire-scholar.png','image/png'),
                      '/style.css': ('style.css','text/css; charset=utf-8')}
+            for name in ('sprite-manifest', 'sprites'):
+                files['/'+name+'.js'] = (name+'.js', 'text/javascript; charset=utf-8')
+            for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'vampire', 'ghoul', 'brute', 'props', 'earth', 'stone'):
+                files['/art/gameplay/'+name+'.png'] = ('art/gameplay/'+name+'.png', 'image/png')
             if path not in files:
                 self.send(404, {'error': 'Not found'})
                 return

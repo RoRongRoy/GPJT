@@ -50,6 +50,7 @@ async function until(check,message,timeout=10000){
   await page.locator('button[data-species=human]').click();
   await page.locator('#welcome').waitFor({state:'hidden'});
   assert.equal(await page.locator('#intro-art').isVisible(),false);
+  await until(()=>page.locator('#world').getAttribute('data-art').then(v=>v==='ready'),'Gameplay sprites failed to load',20000);
   assert.equal(await page.locator('body').getAttribute('data-species'),'human');
   const initial=await readState();assert.equal(initial.map.size,64);assert.equal(initial.map.regions.length,4);
   assert.equal(await page.locator('#menu-dialog').isVisible(),false,'Details must start closed');

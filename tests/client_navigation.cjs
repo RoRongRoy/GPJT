@@ -7,6 +7,8 @@ function node(){return {dataset:{},textContent:'',hidden:false,style:{},classLis
 const sandbox={console,URLSearchParams,location:{hash:'',pathname:'/'},sessionStorage:{getItem:()=>null},crypto:{randomUUID:()=> 'test-session-id'},history:{},document:{body:{dataset:{}},hidden:false,getElementById:id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},createElement:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>documentEvents[name]=fn},window:{devicePixelRatio:1,addEventListener:(name,fn)=>windowEvents[name]=fn},performance:{now:()=>now},setInterval:fn=>intervals.push(fn),setTimeout:()=>0,clearTimeout(){},requestAnimationFrame(){},AbortSignal,fetch:()=>new Promise(()=>{})};
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync('public/gothic.js','utf8'),sandbox);
+vm.runInContext(fs.readFileSync('public/sprite-manifest.js','utf8'),sandbox);
+vm.runInContext(fs.readFileSync('public/sprites.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/world.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/app.js','utf8'),sandbox);
 const python=process.env.PYTHON || 'python';
