@@ -36,7 +36,7 @@ def new_world():
             'base': {'x': 6, 'y': 6, 'facilities': dict.fromkeys(FACILITIES, 0)},
             'inventory': {'wood': 12, 'water': 12, 'crop': 8, 'herb': 8, 'blood': 8,
                           'metal': 6, 'scroll': 15, 'soup': 2, 'elixir': 2, 'medicine': 1},
-            'cooldowns': {}, 'dispatch': None, 'quest': {'collected': 0, 'round': 0},
+            'milestones': [], 'cooldowns': {}, 'dispatch': None, 'quest': {'collected': 0, 'round': 0},
             'enemies': [{'id': i, 'x': x, 'y': y, 'hp': 60, 'respawn': 0, 'attack': 0}
                         for i, (x, y) in enumerate([(12, 11), (15, 9), (16, 14)])],
             'log': ['격리구역에 도착했습니다. 아지트에서 주방과 연금대를 마련하세요.']}
@@ -226,6 +226,12 @@ def act(w, command, rng=random.random):
         note(w, '중립 치료소 구조 · 자산 유지 (프로토타입 복구 지원)')
     else:
         raise RuleError('알 수 없는 명령입니다.')
+
+    if action in ('gather', 'build', 'craft', 'consume', 'quest'):
+        detail = command.get('facility') or command.get('recipe') or command.get('item') or ''
+        milestone = action + (':' + detail if detail else '')
+        if milestone not in w.setdefault('milestones', []):
+            w['milestones'].append(milestone)
 
 
 def tick(w, dt):

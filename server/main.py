@@ -6,6 +6,7 @@ import os
 import secrets
 import threading
 import time
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -123,6 +124,7 @@ def make_handler(runtime, access_key):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', default='127.0.0.1')
+    parser.add_argument('--open-browser', action='store_true', help='Open the local play link in your browser')
     parser.add_argument('--port', default=8080, type=int)
     parser.add_argument('--data', default=str(ROOT/'data'/'world.sqlite3'))
     args = parser.parse_args()
@@ -162,6 +164,8 @@ def main():
     worker.start()
     print(f'BLOODFALL prototype — http://127.0.0.1:{args.port}/#key={key}', flush=True)
     print('Private single-player prototype. Ctrl+C saves and stops. Do not publish this key.', flush=True)
+    if args.open_browser:
+        webbrowser.open(f'http://127.0.0.1:{args.port}/#key={key}')
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
