@@ -3,6 +3,7 @@ import json
 import sqlite3
 from pathlib import Path
 from .game import new_world
+from .worldmap import ENEMY_SPAWNS, new_enemy
 
 
 class Store:
@@ -19,6 +20,9 @@ class Store:
         w = json.loads(row[0]) if row else new_world()
         if w.get('version') != 1:
             raise RuntimeError('Unsupported save version; restore a compatible backup. Do not delete the save.')
+        # Add expansion encounters without resetting existing enemies or player assets.
+        existing = {enemy['id'] for enemy in w['enemies']}
+        w['enemies'].extend(new_enemy(i) for i in range(len(ENEMY_SPAWNS)) if i not in existing)
         return w
 
     def save(self, world):

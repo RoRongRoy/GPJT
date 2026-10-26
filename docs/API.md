@@ -1,12 +1,12 @@
-# API · prototype 0.1.0
+# API · prototype 0.3.0
 
-정적 경로: `/`, `/app.js`, `/style.css`. 이 외 파일 경로는 공개하지 않습니다.
+정적 경로: `/`, `/app.js`, `/world.js`, `/style.css`. 이 외 파일 경로는 공개하지 않습니다.
 
 API 공통 헤더: `X-Access-Key`(서버 키), `X-Session-ID`(탭별 16~100자), `Content-Type: application/json`. 키는 URL fragment에서 sessionStorage로 읽고 주소 표시줄에서 제거합니다. TLS 없이는 헤더도 암호화되지 않습니다.
 
 ## GET /api/state
 
-응답 `{world, pois, items}`. 조회는 세션 임대를 갱신합니다. 클라이언트는 400ms 간격으로 조회하되 숨김 탭에서는 멈춥니다. 인증 실패 401, 다른 활성 세션 409.
+응답 `{world, pois, items, map}`. `map`은 서버 소유의 `size`(64), `regions`(영역·이름·색), `movement`(기본 보폭 0.48, 최소 간격 0.10초, 탑승 배율)입니다. 클라이언트는 이 데이터로 지도 경계와 이동 안내를 계산합니다. 조회는 세션 임대를 갱신합니다. 클라이언트는 400ms 간격으로 조회하되 숨김 탭에서는 멈춥니다. 인증 실패 401, 다른 활성 세션 409.
 
 ## POST /api/action
 
@@ -21,7 +21,7 @@ API 공통 헤더: `X-Access-Key`(서버 키), `X-Session-ID`(탭별 16~100자),
 | action | 추가 필드 | 검증/효과 |
 | --- | --- | --- |
 | choose | species: human/vampire | 최초 1회 |
-| move | dx,dy: -1/0/1 정수 | 0.12초 제한, 서버 속도·맵 경계 |
+| move | dx,dy: -1/0/1 정수 | 0.10초 제한, 서버 보폭 0.48·좌표 1~62 경계 |
 | gather | id: POI ID | 거리 2 이내, 지점별 3초 |
 | craft | recipe: soup/elixir/medicine | 아지트·시설·재료 검증 |
 | consume | item | 재고·종족 검증 |

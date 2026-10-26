@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from .game import act, tick, RuleError, POIS, ITEMS
 from .storage import Store
+from .worldmap import WORLD_MAP
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -32,7 +33,7 @@ class Runtime:
         self.session, self.last_seen = token, now
 
     def snapshot(self):
-        return {'world': self.world, 'pois': POIS, 'items': ITEMS}
+        return {'world': self.world, 'pois': POIS, 'items': ITEMS, 'map': WORLD_MAP}
 
 
 def make_handler(runtime, access_key):
@@ -77,6 +78,7 @@ def make_handler(runtime, access_key):
                 return
             files = {'/': ('index.html','text/html; charset=utf-8'),
                      '/app.js': ('app.js','text/javascript; charset=utf-8'),
+                     '/world.js': ('world.js','text/javascript; charset=utf-8'),
                      '/style.css': ('style.css','text/css; charset=utf-8')}
             if path not in files:
                 self.send(404, {'error': 'Not found'})

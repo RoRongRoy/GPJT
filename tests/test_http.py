@@ -35,8 +35,11 @@ class HttpTests(unittest.TestCase):
     def test_auth_static_allowlist_and_second_client(self):
         self.assertEqual(self.request('/api/state', key='wrong')[0], 401)
         self.assertEqual(self.request('/')[0], 200)
+        self.assertEqual(self.request('/world.js')[0], 200)
         self.assertEqual(self.request('/../data/access.key')[0], 404)
-        self.assertEqual(self.request('/api/state')[0], 200)
+        status, body = self.request('/api/state')
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)['map']['size'], 64)
         self.assertEqual(self.request('/api/state', session='second-test-session')[0], 409)
 
     def test_action_persists_and_replay_rejected(self):

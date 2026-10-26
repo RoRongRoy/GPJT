@@ -2,17 +2,8 @@
 import math
 import random
 
-SIZE = 22
-POIS = [
-    {'id': 'grove', 'x': 4, 'y': 8, 'label': '숲 · 목재', 'kind': 'wood'},
-    {'id': 'well', 'x': 8, 'y': 4, 'label': '샘 · 식수', 'kind': 'water'},
-    {'id': 'garden', 'x': 5, 'y': 13, 'label': '텃밭 · 작물', 'kind': 'crop'},
-    {'id': 'herbs', 'x': 11, 'y': 5, 'label': '약초밭', 'kind': 'herb'},
-    {'id': 'blood', 'x': 13, 'y': 13, 'label': '혈액 저장소', 'kind': 'blood'},
-    {'id': 'scrap', 'x': 17, 'y': 8, 'label': '폐차장 · 부품', 'kind': 'metal'},
-    {'id': 'human', 'x': 3, 'y': 17, 'label': '인간 보급관', 'kind': 'npc'},
-    {'id': 'vampire', 'x': 18, 'y': 16, 'label': '혈족 연금사', 'kind': 'npc'},
-]
+from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy
+
 RECIPES = {
     'soup': {'cost': {'crop': 2, 'water': 1}, 'facility': 'kitchen', 'name': '채소 수프'},
     'elixir': {'cost': {'blood': 2, 'herb': 1, 'water': 1}, 'facility': 'alchemy', 'name': '안정화 혈액'},
@@ -37,8 +28,7 @@ def new_world():
             'inventory': {'wood': 12, 'water': 12, 'crop': 8, 'herb': 8, 'blood': 8,
                           'metal': 6, 'scroll': 15, 'soup': 2, 'elixir': 2, 'medicine': 1},
             'milestones': [], 'cooldowns': {}, 'dispatch': None, 'quest': {'collected': 0, 'round': 0},
-            'enemies': [{'id': i, 'x': x, 'y': y, 'hp': 60, 'respawn': 0, 'attack': 0}
-                        for i, (x, y) in enumerate([(12, 11), (15, 9), (16, 14)])],
+            'enemies': [new_enemy(i) for i in range(len(ENEMY_SPAWNS))],
             'log': ['격리구역에 도착했습니다. 아지트에서 주방과 연금대를 마련하세요.']}
 
 
@@ -94,15 +84,15 @@ def act(w, command, rng=random.random):
     if action == 'move':
         dx, dy = command.get('dx'), command.get('dy')
         require(type(dx) is int and type(dy) is int and dx in (-1, 0, 1) and dy in (-1, 0, 1) and (dx or dy), '이동 입력 오류')
-        cooldown(w, 'move', 0.12)
-        speed = 0.42
+        cooldown(w, 'move', MOVEMENT['interval'])
+        speed = MOVEMENT['step']
         if p['mounted']:
             tier = p['unlocks'][p['species']]
             if p['species'] == 'vampire' and p['blood'] <= 5:
                 p['mounted'] = False
                 note(w, '혈액이 부족해 안전하게 착지했습니다.')
             if p['mounted']:
-                speed *= 1.55 + tier * 0.25
+                speed *= MOVEMENT['mount_base'] + tier * MOVEMENT['mount_tier']
                 if p['species'] == 'vampire':
                     p['blood'] = max(0, p['blood'] - 0.18)
         norm = math.hypot(dx, dy)
@@ -256,7 +246,7 @@ def tick(w, dt):
         if e['hp'] <= 0:
             if w['elapsed'] >= e['respawn']:
                 e['hp'] = 60
-                e['x'], e['y'] = [(12,11), (15,9), (16,14)][e['id']]
+                e['x'], e['y'] = ENEMY_SPAWNS[e['id']]
             continue
         d = dist(e, p)
         if dist(p, w['base']) <= 2.5:

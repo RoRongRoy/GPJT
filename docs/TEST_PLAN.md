@@ -5,6 +5,8 @@
 ```sh
 python -m unittest discover -s tests -v
 node --check public/app.js
+node --check public/world.js
+node tests/client_navigation.cjs
 python tools/check_docs.py
 ```
 
@@ -30,3 +32,9 @@ HTTP: 접근 키 검증, 정적 경로 제한, 두 번째 브라우저 차단, �
 외부 네트워크·HTTPS·키 재발급·인증·요청 제한·장시간 AI 부하·백업 복구·브라우저별 입력. 현재 이 환경의 로컬 브라우저 검증을 개인 PC나 실제 인터넷 접속 검증으로 간주하지 않습니다.
 
 검증 실행 결과는 VALIDATION.md에 기록합니다.
+
+## 확장 맵·조작 회귀 검사
+
+`tests/test_worldmap.py`는 경계·대각 보폭·지역 자원 채집·원거리 감염체 재생성·옛 저장 보존·원거리 아지트 이주를 검사합니다. 클라이언트 검사는 24개 도보/탑승 목적지, 화면 방향 키보드 입력, 취소와 카메라 좌표 변환을 확인합니다.
+
+Playwright 및 Chromium이 준비된 환경에서는 `node tests/browser_smoke.cjs`를 실행합니다. 임시 DB·임시 접근 키와 별도 포트를 사용하고 종료 시 제거합니다. 데스크톱 1440×1080과 모바일 390×844에서 이동·채집·건설·제작·섭취·탭·줌·일시정지·확장 지역 이동·방향패드 해제를 확인합니다. 선택적으로 `BLOODFALL_SCREENSHOTS=/tmp/bloodfall-qa`를 지정하면 화면을 저장합니다. Chromium 경로는 `CHROMIUM_PATH`로 지정할 수 있습니다. 실제 휴대전화·다른 브라우저 검사를 대체하지 않습니다.
