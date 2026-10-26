@@ -2,10 +2,11 @@
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
 const {execFileSync}=require('node:child_process');
 const nodes=new Map(),intervals=[],windowEvents={},documentEvents={};let now=0;
-const ctx=new Proxy({}, {get:(_,key)=>key==='measureText'?()=>({width:30}):key==='createRadialGradient'?()=>({addColorStop(){}}):()=>{},set:()=>true});
-function node(){return {textContent:'',hidden:false,style:{},classList:{add(){},remove(){}},append(){},replaceChildren(){},addEventListener(){},setAttribute(){},show(){this.open=true;},close(){this.open=false;},getBoundingClientRect:()=>({width:1000,height:600,left:0,top:0}),getContext:()=>ctx,focus(){}};}
-const sandbox={console,URLSearchParams,location:{hash:'',pathname:'/'},sessionStorage:{getItem:()=>null},crypto:{randomUUID:()=> 'test-session-id'},history:{},document:{hidden:false,getElementById:id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},createElement:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>documentEvents[name]=fn},window:{devicePixelRatio:1,addEventListener:(name,fn)=>windowEvents[name]=fn},performance:{now:()=>now},setInterval:fn=>intervals.push(fn),setTimeout:()=>0,clearTimeout(){},requestAnimationFrame(){},AbortSignal,fetch:()=>new Promise(()=>{})};
+const ctx=new Proxy({}, {get:(_,key)=>key==='measureText'?()=>({width:30}):(key==='createRadialGradient'||key==='createLinearGradient')?()=>({addColorStop(){}}):()=>{},set:()=>true});
+function node(){return {dataset:{},textContent:'',hidden:false,style:{},classList:{add(){},remove(){}},append(){},replaceChildren(){},addEventListener(){},setAttribute(){},show(){this.open=true;},close(){this.open=false;},getBoundingClientRect:()=>({width:1000,height:600,left:0,top:0}),getContext:()=>ctx,focus(){}};}
+const sandbox={console,URLSearchParams,location:{hash:'',pathname:'/'},sessionStorage:{getItem:()=>null},crypto:{randomUUID:()=> 'test-session-id'},history:{},document:{body:{dataset:{}},hidden:false,getElementById:id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},createElement:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>documentEvents[name]=fn},window:{devicePixelRatio:1,addEventListener:(name,fn)=>windowEvents[name]=fn},performance:{now:()=>now},setInterval:fn=>intervals.push(fn),setTimeout:()=>0,clearTimeout(){},requestAnimationFrame(){},AbortSignal,fetch:()=>new Promise(()=>{})};
 vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync('public/gothic.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/world.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/app.js','utf8'),sandbox);
 const python=process.env.PYTHON || 'python';

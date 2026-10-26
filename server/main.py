@@ -79,6 +79,11 @@ def make_handler(runtime, access_key):
             files = {'/': ('index.html','text/html; charset=utf-8'),
                      '/app.js': ('app.js','text/javascript; charset=utf-8'),
                      '/world.js': ('world.js','text/javascript; charset=utf-8'),
+                     '/gothic.js': ('gothic.js','text/javascript; charset=utf-8'),
+                     '/gothic.css': ('gothic.css','text/css; charset=utf-8'),
+                     '/art/nightfall-city.png': ('art/nightfall-city.png','image/png'),
+                     '/art/human-warden.png': ('art/human-warden.png','image/png'),
+                     '/art/vampire-scholar.png': ('art/vampire-scholar.png','image/png'),
                      '/style.css': ('style.css','text/css; charset=utf-8')}
             if path not in files:
                 self.send(404, {'error': 'Not found'})

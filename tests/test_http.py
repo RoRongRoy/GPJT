@@ -44,6 +44,17 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(json.loads(body)['recipes']['soup']['facility'], 'kitchen')
         self.assertEqual(self.request('/api/state', session='second-test-session')[0], 409)
 
+    def test_original_art_assets_are_served_without_opening_directory_access(self):
+        for name in ['nightfall-city', 'human-warden', 'vampire-scholar']:
+            with self.subTest(name=name):
+                status, body = self.request('/art/'+name+'.png')
+                self.assertEqual(status, 200)
+                self.assertTrue(body.startswith(bytes.fromhex('89504e470d0a1a0a')))
+        self.assertEqual(self.request('/gothic.js')[0], 200)
+        self.assertEqual(self.request('/gothic.css')[0], 200)
+        self.assertEqual(self.request('/art/unknown.png')[0], 404)
+        self.assertEqual(self.request('/art/../../data/access.key')[0], 404)
+
     def test_action_persists_and_replay_rejected(self):
         payload = {'revision': 0, 'command': {'action':'choose', 'species':'vampire'}}
         self.assertEqual(self.request('/api/action', payload)[0], 200)

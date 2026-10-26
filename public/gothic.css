@@ -1,0 +1,85 @@
+/* BLOODFALL / Nocturne. Original art direction; layout and interactions stay in style.css. */
+:root{--bg:#0d1018;--panel:#1b1e27;--line:#45434a;--muted:#a5a2a2;--text:#e6e0d4;--mint:#c0b7a1;--red:#c57789;--gold:#c4ac82;--accent:#8d485a;--blood:#9c5266}
+body{background:radial-gradient(ellipse at 70% -20%,#44303b77,transparent 60%),linear-gradient(120deg,#11151e,#0d1018 70%);color:var(--text)}
+button{background:#282a35;border-color:#66616a;border-radius:2px;color:#ded8ce}
+button:hover{background:#38333f;border-color:#c3ae8c}
+button:focus-visible,a:focus-visible,canvas:focus-visible{outline-color:#d8b99a}
+.topbar{background:linear-gradient(#151821f5,#10131beF);border-bottom-color:#79706a55;box-shadow:0 3px 18px #0004}
+.brand{font-family:Georgia,'Times New Roman',serif;letter-spacing:4px;color:#e5dccb;text-shadow:0 2px 12px #a42e5d22}
+.brand-mark{color:#d2b796;border-color:#99775b;background:linear-gradient(145deg,#49333b55,#141925);clip-path:polygon(0 0,100% 0,100% 82%,50% 100%,0 82%)}
+.brand-mark span{color:#9e5a6e}.brand small{color:#a9a0a1}
+.eyebrow{color:#c4a783}.live-label i,.field-badge i{background:#c1ac91;box-shadow:0 0 8px #bc8b6566}
+.world-title h1{font-family:Georgia,'Times New Roman',serif;color:#e2d8cc;letter-spacing:.3px;font-weight:500}
+.clock strong{color:#d4b8a2}.quiet{background:#25212c66}
+.canvas-wrap{border-color:#80716b88;border-radius:3px;box-shadow:0 0 0 3px #11141e,0 0 0 4px #675b5144,0 20px 70px #0006;background:#11141d}
+.field-badge,.field-vitals button,.map-button,.atlas,#interaction{background:#151923ee;border-color:#85786b77;color:#ddd5c6;border-radius:2px}
+.field-vitals button>span{color:#b2a6a3}.field-vitals i{background:#4c333e}.field-vitals b{background:linear-gradient(90deg,#773b4d,#c0757d)}
+#field-vital{color:#c7c1ba}#field-infection{color:#f1a4ad;background:#512634ed}
+.atlas{box-shadow:0 7px 25px #0006}.atlas-heading{color:#cec0b0}.atlas-heading #coordinates{color:#b5b6bc}.atlas-caption{color:#aaa1a0}
+.atlas canvas{filter:saturate(.7)}
+.camp-access{background:linear-gradient(120deg,#433139ef,#24212eeF);border-color:#a5846c99;color:#e6d6c0;box-shadow:0 5px 25px #0005}
+.camp-access small{color:#c0ada7}.camp-access>span{color:#d5b08a}
+.map-tools #zoom-level{color:#d5ccc4}
+#interaction .eyebrow{color:#b99c8e}#interaction .attack-button{color:#d6a1a0}kbd{color:#c6bab3;border-color:#9e8d7955}
+#guide-hint{color:#cbb39d}.controls,.field-menu-hint{color:#a69d9c}
+.menu-dock{background:linear-gradient(#28222ded,#121721f7);border-color:#92796799;border-radius:3px;box-shadow:0 0 0 3px #0b1119,0 0 0 4px #685c5044,0 10px 35px #0008}
+.menu-dock button{color:#c8bdb5;border-radius:1px}.menu-dock button>span{color:#bca58a}
+.menu-dock button:hover{background:#3b303c}.menu-dock button[aria-expanded=true]{background:linear-gradient(#623745,#35242e);border-color:#b48f7899;color:#f0dfcd;box-shadow:inset 0 1px #d1af8c33}
+.menu-dock .camp-menu{border-left-color:#a18b7455;color:#d9bca2}
+#menu-dialog{background:linear-gradient(135deg,#29242ffb,#171c26fc);border-color:#9b8875aa;border-radius:4px;box-shadow:0 0 0 3px #10141a99,0 18px 70px #000b}
+.menu-heading{position:relative}.menu-heading::after{content:'';position:absolute;top:0;left:22px;right:22px;height:1px;background:linear-gradient(90deg,transparent,#c49c79aa,transparent)}
+.menu-heading h2{font-family:Georgia,serif;color:#e6d9ca;letter-spacing:.5px}
+.icon-button{background:#292532;border-color:#8a796c66;color:#cbb5a6}
+.menu-description{color:#b6aaa8}.menu-body{scrollbar-color:#755766 #171b25}
+.menu-context{background:#11162099;border-color:#9b837044;color:#b7a899}
+.category-card{background:linear-gradient(145deg,#3b303b,#242735);border-color:#8c776766;border-radius:2px;box-shadow:inset 0 1px #c8bba40b}
+.category-card:hover{background:#463540;border-color:#bea289}.category-card .category-icon{color:#c6a084}.category-card strong{color:#e0d2c4}.category-card small{color:#b8aaa9}.category-card .category-arrow{color:#ac9387}
+.filter-tabs{border-color:#8c736444;background:#11172099;border-radius:2px}.filter-tabs button{color:#b3a6a8;border-radius:1px}
+.filter-tabs button[aria-pressed=true]{background:linear-gradient(#6b3d4d,#422a38);border-color:#ae847a99;color:#f2dcc7}
+.menu-body h3{color:#e0d4c4}.menu-body .muted,.muted{color:#b7aba8}.menu-body .section-label{color:#c6b2a1}.panel-note,.menu-body .panel-note{color:#ada2a0}
+.item,.facility,.recipe-cost-row,.travel-card,#log li{border-bottom-color:#8d79713b;color:#c6b6ac}
+.item strong,.meter-label span:last-child{color:#e4d4c4}.facility small{color:#b6a6a1}
+.recipe-cost-row .missing{color:#f0a1b2}.feature-symbol{color:#d3ae8c;text-shadow:0 0 18px #a24e5522}
+#recipe-status{color:#cab8ac}.recipe-card h3{font-family:Georgia,serif}
+.accent{background:linear-gradient(120deg,#9c5c68,#703e52);border-color:#bb8c8c;color:#f5e4d3;font-weight:500;box-shadow:inset 0 1px #e9bcb32b}
+.accent:hover{background:linear-gradient(120deg,#b2767a,#8f4d62);border-color:#e1b7a2}
+.consume button{background:#322935;border-color:#8e747269}.consume button:hover{background:#513340}
+.meter-label{color:#bcaeaa}.track{background:#51404b66}.fill{background:#b2a696}#meters>div:first-child .fill{background:linear-gradient(90deg,#84445a,#bd7484)}.fill.danger{background:#ae6e9d}
+.reward-card{background:#4d313e66;border-color:#a079684d;color:#d6bfa4}.camp-position{color:#b9a59a}.camp-position #base-pos{color:#d0b093}
+#quest-progress,#mobility{color:#c5ae99}#dispatch{color:#cfbba4}#log li:first-child{color:#dfc3af}#log li::before{color:#bc8d86}
+#objective-count,#objective{color:#e1c8b2}#objective-detail{color:#c2b2ac}#objective-steps i{background:#58414e}#objective-steps i.done{background:#bf7d8d}
+.camp-illustration{height:130px;border-color:#96806a66;border-radius:2px;background:linear-gradient(0deg,#11141b88,transparent 75%),url('/art/nightfall-city.png') 50% 73%/cover}
+.camp-illustration>div{display:none}.camp-illustration>span{font-size:8px;letter-spacing:2px;color:#d4bf9f;text-shadow:0 2px 5px #000}
+.portrait{width:60px;height:76px;border-color:#a88b79;background:#24212e;border-radius:30px 30px 2px 2px;box-shadow:0 0 0 2px #0e1520}
+.portrait img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 20%}
+.survivor-heading .eyebrow{color:#bd9f8e}.survivor-heading #level{color:#b4a5a1}
+.intro-art{position:absolute;inset:0;z-index:2;background:#10141e;pointer-events:none}
+.intro-art img{width:100%;height:100%;display:block;object-fit:cover;object-position:50% 46%;filter:brightness(.73)}
+.intro-art::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#080d1833,transparent 40%,#0a0d1866),linear-gradient(0deg,#0b101be6,transparent 65%)}
+.canvas-wrap:has(#welcome:not([hidden])) .field-top,.canvas-wrap:has(#welcome:not([hidden])) .field-vitals,.canvas-wrap:has(#welcome:not([hidden])) .atlas,.canvas-wrap:has(#welcome:not([hidden])) .map-tools,.canvas-wrap:has(#welcome:not([hidden])) .touch-pad{visibility:hidden}
+#welcome{width:610px;max-width:93%;max-height:calc(100% - 26px);overflow:auto;padding:25px 28px 20px;background:linear-gradient(145deg,#151821c9,#17141fe8);border:1px solid #b6946d88;border-radius:3px;box-shadow:0 0 0 4px #0b101633,0 25px 80px #0009;backdrop-filter:blur(7px);scrollbar-width:thin;scrollbar-color:#755665 transparent}
+#welcome>.eyebrow{font-size:8px;letter-spacing:3px;color:#c4a98f}.welcome-mark{font:40px Georgia,'Times New Roman',serif;color:#e1c6a3;letter-spacing:7px;margin:9px 0;text-shadow:0 2px 18px #b0525c33}
+.welcome-mark::after{width:120px;margin:10px auto;background:linear-gradient(90deg,transparent,#ad7d70,transparent)}
+#welcome h2{font-size:21px;letter-spacing:1px;color:#e6d7c8;font-weight:400}#welcome p{font-size:11px;color:#c4b8b0;line-height:1.8;margin:8px 0 17px}
+.species-choice{gap:14px}.species-choice button{position:relative;overflow:hidden;padding:0;background:#24202a;border-color:#9c817199;border-radius:2px;text-align:left;transition:border-color .18s,box-shadow .18s;isolation:isolate}
+.species-choice button img{display:block;width:100%;height:215px;object-fit:cover;object-position:50% 23%;filter:saturate(.7) brightness(.8);transition:filter .2s}
+.species-choice button[data-species=vampire]{background:#2c1f2c;border-color:#9b728199}
+.species-choice button:hover{border-color:#e0bda0;box-shadow:0 0 24px #c1755329}.species-choice button:hover img{filter:saturate(.95) brightness(.98)}
+.species-caption{display:block;position:relative;padding:12px 14px 15px;background:linear-gradient(#211f29,#1b1e29);border-top:1px solid #a88a7066}
+.species-choice button[data-species=vampire] .species-caption{background:linear-gradient(#34232f,#1c1b28);border-color:#b5869166}
+.species-choice .species-symbol{position:absolute;right:14px;top:10px;font-size:25px;color:#c9a97f}.species-choice button[data-species=vampire] .species-symbol{color:#c494a8}
+.species-choice strong{font-size:18px;letter-spacing:2px;color:#e6d7c7;font-weight:500}.species-choice small{font-size:8px;letter-spacing:1px;color:#c1aaa0;margin-top:4px}.species-trait{display:block;font-size:9px;color:#ac9b98;margin-top:8px}
+#welcome .welcome-foot{font-size:8px;letter-spacing:.2px;color:#b2a49e;margin-top:17px}
+#pause-overlay{background:#0d101dc9}#pause-overlay>span{color:#bc8b86}#pause-overlay strong{font-family:Georgia,serif;color:#e0cbbc}#pause-overlay p{color:#b4a4a4}
+#toast{background:#d4beb0;color:#2e1e2a;border:1px solid #efcfb7;border-radius:2px}
+.touch-pad button{background:#201f2deF;border-color:#99817988;color:#d2b8aa}.touch-pad button.pressed{background:#623645}
+body[data-species=vampire]{--gold:#c39caa;--mint:#bda6b9}.status-error{color:#f0a6b4!important}
+footer{color:#9a8587}
+@media(max-width:600px){
+ .brand{font-size:15px;letter-spacing:3px}.world-title h1{font-size:21px}.canvas-wrap{border-radius:2px}.menu-dock{border-radius:2px}.menu-dock button>span{font-size:21px}
+ #menu-dialog{border-radius:3px}.camp-illustration{height:105px}.portrait{width:55px;height:70px}
+ #welcome{padding:16px 14px 14px;max-height:calc(100% - 18px)}#welcome>.eyebrow{font-size:6px;letter-spacing:2px}.welcome-mark{font-size:29px;letter-spacing:4px;margin:6px 0}.welcome-mark::after{margin:8px auto}
+ #welcome h2{font-size:17px}#welcome p{font-size:9px;margin:7px 0 12px}.species-choice{gap:9px}.species-choice button img{height:150px;object-position:50% 23%}
+ .species-caption{padding:9px 9px 10px}.species-choice strong{font-size:15px;letter-spacing:1px}.species-choice small{font-size:6px;letter-spacing:.2px}.species-choice .species-symbol{right:9px;top:6px;font-size:21px}.species-trait{font-size:7px;margin-top:5px}#welcome .welcome-foot{font-size:6px;margin-top:11px}
+}
+@media(prefers-reduced-motion:reduce){.species-choice button,.species-choice button img{transition:none}}

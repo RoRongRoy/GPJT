@@ -37,6 +37,8 @@ async function until(check,message,timeout=10000){
   await until(()=>Boolean(session),'Session missing');
   await until(()=>page.locator('#connection').textContent().then(t=>t.includes('자동 저장')),'Client did not connect');
   assert.equal(await page.evaluate(()=>location.hash),'');
+  await until(()=>page.locator('#intro-art img, .species-choice img').evaluateAll(images=>images.length===3&&images.every(img=>img.complete&&img.naturalWidth>0)),'Original artwork failed to load');
+  assert.equal(await page.locator('#intro-art').isVisible(),true);
   if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-welcome.png'),fullPage:true,animations:'disabled'});
   async function readState(activePage=page){
    return activePage.evaluate(async session=>{
@@ -45,8 +47,10 @@ async function until(check,message,timeout=10000){
     return response.json();
    },session);
   }
-  await page.locator('[data-species=human]').click();
+  await page.locator('button[data-species=human]').click();
   await page.locator('#welcome').waitFor({state:'hidden'});
+  assert.equal(await page.locator('#intro-art').isVisible(),false);
+  assert.equal(await page.locator('body').getAttribute('data-species'),'human');
   const initial=await readState();assert.equal(initial.map.size,64);assert.equal(initial.map.regions.length,4);
   assert.equal(await page.locator('#menu-dialog').isVisible(),false,'Details must start closed');
   assert.equal(await page.locator('#meters').isVisible(),false);
@@ -115,10 +119,26 @@ async function until(check,message,timeout=10000){
   await page.locator('#craft-submit').click();
   await until(async()=> (await readState()).world.milestones.includes('craft:soup'),'Craft failed');
   await page.locator('#menu-survival').click();
+  assert.ok((await page.locator('#survivor-art').getAttribute('src')).includes('human-warden'));
+  await until(()=>page.locator('#survivor-art').evaluate(img=>img.complete&&img.naturalWidth>0),'Survivor portrait failed to load');
   await delay(100);await page.locator('[data-item=soup]').click();
   await until(async()=> (await readState()).world.milestones.includes('consume:soup'),'Consumption failed');
   await page.locator('#menu-close').click();
   if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-camp.png'),fullPage:true,animations:'disabled'});
+  // Exercise the vampire portrait and field silhouette through the real medical conversion.
+  await page.locator('#menu-camp').click();await page.locator('[data-panel=build]').click();
+  await page.locator('#facilities .facility').nth(2).getByRole('button').click();
+  await until(async()=> (await readState()).world.base.facilities.medical===1,'Medical construction failed');
+  await page.locator('#menu-back').click();await page.locator('[data-panel=research]').click();
+  await page.locator('[data-action=convert]').click();
+  await until(()=>page.locator('body').getAttribute('data-species').then(s=>s==='vampire'),'Vampire art theme not applied');
+  await page.locator('#menu-survival').click();
+  await until(()=>page.locator('#survivor-art').evaluate(img=>img.src.includes('vampire-scholar')&&img.complete&&img.naturalWidth>0),'Vampire portrait failed to load');
+  if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-vampire.png'),fullPage:true,animations:'disabled'});
+  await page.locator('#menu-camp').click();await page.locator('[data-panel=research]').click();
+  await page.locator('[data-action=convert]').click();
+  await until(()=>page.locator('body').getAttribute('data-species').then(s=>s==='human'),'Human art theme not restored');
+  await page.locator('#menu-close').click();
   // Cross the old 22-tile boundary and visit a new region using actual movement requests.
   const forestWood=(await readState()).world.inventory.wood;
   await page.locator('#menu-camp').click();await page.locator('[data-panel=craft]').click();

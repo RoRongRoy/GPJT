@@ -1,6 +1,6 @@
-# API · prototype 0.3.1
+# API · prototype 0.4.0
 
-정적 경로: `/`, `/app.js`, `/world.js`, `/style.css`. 이 외 파일 경로는 공개하지 않습니다.
+정적 경로: `/`, `/app.js`, `/world.js`, `/gothic.js`, `/style.css`, `/gothic.css`, `/art/nightfall-city.png`, `/art/human-warden.png`, `/art/vampire-scholar.png`. 이 외 파일 경로는 공개하지 않습니다.
 
 API 공통 헤더: `X-Access-Key`(서버 키), `X-Session-ID`(탭별 16~100자), `Content-Type: application/json`. 키는 URL fragment에서 sessionStorage로 읽고 주소 표시줄에서 제거합니다. TLS 없이는 헤더도 암호화되지 않습니다.
 

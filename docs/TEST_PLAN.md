@@ -6,6 +6,7 @@
 python -m unittest discover -s tests -v
 node --check public/app.js
 node --check public/world.js
+node --check public/gothic.js
 node tests/client_navigation.cjs
 python tools/check_docs.py
 ```
@@ -42,3 +43,7 @@ Playwright 및 Chromium이 준비된 환경에서는 `node tests/browser_smoke.c
 ## 분류형 UI와 아지트 접근
 
 기본 화면에 제작·관리 패널이 펼쳐지지 않는지, 분류 전환 시 한 화면만 보이는지, 뒤로/닫기/Esc와 포커스 복귀를 확인합니다. 제작의 시설 부족·재료 보유량 표시, 시설 건설 후 제작 가능 전환, 아지트 외부의 메뉴·제작 버튼 숨김과 B 단축키 거절, 이동 중 메뉴 닫기, 귀환 후 재접근을 데스크톱/모바일 브라우저 검사에 포함합니다. Python HTTP 테스트는 원거리 craft/build/enhance/research/convert/dispatch가 모두 거절되고 저장과 자원이 보존되는지 확인합니다.
+
+## Nocturne 아트 검사
+
+시작 화면에서 배경과 양 종족 초상 3장이 실제로 로드되는지, 종족 선택 후 배경 오버레이가 사라지는지 확인합니다. 의료실에서 종족을 왕복 전환해 생존 메뉴 초상과 테마가 변경되는지 검사합니다. HTTP 테스트는 PNG 시그니처·명시적 정적 파일 허용·알 수 없는 파일/경로 탐색 거절을 검증합니다. Canvas 필드는 기존 이동·카메라·원거리 탐험 검사와 실제 브라우저에서 함께 확인합니다.

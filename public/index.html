@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#142326"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/gothic.css"></head>
 <body>
 <header class="topbar">
  <a class="brand" href="/" aria-label="BLOODFALL 시작 화면"><span class="brand-mark">B<span>/</span>F</span><span>BLOODFALL<small>격리구역 · FIELD JOURNAL</small></span></a>
@@ -8,15 +8,23 @@
 </header>
 <main>
  <section class="world-panel" aria-label="탐험">
-  <div class="world-title"><div><span class="eyebrow">THE WORLD AFTER US</span><h1 id="region-name">버려진 외곽</h1><p id="region-description">옛 야영지와 생존자의 길</p></div><div class="clock"><span>생존 기록</span><strong id="day">DAY 01</strong><span id="time">활동 0분 0초</span></div></div>
+  <div class="world-title"><div><span class="eyebrow">CHRONICLES OF THE LONG NIGHT</span><h1 id="region-name">버려진 외곽</h1><p id="region-description">옛 야영지와 생존자의 길</p></div><div class="clock"><span>생존 기록</span><strong id="day">DAY 01</strong><span id="time">활동 0분 0초</span></div></div>
   <div class="canvas-wrap">
    <canvas id="world" aria-label="탐험 지도. WASD나 방향키로 화면 방향 이동, 클릭으로 목적지 이동, E로 상호작용." tabindex="0"></canvas>
+   <div id="intro-art" class="intro-art" aria-hidden="true"><img src="/art/nightfall-city.png" alt=""></div>
    <div class="field-top"><span class="field-badge"><i></i> <span id="location-hint">안전지대 · 아지트</span></span><button id="focus-view" class="map-button" title="탐험 화면 넓히기 (V)" aria-pressed="false">⛶ <span>넓게 보기</span></button></div>
    <div class="field-vitals"><button data-panel="survival" aria-label="생존 상태 열기"><span>HP</span><strong id="field-hp">100</strong><i><b id="field-health-bar"></b></i></button><span id="field-vital"></span><span id="field-infection" hidden></span></div>
    <button id="camp-access" data-panel="camp" class="camp-access" hidden><span>⌂</span><strong>아지트 관리</strong><small>제작 · 시설 · 연구</small><kbd>B</kbd></button>
    <div class="atlas"><div class="atlas-heading"><span>격리구역</span><span id="coordinates">06 / 07</span></div><canvas id="minimap" width="320" height="320" aria-label="전체 지도. 클릭한 위치로 이동합니다." tabindex="0"></canvas><div class="atlas-caption">지도 클릭 → 이동</div></div>
    <div class="map-tools"><button id="zoom-out" class="map-button" aria-label="지도 축소">−</button><span id="zoom-level">100%</span><button id="zoom-in" class="map-button" aria-label="지도 확대">+</button><button id="go-home" class="map-button" title="아지트로 걸어가기">⌂ 아지트로</button></div>
-   <div id="welcome"><span class="eyebrow">A NEW SURVIVOR</span><div class="welcome-mark">B / F</div><h2>세상이 멈춘 뒤,<br>당신의 삶은 계속된다.</h2><p>숲을 지나 물자를 모으고, 나만의 아지트를 만드세요.<br>첫 삶을 선택하세요. 종족은 나중에 바꿀 수 있습니다.</p><div class="species-choice"><button data-species="human"><span class="species-symbol">☀</span><strong>인간</strong><small>따뜻한 식사 · 기계와 생존</small></button><button data-species="vampire"><span class="species-symbol">☾</span><strong>뱀파이어</strong><small>혈액 연금술 · 밤의 생존자</small></button></div><span class="welcome-foot">싱글 플레이 · 자동 저장 · 언제든 일시정지</span></div>
+   <div id="welcome">
+    <span class="eyebrow">CHRONICLES OF THE LONG NIGHT</span><div class="welcome-mark">BLOODFALL</div>
+    <h2>밤은 끝나지 않았다.</h2><p>무너진 도시, 남겨진 피난처.<br>당신은 무엇으로 살아남겠습니까?</p>
+    <div class="species-choice">
+     <button data-species="human"><img src="/art/human-warden.png" alt="등불을 든 인간 생존자" width="1024" height="1536"><span class="species-caption"><span class="species-symbol">☀</span><strong>인간</strong><small>HUMAN · 빛을 지키는 자</small><span class="species-trait">식사와 기계, 동료의 온기</span></span></button>
+     <button data-species="vampire"><img src="/art/vampire-scholar.png" alt="붉은 혈액병을 지닌 뱀파이어" width="1024" height="1536"><span class="species-caption"><span class="species-symbol">☾</span><strong>뱀파이어</strong><small>VAMPIRE · 밤을 걷는 자</small><span class="species-trait">혈액 연금술, 영원한 갈증</span></span></button>
+    </div><span class="welcome-foot">종족은 의료실에서 바꿀 수 있습니다 · 아지트와 자산은 유지됩니다</span>
+   </div>
    <div id="interaction"><div><span class="eyebrow">NEARBY</span><span id="nearby-label">주변을 탐색하세요</span></div><button id="interact"><kbd>E</kbd> 상호작용</button><button data-action="attack" class="attack-button" title="가까운 감염체 공격 (Space)">공격 <kbd>Space</kbd></button></div>
    <div class="touch-pad" aria-label="터치 이동"><button data-direction="up" aria-label="위로 이동">↑</button><button data-direction="left" aria-label="왼쪽 이동">←</button><button data-direction="down" aria-label="아래로 이동">↓</button><button data-direction="right" aria-label="오른쪽 이동">→</button></div>
    <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
@@ -37,7 +45,7 @@
  <p id="menu-description" class="menu-description"></p>
  <div class="menu-body">
   <section data-view="survival" hidden>
-   <div class="survivor-heading"><span class="portrait" aria-hidden="true"><i class="portrait-coat"></i><i class="portrait-head"></i><i class="portrait-hat"></i></span><div><span class="eyebrow">YOUR SURVIVOR</span><h3 id="species">새로운 생존자</h3><span id="level">WEAPON +0</span></div></div>
+   <div class="survivor-heading"><span class="portrait"><img id="survivor-art" src="/art/human-warden.png" alt="인간 생존자 초상" width="1024" height="1536"></span><div><span class="eyebrow">YOUR SURVIVOR</span><h3 id="species">새로운 생존자</h3><span id="level">WEAPON +0</span></div></div>
    <div id="meters"></div><h3 class="section-label">식사와 회복</h3>
    <div class="consume"><button data-item="soup">수프</button><button data-item="water">식수</button><button data-item="blood">원혈</button><button data-item="elixir">강화혈액</button><button data-item="medicine">치료제</button></div>
    <p class="panel-note">보유한 소모품을 눌러 사용하세요.</p>
@@ -63,7 +71,7 @@
    <details class="travel-card"><summary>위급 구조</summary><p class="muted">체력이 30 이하이거나 감염이 60 이상이면 아지트로 구조됩니다.</p><button class="wide" data-action="rescue">구조 요청</button></details>
   </section>
   <section data-view="camp" hidden>
-   <div class="camp-illustration" aria-hidden="true"><div class="camp-moon"></div><div class="camp-mountain"></div><div class="camp-tent"></div><div class="camp-light"></div><span>HOME, FOR NOW.</span></div><p class="camp-position">나의 아지트 <span id="base-pos">06 / 06</span></p>
+   <div class="camp-illustration" aria-hidden="true"><div class="camp-moon"></div><div class="camp-mountain"></div><div class="camp-tent"></div><div class="camp-light"></div><span>SANCTUARY · 밤의 피난처</span></div><p class="camp-position">나의 아지트 <span id="base-pos">06 / 06</span></p>
    <div class="category-grid">
     <button data-panel="craft" class="category-card"><span class="category-icon">♨</span><strong>제작</strong><small>요리 · 연금 · 치료</small><span class="category-arrow">→</span></button>
     <button data-panel="build" class="category-card"><span class="category-icon">⌂</span><strong>시설</strong><small>건설과 시설 개선</small><span class="category-arrow">→</span></button>
@@ -82,6 +90,6 @@
  <div id="menu-context" class="menu-context"></div>
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
-<footer>BLOODFALL 0.3.1 · 싱글 생존 · 자동 저장</footer>
-<script src="/world.js"></script><script src="/app.js" type="module"></script>
+<footer>BLOODFALL 0.4.0 · 싱글 생존 · 자동 저장</footer>
+<script src="/gothic.js"></script><script src="/world.js"></script><script src="/app.js" type="module"></script>
 </body></html>

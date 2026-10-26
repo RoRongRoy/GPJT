@@ -2,7 +2,8 @@
 
 ## 현재 구조
 
-- `public/app.js`: 상태 UI, 화면 방향 입력과 목적지 이동. `public/world.js`: 추적 카메라·보간·화면 영역만 그리는 Canvas 지형·소품·미니맵. 외부 CDN·폰트·에셋 의존 없음.
+- `public/app.js`: 상태 UI, 화면 방향 입력과 목적지 이동. `public/world.js`: 추적 카메라·보간·화면 영역만 그리는 Canvas 지형·소품·미니맵. 외부 CDN·폰트 의존 없음. `public/gothic.js`의 원본 도형 아트를 합성합니다.
+- `public/art/`: 프로젝트용 생성 이미지 원본. `public/gothic.css`가 시작 화면·초상·아지트에 적용하며 서버는 지정된 파일만 허용합니다.
 - `server/worldmap.py`: 맵 크기·지역·자원·감염체 원점·이동 상수. API의 `map` 메타데이터로 클라이언트에 전달.
 - `server/game.py`: 월드 생성, 명령 검증, 생활·감염·NPC tick. HTTP/저장과 분리.
 - `server/storage.py`: SQLite JSON snapshot 한 행. 저장 버전 검증, 단일 거래 commit.

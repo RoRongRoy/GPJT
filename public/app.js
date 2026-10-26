@@ -71,6 +71,10 @@ function update() {
  if(!state) return;
  const w=state.world,p=w.player;
  updateContext();
+ $('intro-art').hidden=p.chosen;
+ document.body.dataset.species=p.chosen?p.species:'unchosen';
+ const portrait=$('survivor-art');
+ if(portrait.dataset.portraitSpecies!==p.species){portrait.dataset.portraitSpecies=p.species;portrait.src=p.species==='human'?'/art/human-warden.png':'/art/vampire-scholar.png';portrait.alt=p.species==='human'?'인간 생존자 초상':'뱀파이어 초상';}
  $('welcome').hidden=p.chosen; $('interaction').hidden=!p.chosen; if(w.paused)clearMovement(); updateGuide();
  const region=view.region(state,p.x,p.y);$('region-name').textContent=region.name;$('region-description').textContent=region.subtitle;
  $('coordinates').textContent=`${Math.floor(p.x).toString().padStart(2,'0')} / ${Math.floor(p.y).toString().padStart(2,'0')}`;
@@ -143,7 +147,7 @@ $('pause').onclick=()=>manualAction('pause');
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action));
 document.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>manualAction('consume',{item:b.dataset.item}));
 $('craft-submit').onclick=()=>manualAction('craft',{recipe:selectedRecipe});
-document.querySelectorAll('[data-species]').forEach(b=>b.onclick=()=>manualAction('choose',{species:b.dataset.species}));
+document.querySelectorAll('button[data-species]').forEach(b=>b.onclick=()=>manualAction('choose',{species:b.dataset.species}));
 function canUseCamp(){
  if(!state||!connected||!state.world.player.chosen)return false;
  const {player,base}=state.world;

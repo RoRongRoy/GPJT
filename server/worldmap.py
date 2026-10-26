@@ -4,13 +4,13 @@ BASE_USE_RADIUS = 2.8
 MOVEMENT = {'step': .48, 'interval': .10, 'mount_base': 1.55, 'mount_tier': .25}
 REGIONS = [
     {'id': 'outskirts', 'name': '버려진 외곽', 'subtitle': '옛 야영지와 생존자의 길',
-     'x': 0, 'y': 0, 'width': 32, 'height': 32, 'color': '#647b55'},
+     'x': 0, 'y': 0, 'width': 32, 'height': 32, 'color': '#565962'},
     {'id': 'forest', 'name': '잿빛 소나무숲', 'subtitle': '숲 사이의 보급로를 따라서',
-     'x': 32, 'y': 0, 'width': 32, 'height': 32, 'color': '#355c50'},
+     'x': 32, 'y': 0, 'width': 32, 'height': 32, 'color': '#3c5550'},
     {'id': 'marsh', 'name': '안개 저지대', 'subtitle': '갈대와 약초가 남은 물가',
-     'x': 0, 'y': 32, 'width': 32, 'height': 32, 'color': '#557d7b'},
+     'x': 0, 'y': 32, 'width': 32, 'height': 32, 'color': '#48616e'},
     {'id': 'works', 'name': '침묵의 공업지대', 'subtitle': '녹슨 지붕 아래 남은 물자',
-     'x': 32, 'y': 32, 'width': 32, 'height': 32, 'color': '#8c705c'},
+     'x': 32, 'y': 32, 'width': 32, 'height': 32, 'color': '#71616a'},
 ]
 WORLD_MAP = {'size': SIZE, 'regions': REGIONS, 'movement': MOVEMENT, 'base_radius': BASE_USE_RADIUS}
 POIS = [
