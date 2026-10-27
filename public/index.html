@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-2"><link rel="stylesheet" href="/gothic.css?v=20261028-2"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-3"><link rel="stylesheet" href="/gothic.css?v=20261028-3"></head>
 <body>
 <header class="topbar">
  <a class="brand" href="/" aria-label="BLOODFALL 시작 화면"><span class="brand-mark">B<span>/</span>F</span><span>BLOODFALL<small>격리구역 · FIELD JOURNAL</small></span></a>
@@ -137,73 +137,71 @@
     </div>
    </div>
    <div class="touch-pad" aria-label="터치 이동"><button data-direction="up" aria-label="위로 이동">↑</button><button data-direction="left" aria-label="왼쪽 이동">←</button><button data-direction="down" aria-label="아래로 이동">↓</button><button data-direction="right" aria-label="오른쪽 이동">→</button></div>
-   <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
-  </div>
-  <div class="field-caption"><button id="guide-hint" data-panel="guide">✦ 첫 생존 안내</button><span class="field-menu-hint">필요한 정보는 아래 메뉴에서</span></div>
-     <div class="controls" aria-label="기본 조작 안내">
-    <span><kbd>W A S D</kbd> 이동</span>
-    <span><kbd>Space</kbd> 공격</span>
-    <span><kbd>Q / R / 1~4</kbd> 스킬</span>
-    <span><kbd>E / F</kbd> 파밍·루팅</span>
-    <span><kbd>G</kbd> 자동사냥</span>
-    <span><kbd>C / I</kbd> 캐릭터·가방</span>
-    <button type="button" id="controls-help-btn" data-panel="controls-view" class="controls-pill-btn">⌨ 전체 조작키</button>
+    <nav class="menu-dock" aria-label="게임 메뉴">
+     <div class="dock-item" data-category="character">
+      <button id="menu-equip" data-panel="equip" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="캐릭터 (C: 장비 · K: 스킬 · H: 생존)">
+       <span class="dock-glyph">👤</span><span class="dock-name">캐릭터</span><kbd>C</kbd>
+      </button>
+      <div class="dock-flyout" role="menu">
+       <button type="button" data-panel="equip" class="dock-sub-btn" role="menuitem">⚔ 장착 장비<kbd>C</kbd></button>
+       <button type="button" id="menu-skills" data-panel="skills" class="dock-sub-btn" role="menuitem">✦ 종족 스킬<kbd>K</kbd></button>
+       <button type="button" data-panel="survival" class="dock-sub-btn" role="menuitem">♡ 생존 상태<kbd>H</kbd></button>
+      </div>
+     </div>
+
+     <div class="dock-item" data-category="bag">
+      <button id="menu-bag" data-panel="bag" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="가방 (I)">
+       <span class="dock-glyph">🎒</span><span class="dock-name">가방</span><kbd>I</kbd>
+      </button>
+     </div>
+
+     <div class="dock-item" data-category="journal">
+      <button id="menu-journal" data-panel="journal" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="모험 수첩 (J)">
+       <span class="dock-glyph">📜</span><span class="dock-name">모험</span><kbd>J</kbd>
+      </button>
+      <div class="dock-flyout" role="menu">
+       <button type="button" data-panel="guide" class="dock-sub-btn" role="menuitem">✦ 첫 생존 안내</button>
+       <button type="button" data-panel="quests" class="dock-sub-btn" role="menuitem">◇ 보급 의뢰</button>
+       <button type="button" data-panel="log" class="dock-sub-btn" role="menuitem">≡ 생존 기록</button>
+       <button type="button" id="menu-travel" data-panel="travel" class="dock-sub-btn" role="menuitem">⌖ 사냥터 안내</button>
+      </div>
+     </div>
+
+     <div class="dock-item" data-category="camp">
+      <button id="menu-camp" data-panel="camp" class="dock-major-btn camp-menu" aria-controls="menu-dialog" aria-expanded="false" title="아지트 (B)" hidden>
+       <span class="dock-glyph">🏰</span><span class="dock-name">아지트</span><kbd>B</kbd>
+      </button>
+      <div class="dock-flyout" role="menu">
+       <button type="button" data-panel="craft" class="dock-sub-btn" role="menuitem">♨ 제작</button>
+       <button type="button" data-panel="build" class="dock-sub-btn" role="menuitem">⌂ 시설</button>
+       <button type="button" data-panel="research" class="dock-sub-btn" role="menuitem">✧ 연구·강화</button>
+       <button type="button" data-panel="dispatch" class="dock-sub-btn" role="menuitem">⚑ 파견</button>
+      </div>
+     </div>
+
+     <div class="dock-item" data-category="system">
+      <button id="menu-account" data-panel="account" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="시스템 (U)">
+       <span class="dock-glyph">⚙️</span><span class="dock-name">시스템</span><kbd>U</kbd>
+      </button>
+      <div class="dock-flyout" role="menu">
+       <button type="button" data-panel="account" class="dock-sub-btn" role="menuitem">💾 계정 저장·불러오기<kbd>U</kbd></button>
+       <button type="button" data-panel="controls-view" class="dock-sub-btn" role="menuitem">⌨ 전체 조작키 안내</button>
+       <button type="button" id="flyout-pause" class="dock-sub-btn" role="menuitem">⏸ 일시정지</button>
+      </div>
+     </div>
+
+     <div class="dock-item" data-category="controls">
+      <button id="controls-help-btn" type="button" data-panel="controls-view" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="전체 조작키 안내 (키 가이드)">
+       <span class="dock-glyph">⌨</span><span class="dock-name">조작키</span><kbd>?</kbd>
+      </button>
+     </div>
+    </nav>
+    <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
    </div>
- </section>
-</main>
-<nav class="menu-dock" aria-label="게임 메뉴">
- <div class="dock-item" data-category="character">
-  <button id="menu-equip" data-panel="equip" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="캐릭터 (C: 장비 · K: 스킬 · H: 생존)">
-   <span class="dock-glyph">👤</span><span class="dock-name">캐릭터</span><kbd>C</kbd>
-  </button>
-  <div class="dock-flyout" role="menu">
-   <button type="button" data-panel="equip" class="dock-sub-btn" role="menuitem">⚔ 장착 장비<kbd>C</kbd></button>
-   <button type="button" id="menu-skills" data-panel="skills" class="dock-sub-btn" role="menuitem">✦ 종족 스킬<kbd>K</kbd></button>
-   <button type="button" data-panel="survival" class="dock-sub-btn" role="menuitem">♡ 생존 상태<kbd>H</kbd></button>
-  </div>
- </div>
-
- <div class="dock-item" data-category="bag">
-  <button id="menu-bag" data-panel="bag" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="가방 (I)">
-   <span class="dock-glyph">🎒</span><span class="dock-name">가방</span><kbd>I</kbd>
-  </button>
- </div>
-
- <div class="dock-item" data-category="journal">
-  <button id="menu-journal" data-panel="journal" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="모험 수첩 (J)">
-   <span class="dock-glyph">📜</span><span class="dock-name">모험</span><kbd>J</kbd>
-  </button>
-  <div class="dock-flyout" role="menu">
-   <button type="button" data-panel="guide" class="dock-sub-btn" role="menuitem">✦ 첫 생존 안내</button>
-   <button type="button" data-panel="quests" class="dock-sub-btn" role="menuitem">◇ 보급 의뢰</button>
-   <button type="button" data-panel="log" class="dock-sub-btn" role="menuitem">≡ 생존 기록</button>
-   <button type="button" id="menu-travel" data-panel="travel" class="dock-sub-btn" role="menuitem">⌖ 사냥터 안내</button>
-  </div>
- </div>
-
- <div class="dock-item" data-category="camp">
-  <button id="menu-camp" data-panel="camp" class="dock-major-btn camp-menu" aria-controls="menu-dialog" aria-expanded="false" title="아지트 (B)" hidden>
-   <span class="dock-glyph">🏰</span><span class="dock-name">아지트</span><kbd>B</kbd>
-  </button>
-  <div class="dock-flyout" role="menu">
-   <button type="button" data-panel="craft" class="dock-sub-btn" role="menuitem">♨ 제작</button>
-   <button type="button" data-panel="build" class="dock-sub-btn" role="menuitem">⌂ 시설</button>
-   <button type="button" data-panel="research" class="dock-sub-btn" role="menuitem">✧ 연구·강화</button>
-   <button type="button" data-panel="dispatch" class="dock-sub-btn" role="menuitem">⚑ 파견</button>
-  </div>
- </div>
-
- <div class="dock-item" data-category="system">
-  <button id="menu-account" data-panel="account" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="시스템 (U)">
-   <span class="dock-glyph">⚙️</span><span class="dock-name">시스템</span><kbd>U</kbd>
-  </button>
-  <div class="dock-flyout" role="menu">
-   <button type="button" data-panel="account" class="dock-sub-btn" role="menuitem">💾 계정 저장·불러오기<kbd>U</kbd></button>
-   <button type="button" data-panel="controls-view" class="dock-sub-btn" role="menuitem">⌨ 전체 조작키 안내</button>
-   <button type="button" id="flyout-pause" class="dock-sub-btn" role="menuitem">⏸ 일시정지</button>
-  </div>
- </div>
-</nav>
+   <button id="guide-hint" data-panel="guide" hidden>✦ 첫 생존 안내</button>
+   <div class="controls" hidden></div>
+  </section>
+ </main>
 <dialog id="menu-dialog" aria-labelledby="menu-title" aria-describedby="menu-description">
  <header class="menu-heading"><button id="menu-back" class="icon-button" aria-label="상위 분류로" hidden>←</button><div><span id="menu-eyebrow" class="eyebrow">FIELD JOURNAL</span><h2 id="menu-title" tabindex="-1">생존</h2></div><button id="menu-close" class="icon-button" aria-label="메뉴 닫기">×</button></header>
   <nav id="menu-subnav" class="menu-subnav" aria-label="중분류 탭"></nav>
@@ -345,5 +343,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-2"></script><script src="/sprite-manifest.js?v=20261028-2"></script><script src="/sprites.js?v=20261028-2"></script><script src="/combat.js?v=20261028-2"></script><script src="/world.js?v=20261028-2"></script><script src="/app.js?v=20261028-2" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-3"></script><script src="/sprite-manifest.js?v=20261028-3"></script><script src="/sprites.js?v=20261028-3"></script><script src="/combat.js?v=20261028-3"></script><script src="/world.js?v=20261028-3"></script><script src="/app.js?v=20261028-3" type="module"></script>
 </body></html>
