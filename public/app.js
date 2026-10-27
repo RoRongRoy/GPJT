@@ -60,8 +60,10 @@ async function command(action, fields={}) {
   if(action==='move')view.endMove(true);
   accept(result);
   const drops=(result.world.gear||[]).filter(g=>!(before.gear||[]).some(old=>old.id===g.id));
-  if(drops.length)toast('장비 획득 · '+drops.map(g=>itemName(g.id)).join(' · ')+' · 가방에 보관');
+  const killed=(before.enemies||[]).filter(old=>old.hp>0&&result.world.enemies.some(e=>e.id===old.id&&e.hp<=0));
+  if(drops.length)toast('★ 장비 드랍 · '+drops.map(g=>itemName(g.id)).join(' · ')+' · 가방에 보관');
   else if(result.world.player.combat_level>before.player.combat_level)toast(`전투 레벨 상승 · Lv.${result.world.player.combat_level}`);
+  else if(killed.length)toast(result.world.log[0]||'몬스터 처치 · 전리품 획득');
   if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':fields.skill);
  }catch(e){
   if(action==='move')view.endMove(false);

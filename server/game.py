@@ -29,8 +29,16 @@ def damage_enemy(w, enemy, damage, rng=random.random):
     enemy['hp'] = max(0, enemy['hp'] - damage)
     if enemy['hp'] == 0:
         enemy['respawn'] = w['elapsed'] + 45
-        w['inventory']['scroll'] += 3
-        w['inventory']['metal'] += 2
+        tier_bonus = max(0, (enemy.get('level', 1) - 1) // 3)
+        scroll_drop = 3 + tier_bonus * 2
+        metal_drop = 2 + tier_bonus
+        w['inventory']['scroll'] += scroll_drop
+        w['inventory']['metal'] += metal_drop
+        bonus_loot = ''
+        if tier_bonus >= 1:
+            supply_key = 'herb' if tier_bonus == 1 else 'blood' if tier_bonus == 2 else 'elixir'
+            w['inventory'][supply_key] += tier_bonus
+            bonus_loot = f' · {ITEMS[supply_key]} +{tier_bonus}'
         p = w['player']
         p['xp'] += enemy['xp']
         while p['combat_level'] < 20 and p['xp'] >= p['combat_level']*40:
@@ -38,13 +46,13 @@ def damage_enemy(w, enemy, damage, rng=random.random):
             p['combat_level'] += 1
         if p['combat_level'] == 20:
             p['xp'] = 0
-        note(w, f"{enemy['name']} 처치 · 경험치 +{enemy['xp']} · 주문서 +3 · 부품 +2")
+        note(w, f"{enemy['name']} Lv.{enemy.get('level', 1)} 처치 · 경험치 +{enemy['xp']} · 주문서 +{scroll_drop} · 부품 +{metal_drop}{bonus_loot}")
         if rng() < .2:
             w['inventory']['medicine'] += 1
-            note(w, '전리품 · 치료제 +1 (가방에 보관)')
+            note(w, '전리품 드랍 · 치료제 +1 (가방에 보관)')
         item = roll_equipment(w, enemy, rng)
         if item:
-            note(w, f"전리품 · [{RARITIES[item['rarity']]['name']}] {item['name']} (가방 → 장비)")
+            note(w, f"장비 드랍 · [{RARITIES[item['rarity']]['name']}] {item['name']} (가방 → 장비)")
 
 
 class RuleError(ValueError):
@@ -343,6 +351,7 @@ def move_toward(actor, target, step):
 
 
 def patrol(actor, home, elapsed, seed, radius, dt):
-    angle = elapsed*.13 + seed*2.4
-    target = {'x': home['x']+math.cos(angle)*radius, 'y': home['y']+math.sin(angle)*radius}
-    move_toward(actor, target, dt*.65)
+    angle = elapsed*.75 + seed*2.4
+    wave = .72 + .26*math.sin(elapsed*.43 + seed*1.7)
+    target = {'x': home['x']+math.cos(angle)*radius*wave, 'y': home['y']+math.sin(angle)*radius*wave}
+    move_toward(actor, target, dt*1.45)

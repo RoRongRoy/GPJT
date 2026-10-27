@@ -6,13 +6,13 @@ BASE_CLEAR_RADIUS = 9.0
 START_BASE = (22, 22)
 MOVEMENT = {'step': .48, 'interval': .10, 'mount_base': 1.55, 'mount_tier': .25}
 REGIONS = [
-    {'id': 'outskirts', 'name': '버려진 외곽', 'subtitle': '넓은 공터와 옛 마을의 흔적',
+    {'id': 'outskirts', 'name': '버려진 외곽', 'subtitle': '저렙 지역 · 넓은 공터와 약한 감염체 출몰지',
      'x': 27, 'y': 26, 'radius': 47, 'color': '#565962'},
-    {'id': 'forest', 'name': '잿빛 소나무숲', 'subtitle': '숲과 빈터 사이로 이어지는 오솔길',
+    {'id': 'forest', 'name': '잿빛 소나무숲', 'subtitle': '중저렙 지역 · 숲속 포식자가 배회하는 오솔길',
      'x': 86, 'y': 29, 'radius': 48, 'color': '#3c5550'},
-    {'id': 'marsh', 'name': '안개 저지대', 'subtitle': '굽이치는 물가와 드문 약초 군락',
+    {'id': 'marsh', 'name': '안개 저지대', 'subtitle': '고렙 위험지역 · 맹독 변이체가 서성이는 늪지대',
      'x': 29, 'y': 91, 'radius': 49, 'color': '#48616e'},
-    {'id': 'works', 'name': '침묵의 공업지대', 'subtitle': '허물어진 공장 사이의 넓은 황무지',
+    {'id': 'works', 'name': '침묵의 공업지대', 'subtitle': '최상위 고렙지역 · 보스급 철갑 파괴자의 황무지',
      'x': 94, 'y': 92, 'radius': 50, 'color': '#71616a'},
 ]
 for region, levels in zip(REGIONS, [(1, 3), (4, 6), (8, 10), (12, 14)]):
@@ -79,11 +79,13 @@ def new_enemy(index):
     x, y = ENEMY_SPAWNS[index]
     region = region_at(x, y)
     level = region['levels'][0] + index % 3
-    hp = 60 + (level-1)*18
-    names = {'outskirts': '배회하는 감염자', 'forest': '숲의 포식자', 'marsh': '늪지 변이체', 'works': '철갑 파괴자'}
+    tier_mult = {'outskirts': 1, 'forest': 2, 'marsh': 4, 'works': 7}[region['id']]
+    hp = 60 + (level-1)*18*tier_mult
+    damage = 8 + (level-1)*(2 if region['id'] == 'outskirts' else 4)
+    names = {'outskirts': '배회하는 감염자', 'forest': '숲의 포식자', 'marsh': '맹독 늪지 변이체', 'works': '심연의 철갑 파괴자'}
     return {'id': index, 'x': x, 'y': y, 'hp': hp, 'max_hp': hp, 'level': level,
-            'name': names[region['id']], 'region': region['id'], 'damage': 8+(level-1)*2,
-            'xp': 12+level*4, 'respawn': 0, 'attack': 0, 'returning': False}
+            'name': names[region['id']], 'region': region['id'], 'damage': damage,
+            'xp': 12+level*4*tier_mult, 'respawn': 0, 'attack': 0, 'returning': False}
 
 
 def new_npcs():

@@ -57,7 +57,7 @@
    <div class="bag-summary"><span>소지 아이템</span><strong id="bag-count"></strong></div>
    <div class="bag-layout"><div><div id="inventory" aria-label="아이템 슬롯"></div><p id="inventory-empty" hidden>이 분류에 보유한 아이템이 없습니다.</p></div>
    <aside class="item-detail" aria-label="선택한 아이템"><img id="item-art" alt="" width="64" height="64"><span id="item-category" class="eyebrow"></span><h3 id="item-name">아이템 선택</h3><p id="item-description"></p><p id="item-owned"></p><p id="item-effect"></p><button id="item-use" class="wide accent" disabled>사용</button><p id="item-use-reason" role="status"></p></aside></div>
-   <details class="panel-note"><summary>몬스터 전리품 확률</summary><p>처치 1회당 일반 5% · 고급 1% · 희귀 0.1% · 영웅 0.01% · 전설 0.001%. 장비 미획득 93.889%. 치료제는 별도로 20%. 전리품은 가방에 자동 보관됩니다. 높은 지역의 장비는 기본 능력치가 높습니다. 이 게임의 초기 밸런스이며 리니지의 공식 확률이 아닙니다.</p></details>
+   <details class="panel-note" open><summary>장비 등급 및 몬스터 드랍 확률 (리니지식 하드코어 밸런스)</summary><p><strong>[5단계 장비 등급]</strong> 일반(5%) · 고급(1%) · 희귀(0.1%) · 영웅(0.01%) · 전설(0.001%) / 미획득 93.889%.<br><strong>[몬스터 전리품]</strong> 처치 시 강화 주문서·부품 기본 드랍, 치료제 20% 확률 드랍, 중·고렙 지역 몬스터는 원혈·약초·강화혈액 및 고티어(T2~T4) 장비를 추가 드랍합니다.</p></details>
    <p class="panel-note">아이템을 클릭하면 상세 정보를 볼 수 있습니다. 아지트와 보관품을 공유합니다.</p>
   </section>
   <section data-view="journal" hidden>
@@ -70,7 +70,7 @@
   <section data-view="guide" hidden><div class="guide-progress"><span class="eyebrow">FIRST NIGHT</span><span id="objective-count">0 / 5</span></div><h3 id="objective">종족을 선택하세요</h3><p id="objective-detail"></p><div id="objective-steps"></div><p class="panel-note">진행 상황은 자동 저장됩니다.</p></section>
   <section data-view="quests" hidden><div class="feature-symbol">◇</div><h3>작은 도움, 다음 하루</h3><p class="muted">자원을 5번 채집하고 가까운 보급관이나 연금사를 찾아가세요.</p><div id="quest-progress"></div><div class="reward-card">주문서 <strong>10</strong> · 치료제 <strong>1</strong></div><button class="wide accent" data-action="quest">근처 NPC에게 의뢰 보고</button></section>
   <section data-view="log" hidden><ol id="log"></ol></section>
-  <section data-view="travel" hidden><details class="travel-card"><summary>사냥터 위험도</summary><p>외곽 Lv.1–3 · 북동쪽 숲 Lv.4–6 · 남서쪽 저지대 Lv.8–10 · 남동쪽 공업지대 Lv.12–14</p><p>남쪽 지역의 육중한 변이체는 체력과 공격력이 높습니다. 전투 레벨과 장비를 올린 뒤 도전하세요.</p></details>
+  <section data-view="travel" hidden><details class="travel-card" open><summary>저렙 / 고렙 사냥터 구분 및 몬스터 정보</summary><p><strong>[저렙 지역]</strong> 버려진 외곽 (Lv.1–3 · 배회하는 감염자)<br><strong>[중저렙 지역]</strong> 잿빛 소나무숲 (Lv.4–6 · 숲의 포식자)<br><strong>[고렙 위험지역]</strong> 안개 저지대 (Lv.8–10 · 맹독 늪지 변이체)<br><strong>[최상위 고렙지역]</strong> 침묵의 공업지대 (Lv.12–14 · 심연의 철갑 파괴자)</p><p>고렙 지역의 몬스터는 체력과 공격력이 대폭 강화되어 있으며, 높은 티어(T2~T4)의 일반~전설 장비와 추가 보급품을 드랍합니다.</p></details>
    <button id="travel-home" class="category-card"><span class="category-icon">⌂</span><strong>아지트로 돌아가기</strong><small>현재 아지트까지 걸어갑니다.</small><span class="category-arrow">→</span></button>
    <div class="travel-card"><h3>이동 형태</h3><p id="mobility"></p><button class="wide" data-action="mount">탑승 / 변신 해제</button></div>
    <details class="travel-card"><summary>아지트 이주</summary><p class="muted">안전한 현재 위치로 아지트를 즉시 옮깁니다. 시설과 보관품을 그대로 가져옵니다.</p><button class="wide" data-action="relocate">이곳에 아지트 설치</button></details>

@@ -151,8 +151,10 @@ class WorldView {
     }
     if(e.kind==='npc'){
      const [hx,hy]=project(e.home_x??e.x,e.home_y??e.y);art.prop('storage',hx+26*scale,hy+8*scale,scale*.7);
+     const isVamp=['vampire','ferryman'].includes(e.id);
+     c.strokeStyle=isVamp?'#c87b9244':'#b5c89c44';c.lineWidth=1;c.setLineDash([2,5]);c.beginPath();c.ellipse(hx,hy,36*scale,18*scale,0,0,Math.PI*2);c.stroke();c.setLineDash([]);
      const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused);
-     art.character(sx,sy,scale,['vampire','ferryman'].includes(e.id)?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
+     art.character(sx,sy,scale,isVamp?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
     }
     const focus=e.id===selected||near<2.5;
     if(focus){c.strokeStyle='#e9d29a';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy,28*scale,14*scale,0,0,Math.PI*2);c.stroke();}
@@ -161,10 +163,12 @@ class WorldView {
     this.points.push({x:sx,y:sy-22*scale,id:e.id,left:sx-halfWidth,right:sx+halfWidth,top:sy-(e.kind==='wood'?210:e.kind==='blood'?137:110)*scale,bottom:sy+12*scale});
    }
    if(e.type==='enemy'){
-    const pose=art.pose('enemy:'+e.id,e.x,e.y,now,w.paused);
-    art.character(sx,sy,scale,'human',pose.frame!==0,now,{enemy:true,variant:(e.level||1)>=8,pose});
-    c.fillStyle='#151c29';c.fillRect(sx-16*scale,sy-98*scale,32*scale,4*scale);c.fillStyle='#ad5866';c.fillRect(sx-16*scale,sy-98*scale,32*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
-    labels.push([`${e.name||'감염체'} Lv.${e.level||1}`,sx,sy-111*scale,(e.level||1)>(p.combat_level||1)+2?'#ff9c88':'#e4c9c1']);
+    const pose=art.pose('enemy:'+e.id,e.x,e.y,now,w.paused),high=(e.level||1)>=8,boss=(e.level||1)>=12;
+    if(high){c.strokeStyle=boss?'#ff525288':'#d68c7766';c.lineWidth=boss?2:1.3;c.beginPath();c.ellipse(sx,sy+2*scale,(boss?24:19)*scale,(boss?11:9)*scale,0,0,Math.PI*2);c.stroke();}
+    art.character(sx,sy,scale*(boss?1.15:high?1.06:1),'human',pose.frame!==0,now,{enemy:true,variant:high,pose});
+    c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);c.fillStyle=boss?'#ff5c5c':high?'#d9734e':'#ad5866';c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
+    const tierTag=boss?'[최상위] ':high?'[고렙] ':(e.level||1)>=4?'[중렙] ':'[저렙] ';
+    labels.push([`${tierTag}${e.name||'감염체'} Lv.${e.level||1}`,sx,sy-111*scale,boss?'#ff7b7b':(e.level||1)>(p.combat_level||1)+2?'#ff9c88':'#e4c9c1']);
     this.points.push({x:sx,y:sy-23*scale,id:'enemy:'+e.id,left:sx-29*scale,right:sx+29*scale,top:sy-95*scale,bottom:sy+10*scale});
    }
    if(e.type==='player'){

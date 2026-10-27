@@ -3,7 +3,10 @@ class CombatEffects {
  constructor(before,after,kind,now,facing=0){
   this.kind=kind;this.start=now;this.duration=kind==='recover'?800:kind==='sweep'?650:420;
   this.origin={x:after.player.x,y:after.player.y};this.vampire=after.player.species==='vampire';
-  this.hits=after.enemies.flatMap(e=>{const old=before.enemies.find(n=>n.id===e.id);return old&&old.hp>e.hp?[{id:e.id,x:e.x,y:e.y,damage:Math.ceil(old.hp-e.hp)}]:[];});
+  this.hits=after.enemies.flatMap(e=>{const old=before.enemies.find(n=>n.id===e.id);return old&&old.hp>e.hp?[{id:e.id,x:e.x,y:e.y,damage:Math.ceil(old.hp-e.hp),killed:e.hp<=0&&Boolean(after.inventory)}]:[];});
+  const newGear=(after.gear||[]).filter(g=>!(before.gear||[]).some(o=>o.id===g.id));
+  const gradeNames={normal:'일반',advanced:'고급',rare:'희귀',epic:'영웅',legendary:'전설'};
+  this.lootLabel=newGear.length?`★ [${gradeNames[newGear[0].rarity]||'장비'}] ${newGear[0].name}`:'전리품 드랍 · 주문서·부품';
   this.heal=Math.max(0,Math.ceil(after.player.hp-before.player.hp));
   const target=this.hits[0],dx=target?target.x-this.origin.x:1,dy=target?target.y-this.origin.y:0;
   this.angle=Math.atan2((dx+dy)*17,(dx-dy)*34);this.row=dx+dy>=0?(dx-dy>=0?0:1):(dx-dy>=0?3:2);
@@ -45,6 +48,7 @@ class CombatEffects {
     const [hx,hy]=project(hit.x,hit.y);c.globalAlpha=Math.max(0,1-hitProgress);c.fillStyle=color;
     if(!this.reduced&&hitProgress<.4)for(let i=0;i<5;i++){const a=i*1.256;c.beginPath();c.arc(hx+Math.cos(a)*hitProgress*70*scale,hy-42*scale+Math.sin(a)*hitProgress*50*scale,2*scale,0,Math.PI*2);c.fill();}
     c.font=`bold ${Math.round(17*scale)}px system-ui`;c.textAlign='center';c.strokeStyle='#17121e';c.lineWidth=3;c.strokeText(String(hit.damage),hx,hy-(90+hitProgress*25)*scale);c.fillText(String(hit.damage),hx,hy-(90+hitProgress*25)*scale);
+    if(hit.killed){c.font=`bold ${Math.round(12*scale)}px system-ui`;c.fillStyle='#ffd97d';c.strokeText(this.lootLabel,hx,hy-(114+hitProgress*32)*scale);c.fillText(this.lootLabel,hx,hy-(114+hitProgress*32)*scale);}
    }
    if(this.kind==='recover'){c.globalAlpha=Math.max(0,1-hitProgress);c.font=`bold ${Math.round(17*scale)}px system-ui`;c.textAlign='center';c.fillStyle=color;c.fillText('+'+this.heal,x,y-(100+hitProgress*25)*scale);}
   }
