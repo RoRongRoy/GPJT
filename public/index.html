@@ -61,21 +61,73 @@
    <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
   </div>
   <div class="field-caption"><button id="guide-hint" data-panel="guide">✦ 첫 생존 안내</button><span class="field-menu-hint">필요한 정보는 아래 메뉴에서</span></div>
-  <div class="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> 이동</span><span><kbd>Shift</kbd> 달리기</span><span><kbd>E</kbd> 오브젝트 선택파밍</span><span><kbd>F</kbd> 필드드랍 루팅</span><span><kbd>Space</kbd> 공격</span><span><kbd>Q / R</kbd> 스킬</span><span><kbd>G</kbd> 자동사냥</span><span><kbd>C</kbd> 장착장비</span><span><kbd>I</kbd> 인벤토리</span><span><kbd>M</kbd> 탑승·변신</span><span><kbd>Esc</kbd> 이동 취소</span><span class="controls-end">클릭·드래그 이동 · 휠 확대</span></div>
+     <div class="controls" aria-label="기본 조작 안내">
+    <span><kbd>W A S D</kbd> 이동</span>
+    <span><kbd>Space</kbd> 공격</span>
+    <span><kbd>Q / R / 1~4</kbd> 스킬</span>
+    <span><kbd>E / F</kbd> 파밍·루팅</span>
+    <span><kbd>G</kbd> 자동사냥</span>
+    <span><kbd>C / I</kbd> 캐릭터·가방</span>
+    <button type="button" id="controls-help-btn" data-panel="controls-view" class="controls-pill-btn">⌨ 전체 조작키</button>
+   </div>
  </section>
 </main>
 <nav class="menu-dock" aria-label="게임 메뉴">
- <button id="menu-survival" data-panel="survival" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">♡</span>생존<kbd>H</kbd></button>
- <button id="menu-skills" data-panel="skills" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">✦</span>스킬<kbd>K</kbd></button>
- <button id="menu-equip" data-panel="equip" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">⚔</span>장비<kbd>C</kbd></button>
- <button id="menu-bag" data-panel="bag" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▣</span>가방<kbd>I</kbd></button>
- <button id="menu-journal" data-panel="journal" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▤</span>수첩<kbd>J</kbd></button>
- <button id="menu-travel" data-panel="travel" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">⌖</span>이동</button>
- <button id="menu-account" data-panel="account" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">💾</span>계정<kbd>U</kbd></button>
- <button id="menu-camp" data-panel="camp" aria-controls="menu-dialog" aria-expanded="false" class="camp-menu" hidden><span aria-hidden="true">⌂</span>아지트<kbd>B</kbd></button>
+ <div class="dock-item" data-category="character">
+  <button id="menu-equip" data-panel="equip" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="캐릭터 (C: 장비 · K: 스킬 · H: 생존)">
+   <span class="dock-glyph">👤</span><span class="dock-name">캐릭터</span><kbd>C</kbd>
+  </button>
+  <div class="dock-flyout" role="menu">
+   <button type="button" data-panel="equip" class="dock-sub-btn" role="menuitem">⚔ 장착 장비<kbd>C</kbd></button>
+   <button type="button" id="menu-skills" data-panel="skills" class="dock-sub-btn" role="menuitem">✦ 종족 스킬<kbd>K</kbd></button>
+   <button type="button" data-panel="survival" class="dock-sub-btn" role="menuitem">♡ 생존 상태<kbd>H</kbd></button>
+  </div>
+ </div>
+
+ <div class="dock-item" data-category="bag">
+  <button id="menu-bag" data-panel="bag" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="가방 (I)">
+   <span class="dock-glyph">🎒</span><span class="dock-name">가방</span><kbd>I</kbd>
+  </button>
+ </div>
+
+ <div class="dock-item" data-category="journal">
+  <button id="menu-journal" data-panel="journal" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="모험 수첩 (J)">
+   <span class="dock-glyph">📜</span><span class="dock-name">모험</span><kbd>J</kbd>
+  </button>
+  <div class="dock-flyout" role="menu">
+   <button type="button" data-panel="guide" class="dock-sub-btn" role="menuitem">✦ 첫 생존 안내</button>
+   <button type="button" data-panel="quests" class="dock-sub-btn" role="menuitem">◇ 보급 의뢰</button>
+   <button type="button" data-panel="log" class="dock-sub-btn" role="menuitem">≡ 생존 기록</button>
+   <button type="button" id="menu-travel" data-panel="travel" class="dock-sub-btn" role="menuitem">⌖ 사냥터 안내</button>
+  </div>
+ </div>
+
+ <div class="dock-item" data-category="camp">
+  <button id="menu-camp" data-panel="camp" class="dock-major-btn camp-menu" aria-controls="menu-dialog" aria-expanded="false" title="아지트 (B)" hidden>
+   <span class="dock-glyph">🏰</span><span class="dock-name">아지트</span><kbd>B</kbd>
+  </button>
+  <div class="dock-flyout" role="menu">
+   <button type="button" data-panel="craft" class="dock-sub-btn" role="menuitem">♨ 제작</button>
+   <button type="button" data-panel="build" class="dock-sub-btn" role="menuitem">⌂ 시설</button>
+   <button type="button" data-panel="research" class="dock-sub-btn" role="menuitem">✧ 연구·강화</button>
+   <button type="button" data-panel="dispatch" class="dock-sub-btn" role="menuitem">⚑ 파견</button>
+  </div>
+ </div>
+
+ <div class="dock-item" data-category="system">
+  <button id="menu-account" data-panel="account" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="시스템 (U)">
+   <span class="dock-glyph">⚙️</span><span class="dock-name">시스템</span><kbd>U</kbd>
+  </button>
+  <div class="dock-flyout" role="menu">
+   <button type="button" data-panel="account" class="dock-sub-btn" role="menuitem">💾 계정 저장·불러오기<kbd>U</kbd></button>
+   <button type="button" data-panel="controls-view" class="dock-sub-btn" role="menuitem">⌨ 전체 조작키 안내</button>
+   <button type="button" id="flyout-pause" class="dock-sub-btn" role="menuitem">⏸ 일시정지</button>
+  </div>
+ </div>
 </nav>
 <dialog id="menu-dialog" aria-labelledby="menu-title" aria-describedby="menu-description">
  <header class="menu-heading"><button id="menu-back" class="icon-button" aria-label="상위 분류로" hidden>←</button><div><span id="menu-eyebrow" class="eyebrow">FIELD JOURNAL</span><h2 id="menu-title" tabindex="-1">생존</h2></div><button id="menu-close" class="icon-button" aria-label="메뉴 닫기">×</button></header>
+  <nav id="menu-subnav" class="menu-subnav" aria-label="중분류 탭"></nav>
  <p id="menu-description" class="menu-description"></p>
  <div class="menu-body">
   <section data-view="survival" hidden>
@@ -177,6 +229,34 @@
      <button id="account-new-human" type="button">☀ 인간 신규 모험자로 시작</button>
      <button id="account-new-vampire" type="button">☾ 뱀파이어 신규 모험자로 시작</button>
      <button id="account-new-welcome" type="button" class="wide">시작 화면(종족 선택/계정 불러오기)으로 이동</button>
+    </div>
+   </div>
+  </section>
+  <section data-view="controls-view" hidden>
+   <div class="controls-panel-body">
+    <div class="equip-stats-box">
+     <strong>⌨ 전체 조작키 및 단축키 안내</strong>
+     <p class="muted">BLOODFALL 격리구역 필드 탐험 및 전투 조작법입니다.</p>
+    </div>
+    <div class="controls-guide-grid">
+     <div class="controls-card"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>캐릭터 4방향 이동</span></div>
+     <div class="controls-card"><kbd>Shift</kbd><span>달리기 / 걷기 토글</span></div>
+     <div class="controls-card"><kbd>Space</kbd><span>가장 가까운 적 자동 공격</span></div>
+     <div class="controls-card"><kbd>Q</kbd><kbd>R</kbd><span>기본 전투 / 회복 스킬</span></div>
+     <div class="controls-card"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>스킬북 해금 직업 기술</span></div>
+     <div class="controls-card"><kbd>E</kbd><span>오브젝트 내용물 확인 및 선택 파밍</span></div>
+     <div class="controls-card"><kbd>F</kbd><span>몬스터 드랍 전리품 루팅</span></div>
+     <div class="controls-card"><kbd>G</kbd><span>자동사냥 토글</span></div>
+     <div class="controls-card"><kbd>M</kbd><span>다크에덴 박쥐 탑승 / 변신 토글</span></div>
+     <div class="controls-card"><kbd>V</kbd><span>탐험 화면 넓게 보기 (시야 확대)</span></div>
+     <div class="controls-card"><kbd>C</kbd><span>캐릭터 장착 장비 (무기/방어구)</span></div>
+     <div class="controls-card"><kbd>K</kbd><span>스킬북 목록 및 직업 계열 전환</span></div>
+     <div class="controls-card"><kbd>H</kbd><span>생존 상태(HP/MP) 및 음식 섭취</span></div>
+     <div class="controls-card"><kbd>I</kbd><span>가방 (소지품 인벤토리)</span></div>
+     <div class="controls-card"><kbd>J</kbd><span>모험 수첩 (퀘스트 / 가이드)</span></div>
+     <div class="controls-card"><kbd>B</kbd><span>아지트 관리 (제작/시설/연구)</span></div>
+     <div class="controls-card"><kbd>U</kbd><span>계정 생성·저장 및 불러오기</span></div>
+     <div class="controls-card"><kbd>Esc</kbd><span>열린 창 닫기 / 이동 취소</span></div>
     </div>
    </div>
   </section>

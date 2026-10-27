@@ -28,8 +28,55 @@ const panelInfo={
  research:['연구·성장','장비와 이동 형태, 다음 삶을 준비하세요.','RESEARCH'],
  dispatch:['파견','동료와 종복에게 보급 임무를 맡기세요.','COMPANIONS'],
  account:['계정 저장 · 불러오기','신규 모험자의 진행 상황을 계정/비밀번호로 서버에 저장하거나 불러오세요.','ACCOUNT & SAVE'],
+ 'controls-view':['조작키 안내','BLOODFALL 단축키 및 탐험·전투 기능입니다.','CONTROLS'],
 };
-const panelParents={guide:'journal',quests:'journal',log:'journal',craft:'camp',build:'camp',research:'camp',dispatch:'camp'};
+const panelParents={guide:'journal',quests:'journal',log:'journal',travel:'journal',craft:'camp',build:'camp',research:'camp',dispatch:'camp','controls-view':'account'};
+const categoryMap={
+ equip:'character',skills:'character',survival:'character',
+ bag:'bag',
+ journal:'journal',guide:'journal',quests:'journal',log:'journal',travel:'journal',
+ camp:'camp',craft:'camp',build:'camp',research:'camp',dispatch:'camp',
+ account:'system','controls-view':'system'
+};
+const categorySubnav={
+ character:[
+  {panel:'equip',label:'⚔ 장착 장비',key:'C'},
+  {panel:'skills',label:'✦ 종족 스킬',key:'K'},
+  {panel:'survival',label:'♡ 생존 상태',key:'H',id:'menu-survival'}
+ ],
+ journal:[
+  {panel:'guide',label:'✦ 첫 생존'},
+  {panel:'quests',label:'◇ 보급 의뢰'},
+  {panel:'log',label:'≡ 생존 기록'},
+  {panel:'travel',label:'⌖ 사냥터 안내'}
+ ],
+ camp:[
+  {panel:'craft',label:'♨ 제작'},
+  {panel:'build',label:'⌂ 시설'},
+  {panel:'research',label:'✧ 연구'},
+  {panel:'dispatch',label:'⚑ 파견'}
+ ],
+ system:[
+  {panel:'account',label:'💾 계정 저장·불러오기',key:'U'},
+  {panel:'controls-view',label:'⌨ 전체 조작키'}
+ ]
+};
+function updateSubnav(name){
+ const subnav=$('menu-subnav');
+ if(!subnav)return;
+ const cat=categoryMap[name]||name;
+ const items=categorySubnav[cat];
+ if(!items||!items.length){subnav.hidden=true;subnav.innerHTML='';return;}
+ subnav.hidden=false;
+ subnav.innerHTML=items.map(item=>`
+  <button type="button" class="subnav-tab${item.panel===name?' active':''}" data-panel="${item.panel}" aria-selected="${item.panel===name}"${item.id?` id="${item.id}"`:''}>
+   <span>${item.label}</span>${item.key?`<kbd>${item.key}</kbd>`:''}
+  </button>
+ `).join('');
+ for(const btn of (subnav.querySelectorAll ? subnav.querySelectorAll('[data-panel]') : document.querySelectorAll('#menu-subnav [data-panel]') || [])){
+  btn.onclick=()=>openPanel(btn.dataset.panel);
+ }
+}
 const recipeDetails={soup:['♨','포만도 +45 · 수분 +15'],elixir:['⚗','혈액량 +40 · 안정도 +45'],medicine:['+','체력 +40 · 감염 −60']};
 const inventoryGroups={all:['wood','water','crop','herb','blood','metal','scroll','skillbook','soup','elixir','medicine'],materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll','skillbook'],equipment:[]};
 const facilityNames = {kitchen:'주방',alchemy:'연금대',medical:'의료실',storage:'저장고'};
@@ -294,7 +341,7 @@ function setAutoHunt(active,silent=false){
 }
 $('auto-hunt').onclick=()=>{if(!state?.world.player.chosen||!connected)return;if(state.world.paused){toast('일시정지를 해제하세요.');return;}closePanel(false);setAutoHunt(!autoHunt);if(autoHunt)stepMovement();};
 function manualAction(action,fields={}){if(action==='attack'||action==='skill')closePanel(false);clearMovement();pendingAction=null;clearTimeout(pendingTimer);command(action,fields);}
-$('pause').onclick=()=>manualAction('pause');
+$('pause').onclick=()=>manualAction('pause');if($('flyout-pause'))$('flyout-pause').onclick=()=>manualAction('pause');
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action));
 document.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>manualAction('consume',{item:b.dataset.item}));
 $('craft-submit').onclick=()=>manualAction('craft',{recipe:selectedRecipe});
@@ -348,14 +395,20 @@ function openPanel(name,opener=null){
  $('menu-back').hidden=!panelParents[name];
  document.querySelectorAll('[data-view]').forEach(section=>section.hidden=section.dataset.view!==name);
  const root=panelParents[name]||name;
- document.querySelectorAll('[data-panel]').forEach(button=>button.setAttribute('aria-expanded',String(button.dataset.panel===root)));
+ const activeCat=categoryMap[name]||name;
+ document.querySelectorAll('[data-panel]').forEach(button=>button.setAttribute('aria-expanded',String(button.dataset.panel===root||button.dataset.panel===name)));
+ document.querySelectorAll('.dock-major-btn').forEach(button=>{
+  const itemCat=button.closest?.('.dock-item')?.dataset.category;
+  button.setAttribute('aria-expanded',String(itemCat===activeCat||button.dataset.panel===name));
+ });
+ updateSubnav(name);
  $('menu-context').textContent=campPanels.has(name)?'⌂ 아지트 안 · 벗어나면 이 메뉴는 닫힙니다.':'Esc로 닫기 · 메뉴를 연 동안에도 월드 시간은 흐릅니다.';
  if(!$('menu-dialog').open)$('menu-dialog').show();
  renderInventory();renderRecipe();$('menu-title').focus({preventScroll:true});return true;
 }
 function updateContext(){
  const {player:p}=state.world,atCamp=canUseCamp();
- $('menu-camp').hidden=!atCamp;$('camp-access').hidden=!atCamp;
+ $('menu-camp').hidden=!atCamp;const campDockItem=$('menu-camp')?.closest?.('.dock-item');if(campDockItem)campDockItem.hidden=!atCamp;$('camp-access').hidden=!atCamp;
  document.querySelectorAll('[data-panel]').forEach(button=>button.disabled=(!p.chosen&&button.dataset.panel!=='account')||!connected);
  $('auto-hunt').disabled=!p.chosen||!connected||state.world.paused;
  updateSprintUI();
