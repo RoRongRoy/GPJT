@@ -150,11 +150,11 @@ function updateWelcomeCustomizer(){
  document.querySelectorAll('[data-select-gender]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.selectGender===selectedGender)));
  document.querySelectorAll('[data-select-job]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.selectJob===selectedJob)));
   document.querySelectorAll('.portrait-pair img').forEach(i=>i.classList.toggle('selected-gender',i.dataset.gender===selectedGender));
- if($('welcome-human-title'))$('welcome-human-title').textContent=`인간 · ${gText} ${hCls.name} (${hCls.weapon_type})`;
- if($('welcome-human-sub'))$('welcome-human-sub').textContent=`HUMAN · [${hCls.style}] ${hCls.weapon_type} 사용 · 사거리 ${hCls.attack_range}`;
+ if($('welcome-human-title'))$('welcome-human-title').textContent=`인간 · ${gText} ${hCls.name}`;
+ if($('welcome-human-sub'))$('welcome-human-sub').textContent=`HUMAN · ${hCls.style} · ${hCls.weapon_type} · 사거리 ${hCls.attack_range}`;
  if($('welcome-human-trait'))$('welcome-human-trait').textContent=`기본 무기: ${hCls.starter_weapon} · MP 전술 스킬`;
- if($('welcome-vampire-title'))$('welcome-vampire-title').textContent=`뱀파이어 · ${gText} ${vCls.name} (${vCls.weapon_type})`;
- if($('welcome-vampire-sub'))$('welcome-vampire-sub').textContent=`VAMPIRE · [${vCls.style}] ${vCls.weapon_type} 사용 · 사거리 ${vCls.attack_range}`;
+ if($('welcome-vampire-title'))$('welcome-vampire-title').textContent=`뱀파이어 · ${gText} ${vCls.name}`;
+ if($('welcome-vampire-sub'))$('welcome-vampire-sub').textContent=`VAMPIRE · ${vCls.style} · ${vCls.weapon_type} · 사거리 ${vCls.attack_range}`;
  if($('welcome-vampire-trait'))$('welcome-vampire-trait').textContent=`기본 무기: ${vCls.starter_weapon} · 흡혈 및 혈족 비전`;
 }
 document.querySelectorAll('[data-select-gender]').forEach(b=>b.onclick=()=>{selectedGender=b.dataset.selectGender;updateWelcomeCustomizer();});
