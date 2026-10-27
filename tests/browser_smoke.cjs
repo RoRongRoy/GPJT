@@ -106,7 +106,7 @@ async function until(check,message,timeout=10000){
   await until(async()=> (await readState()).world.inventory.wood>initial.world.inventory.wood,'Click-to-gather did not complete');
   await page.locator('#zoom-in').click();assert.equal(await page.locator('#zoom-level').textContent(),'110%');
   await page.locator('#zoom-out').click();assert.equal(await page.locator('#zoom-level').textContent(),'100%');
-  await page.locator('#focus-view').click();assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('focus-mode')),true);
+  if(await page.locator('#focus-view').isVisible()){await page.locator('#focus-view').click();assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('focus-mode')),true);}
   await page.keyboard.press('v');assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('focus-mode')),false);
   await page.keyboard.down('d');await delay(80);
   await page.locator('#pause').click();await page.keyboard.up('d');await page.locator('#pause-overlay').waitFor({state:'visible'});

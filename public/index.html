@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-5"><link rel="stylesheet" href="/gothic.css?v=20261028-5"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261028-6"></head>
 <body>
 <header class="topbar">
  <a class="brand" href="/" aria-label="BLOODFALL 시작 화면"><span class="brand-mark">B<span>/</span>F</span><span>BLOODFALL<small>격리구역 · FIELD JOURNAL</small></span></a>
@@ -12,7 +12,7 @@
    <canvas id="world" aria-label="탐험 지도. WASD나 방향키로 화면 방향 이동, 클릭으로 목적지 이동, E로 상호작용." tabindex="0"></canvas>
    <div class="world-title"><div><span class="eyebrow">CHRONICLES OF THE LONG NIGHT</span><h1 id="region-name">버려진 외곽</h1><p id="region-description">옛 야영지와 생존자의 길</p></div><div class="clock"><span>생존 기록</span><strong id="day">DAY 01</strong><span id="time">활동 0분 0초</span></div></div>
    <div id="intro-art" class="intro-art" aria-hidden="true"><img src="/art/nightfall-city.png" alt=""></div>
-   <div class="field-top"><span class="field-badge"><i></i> <span id="location-hint">안전지대 · 아지트</span></span><button id="focus-view" class="map-button" title="탐험 화면 넓히기 (V)" aria-pressed="false">⛶ <span>넓게 보기</span></button></div>
+   <div class="field-top"><span class="field-badge"><i></i> <span id="location-hint">안전지대 · 아지트</span></span><button id="focus-view" class="map-button" title="탐험 화면 넓히기 (V)" aria-pressed="false" hidden>⛶ <span>넓게 보기</span></button></div>
    <div class="field-vitals"><button data-panel="survival" aria-label="생존 상태 열기"><span>HP</span><strong id="field-hp">100</strong><i><b id="field-health-bar"></b></i></button><button id="field-mp-wrap" data-panel="survival" class="mp-badge" aria-label="마나 및 종족 특성"><span id="field-mp-label">MP</span><strong id="field-mp">100</strong><i id="field-mp-track"><b id="field-mp-bar"></b></i></button><button data-panel="survival" class="level-badge" aria-label="전투 레벨 및 경험치"><strong id="field-level">Lv.1</strong><i><b id="field-exp-bar"></b></i></button><span id="field-vital"></span><span id="field-bag"></span><button id="field-equip-btn" data-panel="equip" class="equip-hud-btn" aria-label="장착 장비 열기"><span id="field-equip">⚔ 미착용 · 🛡 미착용</span></button><span id="field-infection" hidden></span></div>
    <button id="camp-access" data-panel="camp" class="camp-access" hidden><span>⌂</span><strong>아지트 관리</strong><small>제작 · 시설 · 연구</small><kbd>B</kbd></button>
    <div class="atlas"><div class="atlas-heading"><span>격리구역</span><span id="coordinates">06 / 07</span></div><canvas id="minimap" width="320" height="320" aria-label="전체 지도. 클릭한 위치로 이동합니다." tabindex="0"></canvas><div class="atlas-caption">지도 클릭 → 이동</div></div>
@@ -343,5 +343,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-5"></script><script src="/sprite-manifest.js?v=20261028-5"></script><script src="/sprites.js?v=20261028-5"></script><script src="/combat.js?v=20261028-5"></script><script src="/world.js?v=20261028-5"></script><script src="/app.js?v=20261028-5" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-6"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-6"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261028-6"></script><script src="/app.js?v=20261028-6" type="module"></script>
 </body></html>

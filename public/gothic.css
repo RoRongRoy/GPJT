@@ -1509,3 +1509,8 @@ main{
   height:calc(100dvh - 48px) !important;
  }
 }
+
+/* Hide focus view */
+#focus-view{
+ display:none !important;
+}
