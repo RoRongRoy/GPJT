@@ -5,7 +5,7 @@ const key = sessionStorage.getItem('bloodfall-key') || '';
 // Deliberately per-tab: a second tab must not silently share control of this P0 world.
 const session = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}-${Math.random()}`;
 let state = null, busy = false, connected = false, polling = false, toastTimer, selected = null;
-let target=null, hurtUntil=0, pendingAction=null, pendingTimer=null, lastCommandAt=-Infinity, lastMove= -Infinity;
+let target=null, hurtUntil=0, pendingAction=null, pendingTimer=null, lastCommandAt=-Infinity, lastMove= -Infinity, autoHunt=false;
 const held=new Set(), touchHeld=new Set();
 const canvas=$('world'), view=new WorldView(canvas,$('minimap'));
 const facilityRows=new Map();
@@ -84,7 +84,7 @@ function update() {
  document.body.dataset.species=p.chosen?p.species:'unchosen';
  const portrait=$('survivor-art');
  if(portrait.dataset.portraitSpecies!==p.species){portrait.dataset.portraitSpecies=p.species;portrait.src=p.species==='human'?'/art/human-warden.png':'/art/vampire-scholar.png';portrait.alt=p.species==='human'?'인간 생존자 초상':'뱀파이어 초상';}
- $('welcome').hidden=p.chosen; $('interaction').hidden=!p.chosen; if(w.paused)clearMovement(); updateGuide();
+ $('welcome').hidden=p.chosen; $('interaction').hidden=!p.chosen; if(w.paused){if(autoHunt)setAutoHunt(false,true);clearMovement();} updateGuide();
  const region=view.region(state,p.x,p.y);$('region-name').textContent=region.name;$('region-description').textContent=region.subtitle+(region.levels?` · 권장 Lv.${region.levels.join('–')}${(p.combat_level||1)<region.levels[0]?' · 위험 지역':''}`:'');
  $('coordinates').textContent=`${Math.floor(p.x).toString().padStart(2,'0')} / ${Math.floor(p.y).toString().padStart(2,'0')}`;
  $('species').textContent=!p.chosen?'새로운 생존자':p.species==='human'?'인간 · 생존자':'뱀파이어 · 혈족';
@@ -124,6 +124,7 @@ function draw(){view.draw(state,target,selected,{hurtUntil});}
 function clearMovement(){held.clear();touchHeld.clear();target=null;document.querySelectorAll('[data-direction]').forEach(b=>b.classList.remove('pressed'));}
 function navigate(x,y,id=null){
  if(!state?.world.player.chosen||state.world.paused||!connected)return;
+ if(autoHunt&&!id?.startsWith('enemy:'))setAutoHunt(false,true);
  closePanel(false);clearMovement();const max=state.map.size-2;
  target={x:Math.max(1,Math.min(max,x)),y:Math.max(1,Math.min(max,y)),id};selected=id;
 }
@@ -150,6 +151,16 @@ $('zoom-in').onclick=()=>changeZoom(.1);$('zoom-out').onclick=()=>changeZoom(-.1
 function goHome(){if(state){navigate(state.world.base.x,state.world.base.y);stepMovement();}}
 $('go-home').onclick=goHome;$('travel-home').onclick=goHome;
 $('interact').onclick=()=>interact();
+function setAutoHunt(active,silent=false){
+ const next=Boolean(active&&state?.world.player.chosen&&!state?.world.paused&&connected);
+ if(autoHunt===next&&silent)return;
+ autoHunt=next;
+ if(!autoHunt&&target?.id?.startsWith('enemy:'))target=null;
+ $('auto-hunt').setAttribute('aria-pressed',String(autoHunt));
+ $('auto-hunt-label').textContent=autoHunt?'자동사냥 ON':'자동사냥 OFF';
+ if(!silent)toast(autoHunt?'자동사냥 ON · 주변 감염체를 자동으로 추적·공격합니다.':'자동사냥 OFF');
+}
+$('auto-hunt').onclick=()=>{if(!state?.world.player.chosen||!connected)return;if(state.world.paused){toast('일시정지를 해제하세요.');return;}closePanel(false);setAutoHunt(!autoHunt);if(autoHunt)stepMovement();};
 function manualAction(action,fields={}){if(action==='attack'||action==='skill')closePanel(false);clearMovement();pendingAction=null;clearTimeout(pendingTimer);command(action,fields);}
 $('pause').onclick=()=>manualAction('pause');
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action));
@@ -189,6 +200,8 @@ function updateContext(){
  const {player:p}=state.world,atCamp=canUseCamp();
  $('menu-camp').hidden=!atCamp;$('camp-access').hidden=!atCamp;
  document.querySelectorAll('[data-panel]').forEach(button=>button.disabled=!p.chosen||!connected);
+ $('auto-hunt').disabled=!p.chosen||!connected||state.world.paused;
+ if(!connected&&autoHunt)setAutoHunt(false,true);
  if(activePanel&&((campPanels.has(activePanel)&&!atCamp)||!connected))closePanel(false);
  $('field-hp').textContent=Math.ceil(p.hp);$('field-health-bar').style.width=`${Math.max(0,Math.min(100,p.hp))}%`;
  $('field-vital').textContent=`Lv.${p.combat_level||1} · `+(p.species==='human'?`포만 ${Math.ceil(p.food)} · 수분 ${Math.ceil(p.water)}`:`혈액 ${Math.ceil(p.blood)} · 안정 ${Math.ceil(p.stability)}`);
@@ -304,6 +317,7 @@ for(const button of document.querySelectorAll('[data-craft]'))button.onclick=()=
  document.querySelectorAll('[data-craft]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));renderRecipe();
 };
 function interact(){
+ if(autoHunt)setAutoHunt(false,true);
  clearMovement();if(!state)return;const p=state.world.player;
  const nearby=[...state.pois].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
  if(nearby)command(nearby.kind==='npc'?'quest':'gather',{id:nearby.id});
@@ -321,11 +335,12 @@ window.addEventListener('keydown',e=>{
  const k=e.key.toLowerCase();
  if(moveKeys.includes(k)){e.preventDefault();closePanel(false);target=null;held.add(k);stepMovement();}
  if(e.repeat)return;
- if(k==='escape'){e.preventDefault();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
+ if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
  const shortcut={h:'survival',i:'bag',j:'journal',b:'camp'}[k];
  if(shortcut){e.preventDefault();if(activePanel===shortcut)closePanel();else openPanel(shortcut);}
  if(k==='q'||k==='r'){e.preventDefault();if(state?.world.player.chosen)useSkill(k==='q'?'sweep':'recover');}
  if(k==='e'){e.preventDefault();interact();}
+ if(k==='g'){e.preventDefault();if(state?.world.player.chosen&&!state.world.paused){closePanel(false);setAutoHunt(!autoHunt);if(autoHunt)stepMovement();}}
  if(k==='m')manualAction('mount');
  if(k==='v')toggleFocus();
  if(k===' '&&(!activePanel||e.target.tagName!=='BUTTON')){e.preventDefault();manualAction('attack');}
@@ -344,6 +359,25 @@ function stepMovement(){
  if(!state||!connected||busy||pendingAction||state.world.paused||!state.world.player.chosen||document.hidden)return;
  const now=performance.now();if(now-lastMove<140||now-lastCommandAt<75)return;
  let {dx,dy}=screenDirection();
+ if(autoHunt&&!dx&&!dy){
+  const w=state.world,p=w.player;
+  if(p.hp<=35&&w.inventory.medicine>0){command('consume',{item:'medicine'});return;}
+  if(p.hp<=65&&!skillStatus('recover').reason){command('skill',{skill:'recover'});return;}
+  const meter=p.species==='vampire'?'blood':'food',foodItem=p.species==='human'?(w.inventory.soup>0?'soup':w.inventory.water>0?'water':null):(w.inventory.elixir>0?'elixir':w.inventory.blood>0?'blood':null);
+  if(p[meter]<20&&foodItem){command('consume',{item:foodItem});return;}
+  if(p.hp<=25||p.infection>=70){setAutoHunt(false,true);command('rescue');toast('위급 상태 · 구조 요청 후 자동사냥을 종료합니다.');return;}
+  const alive=w.enemies.filter(e=>e.hp>0);
+  if(alive.length){
+   const current=target?.id?.startsWith('enemy:')?alive.find(e=>'enemy:'+e.id===target.id):null;
+   const nearest=alive.reduce((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)<=Math.hypot(b.x-p.x,b.y-p.y)?a:b);
+   const chosen=current&&Math.hypot(current.x-p.x,current.y-p.y)<=Math.hypot(nearest.x-p.x,nearest.y-p.y)+3?current:nearest;
+   if(p.mounted){
+    if(!alive.some(e=>Math.hypot(e.x-p.x,e.y-p.y)<3)){command('mount');return;}
+    dx=Math.sign(p.x-nearest.x)||1;dy=Math.sign(p.y-nearest.y)||1;lastMove=now;command('move',{dx,dy});return;
+   }
+   target={x:chosen.x,y:chosen.y,id:'enemy:'+chosen.id};selected=target.id;
+  }
+ }
  if(target&&!dx&&!dy){
   const p=state.world.player,m=state.map.movement;
   const enemy=target.id?.startsWith('enemy:')?state.world.enemies.find(n=>n.id===Number(target.id.split(':')[1])):null;
@@ -351,8 +385,11 @@ function stepMovement(){
   if(enemy){if(enemy.hp<=0){target=null;return;}target.x=enemy.x;target.y=enemy.y;}
   const distance=Math.hypot(target.x-p.x,target.y-p.y),step=m.step*(p.mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1);
   if(distance<=(target.id?1.5:step*.8)){
-   const id=target.id;target=null;
-   if(id?.startsWith('enemy:'))command('attack');
+   const id=target.id;if(!autoHunt||!id?.startsWith('enemy:'))target=null;
+   if(id?.startsWith('enemy:')){
+    if(autoHunt&&!skillStatus('sweep').reason){command('skill',{skill:'sweep'});return;}
+    if(!autoHunt||(state.world.cooldowns.attack||0)<=state.world.elapsed)command('attack');
+   }
    else if(id){const poi=state.pois.find(n=>n.id===id);if(poi)command(poi.kind==='npc'?'quest':'gather',{id});}
    return;
   }
@@ -383,7 +420,7 @@ function updateGuide(){
  $('nearby-label').textContent=close?nearest.label:'지도 클릭으로 탐험';
  $('interact').disabled=!close||!!cooldown||w.paused;
  $('interact').textContent=cooldown?`${cooldown}초 대기`:nearest.kind==='npc'?'E · 의뢰 보고':'E · 채집';
- $('location-hint').textContent=Math.hypot(p.x-w.base.x,p.y-w.base.y)<=state.map.base_radius?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
+ $('location-hint').textContent=autoHunt?'● 자동사냥 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):Math.hypot(p.x-w.base.x,p.y-w.base.y)<=state.map.base_radius?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
 }
 async function poll(){if(polling||busy||document.hidden)return;polling=true;try{accept(await api('/api/state'));}catch(e){connected=false;clearMovement();if(state)updateContext();$('connection').textContent=e.message;$('connection').classList.add('status-error');if(!state){$('objective').textContent='서버 접속 링크를 확인하세요';$('objective-detail').textContent=e.message;}}finally{polling=false;}}
 setInterval(poll,400);function frame(){if(!document.hidden)draw();requestAnimationFrame(frame);}frame();poll();
