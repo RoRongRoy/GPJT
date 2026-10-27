@@ -87,3 +87,35 @@ class CombatTests(unittest.TestCase):
         with self.assertRaises(RuleError):
             self.action(action='skill', skill='sweep')
         self.assertEqual(self.w,before)
+
+    def test_level_unlocked_species_skills(self):
+        # Locked at Lv.1
+        for skill in ('strike', 'ranged', 'purify', 'ultimate'):
+            with self.assertRaises(RuleError):
+                self.action(action='skill', skill=skill)
+        # Unlock Lv.3 strike (single target high damage)
+        self.w['player']['combat_level'] = 3
+        self.action(action='skill', skill='strike')
+        self.assertLess(self.w['enemies'][0]['hp'], 60)
+        self.assertEqual(self.w['enemies'][1]['hp'], 60)
+        # Unlock Lv.5 ranged (hits distant target up to 4.6)
+        self.w['player']['combat_level'] = 5
+        self.w['elapsed'] += 10
+        self.w['enemies'][0]['hp'] = 0
+        self.w['enemies'][1]['hp'] = 0
+        self.w['enemies'][2].update(x=24.2, y=20, hp=80)
+        self.action(action='skill', skill='ranged')
+        self.assertLess(self.w['enemies'][2]['hp'], 80)
+        # Unlock Lv.8 purify (heals HP and cleanses infection)
+        self.w['player'].update(combat_level=8, hp=60, infection=50, mp=100, food=90)
+        self.action(action='skill', skill='purify')
+        self.assertEqual(self.w['player']['hp'], 88)
+        self.assertEqual(self.w['player']['infection'], 15)
+        # Unlock Lv.12 ultimate (wide AoE)
+        self.w['player'].update(combat_level=12, species='vampire', hp=80, blood=90)
+        self.w['elapsed'] += 20
+        self.w['enemies'][0].update(x=22, y=20, hp=200)
+        self.w['enemies'][1].update(x=20, y=23.2, hp=200)
+        self.action(action='skill', skill='ultimate')
+        self.assertLess(self.w['enemies'][0]['hp'], 200)
+        self.assertLess(self.w['enemies'][1]['hp'], 200)

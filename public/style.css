@@ -181,6 +181,16 @@ main{height:calc(100dvh - 66px)}
 .account-feedback{font-size:10px;color:#e8cf9b;margin-top:6px!important;min-height:14px}
 #interaction .sprint-button{color:#9ee4ff}
 #interaction .sprint-button[aria-pressed=true]{background:#254958;border-color:#7ad7f0;color:#e8fbff;box-shadow:0 0 10px #5bc0eb33}
+.skill-bar{flex-wrap:wrap;justify-content:center;max-width:calc(100% - 340px)}
+.skill-bar button{min-width:92px}
+.skill-bar button.skill-locked{opacity:.48;border-style:dashed}
+.skill-card{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 12px;background:#121722;border:1px solid #9caf7d38;border-radius:8px;font-size:11px}
+.skill-card.unlocked{border-color:#d4b27c88;background:linear-gradient(135deg,#1d2230,#121722)}
+.skill-card.locked{opacity:.68;border-style:dashed}
+.skill-card-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.skill-badge{font-size:9px;padding:2px 6px;border-radius:4px;background:#2a3344;color:#e8d3a7;border:1px solid #8c7b6555}
+.skill-badge.locked{background:#231b24;color:#c798a2;border-color:#7a4b5755}
+.skill-glyph-box{width:34px;height:34px;border-radius:6px;background:#1c2333;border:1px solid #8c7b6566;display:grid;place-items:center;font-size:18px;color:#e5c185;flex-shrink:0}
 @media(max-width:600px){
  main{height:calc(100dvh - 50px);padding:8px 8px 76px}
  .topbar{height:50px;padding:0 10px}

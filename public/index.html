@@ -44,7 +44,7 @@
     <div class="loot-actions"><button id="loot-selected" class="accent">선택 파밍</button><button id="loot-all">전체 획득 <kbd>F</kbd></button></div>
    </div>
    <div id="interaction"><div><span class="eyebrow">NEARBY</span><span id="nearby-label">주변을 탐색하세요</span></div><button id="interact" title="오브젝트(폐차장·숲·샘 등) 내용물 확인 및 선택 파밍 (E)"><kbd>E</kbd> 🔍 파밍</button><button id="loot-btn" class="loot-action-btn" title="몬스터 필드 드랍 전리품 루팅 (F)"><span id="loot-btn-label">📦 루팅</span> <kbd>F</kbd></button><button id="sprint-toggle" type="button" class="sprint-button" aria-pressed="false" title="달리기 켜기/끄기 (Shift 유지 또는 클릭)"><span id="sprint-label">🏃 달리기 OFF</span> <kbd>Shift</kbd></button><button id="mount-toggle" data-action="mount" class="mount-button" title="다크에덴 탈것 탑승/변신 (M)">🦇 탑승 <kbd>M</kbd></button><button data-action="attack" class="attack-button" title="가까운 감염체 공격 (Space)">⚔ 공격 <kbd>Space</kbd></button><button id="auto-hunt" class="auto-hunt-button" aria-pressed="false" title="자동사냥 켜기/끄기 (G)"><span id="auto-hunt-label">자동사냥 OFF</span> <kbd>G</kbd></button></div>
-   <div id="skill-bar" class="skill-bar" aria-label="전투 스킬" hidden><button id="skill-sweep" data-skill="sweep"><kbd>Q</kbd><span class="skill-glyph">✦</span><strong id="skill-sweep-name">회전 베기</strong><small id="skill-sweep-status"></small></button><button id="skill-recover" data-skill="recover"><kbd>R</kbd><span class="skill-glyph">✚</span><strong id="skill-recover-name">숨 고르기</strong><small id="skill-recover-status"></small></button></div>
+   <div id="skill-bar" class="skill-bar" aria-label="전투 스킬" hidden><button id="skill-sweep" data-skill="sweep"><kbd>Q</kbd><span class="skill-glyph">✦</span><strong id="skill-sweep-name">회전 베기</strong><small id="skill-sweep-status"></small></button><button id="skill-recover" data-skill="recover"><kbd>R</kbd><span class="skill-glyph">✚</span><strong id="skill-recover-name">숨 고르기</strong><small id="skill-recover-status"></small></button><button id="skill-strike" data-skill="strike"><kbd>1</kbd><span class="skill-glyph">⚔</span><strong id="skill-strike-name">크로스 스트라이크</strong><small id="skill-strike-status"></small></button><button id="skill-ranged" data-skill="ranged"><kbd>2</kbd><span class="skill-glyph">⌖</span><strong id="skill-ranged-name">은탄 사격</strong><small id="skill-ranged-status"></small></button><button id="skill-purify" data-skill="purify"><kbd>3</kbd><span class="skill-glyph">✧</span><strong id="skill-purify-name">성광 정화</strong><small id="skill-purify-status"></small></button><button id="skill-ultimate" data-skill="ultimate"><kbd>4</kbd><span class="skill-glyph">✹</span><strong id="skill-ultimate-name">블레이드 스톰</strong><small id="skill-ultimate-status"></small></button></div>
    <div class="touch-pad" aria-label="터치 이동"><button data-direction="up" aria-label="위로 이동">↑</button><button data-direction="left" aria-label="왼쪽 이동">←</button><button data-direction="down" aria-label="아래로 이동">↓</button><button data-direction="right" aria-label="오른쪽 이동">→</button></div>
    <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
   </div>
@@ -54,6 +54,7 @@
 </main>
 <nav class="menu-dock" aria-label="게임 메뉴">
  <button id="menu-survival" data-panel="survival" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">♡</span>생존<kbd>H</kbd></button>
+ <button id="menu-skills" data-panel="skills" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">✦</span>스킬<kbd>K</kbd></button>
  <button id="menu-equip" data-panel="equip" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">⚔</span>장비<kbd>C</kbd></button>
  <button id="menu-bag" data-panel="bag" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▣</span>가방<kbd>I</kbd></button>
  <button id="menu-journal" data-panel="journal" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▤</span>수첩<kbd>J</kbd></button>
@@ -73,6 +74,12 @@
    <h3 class="section-label">식사와 회복</h3>
    <div class="consume"><button data-item="soup">수프</button><button data-item="water">식수</button><button data-item="blood">원혈</button><button data-item="elixir">강화혈액</button><button data-item="medicine">치료제</button></div>
    <p class="panel-note">보유한 소모품을 눌러 사용하세요.</p>
+  </section>
+  <section data-view="skills" hidden>
+   <div id="skills-summary" class="equip-stats-box"></div>
+   <h3 class="section-label">종족별 레벨 해금 스킬 목록 (Q · R · 1 · 2 · 3 · 4)</h3>
+   <div id="skills-list" class="equip-gear-list"></div>
+   <p class="panel-note">몬스터를 처치해 전투 레벨(Lv.1 → 3 → 5 → 8 → 12)을 올리면 상위 종족 스킬이 자동으로 해금됩니다. 종족 전환 시 해당 종족의 대응 기술로 즉시 전환됩니다.</p>
   </section>
   <section data-view="equip" hidden>
    <div id="equip-stats-summary" class="equip-stats-box"></div>

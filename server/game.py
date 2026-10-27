@@ -18,8 +18,42 @@ ITEMS = {'wood': '목재', 'water': '식수', 'crop': '작물', 'herb': '약초'
 
 COMBAT = {
     'attack': {'name': '기본 공격', 'cooldown': .6, 'range': 2.1, 'damage': 24},
-    'sweep': {'name': '회전 베기', 'vampire_name': '혈월 베기', 'cooldown': 5, 'range': 2.7, 'damage': 32, 'cost': 6, 'mp_cost': 12, 'hp_cost': 8},
-    'recover': {'name': '숨 고르기', 'vampire_name': '혈액 재생', 'cooldown': 10, 'heal': 18, 'cost': 8, 'mp_cost': 15, 'hp_cost': 6},
+    'sweep': {
+        'name': '회전 베기', 'vampire_name': '혈월 베기',
+        'desc': '반경 2.7 내 주변의 모든 적을 베어냅니다.', 'vampire_desc': '반경 2.7 내 적을 핏빛 초승달 참격으로 베고 흡혈합니다.',
+        'key': 'Q', 'glyph': '✦', 'unlock_level': 1, 'aoe': True,
+        'cooldown': 5, 'range': 2.7, 'damage': 32, 'cost': 6, 'mp_cost': 12, 'hp_cost': 8,
+    },
+    'recover': {
+        'name': '숨 고르기', 'vampire_name': '혈액 재생',
+        'desc': '호흡을 가다듬어 체력을 즉시 18 회복합니다.', 'vampire_desc': '체내 혈액을 순환시켜 체력을 즉시 18 재생합니다.',
+        'key': 'R', 'glyph': '✚', 'unlock_level': 1,
+        'cooldown': 10, 'heal': 18, 'cost': 8, 'mp_cost': 15, 'hp_cost': 6,
+    },
+    'strike': {
+        'name': '크로스 스트라이크', 'vampire_name': '블러드 팽',
+        'desc': '단일 대상에게 십자 강타를 가해 높은 피해를 줍니다.', 'vampire_desc': '단일 적의 급소를 혈아로 꿰뚫어 큰 피해와 강화 흡혈을 얻습니다.',
+        'key': '1', 'glyph': '⚔', 'unlock_level': 3, 'aoe': False,
+        'cooldown': 6, 'range': 2.6, 'damage': 52, 'cost': 5, 'mp_cost': 14, 'hp_cost': 7, 'leech_mult': .24,
+    },
+    'ranged': {
+        'name': '은탄 사격', 'vampire_name': '블러드 스피어',
+        'desc': '사거리 4.6의 원거리 적을 정밀 저격합니다.', 'vampire_desc': '사거리 4.6의 적에게 응축된 피의 창을 투척해 관통합니다.',
+        'key': '2', 'glyph': '⌖', 'unlock_level': 5, 'aoe': False,
+        'cooldown': 7, 'range': 4.6, 'damage': 44, 'cost': 6, 'mp_cost': 16, 'hp_cost': 9,
+    },
+    'purify': {
+        'name': '성광 정화', 'vampire_name': '블러드 미스트',
+        'desc': '체력 +28 회복 및 감염도 −35 정화, 수분 +10을 회복합니다.', 'vampire_desc': '피의 안개로 체력 +28 재생, 감염도 −35 정화, 안정도 +15를 회복합니다.',
+        'key': '3', 'glyph': '✧', 'unlock_level': 8,
+        'cooldown': 14, 'heal': 28, 'cleanse': 35, 'cost': 8, 'mp_cost': 20, 'hp_cost': 8,
+    },
+    'ultimate': {
+        'name': '블레이드 스톰', 'vampire_name': '크림슨 노바',
+        'desc': '반경 3.8 내 모든 적을 폭풍 참격으로 초토화합니다.', 'vampire_desc': '반경 3.8 내 모든 적에게 진홍빛 혈폭풍을 터뜨려 대량 흡혈합니다.',
+        'key': '4', 'glyph': '✹', 'unlock_level': 12, 'aoe': True,
+        'cooldown': 16, 'range': 3.8, 'damage': 78, 'cost': 10, 'mp_cost': 28, 'hp_cost': 14, 'leech_mult': .24,
+    },
 }
 
 POI_CONTENTS = {
@@ -363,9 +397,12 @@ def act(w, command, rng=random.random):
     elif action in ('attack', 'skill'):
         require(not p['mounted'], '하차·변신 해제 후 사용하세요.')
         skill = command.get('skill') if action == 'skill' else 'attack'
-        require(isinstance(skill, str) and skill in ('attack', 'sweep', 'recover') and
+        require(isinstance(skill, str) and skill in COMBAT and
                 (action == 'attack' or skill != 'attack'), '알 수 없는 스킬입니다.')
         spec = COMBAT[skill]
+        if action == 'skill':
+            req_lvl = spec.get('unlock_level', 1)
+            require(p.get('combat_level', 1) >= req_lvl, f'전투 Lv.{req_lvl} 달성 시 해금되는 스킬입니다.')
         is_vamp = (p['species'] == 'vampire')
         meter = 'blood' if is_vamp else 'food'
         require(p[meter] >= spec.get('cost', 0), '포만도 또는 혈액량이 부족합니다.')
@@ -375,34 +412,44 @@ def act(w, command, rng=random.random):
         if is_vamp and action == 'skill':
             hp_cost = spec.get('hp_cost', 6)
             require(p['hp'] > hp_cost, '스킬 사용에 필요한 체력이 부족합니다.')
-        if skill == 'recover':
-            require(p['hp'] < 100, '이미 체력이 가득합니다.')
-            cooldown(w, 'skill:recover', spec['cooldown'])
+        if 'heal' in spec:
+            if skill == 'purify':
+                require(p['hp'] < 100 or p.get('infection', 0) > 0, '이미 체력이 가득하고 감염이 없습니다.')
+            else:
+                require(p['hp'] < 100, '이미 체력이 가득합니다.')
+            cooldown(w, 'skill:' + skill, spec['cooldown'])
             p[meter] -= spec['cost']
             if is_vamp:
                 hp_cost = spec.get('hp_cost', 6)
                 p['hp'] = min(100, p['hp'] - hp_cost + spec['heal'] + hp_cost)
+                if skill == 'purify':
+                    p['stability'] = min(100.0, p.get('stability', 90.0) + 15.0)
             else:
                 p['mp'] = max(0.0, p.get('mp', 100.0) - spec.get('mp_cost', 15))
                 p['hp'] = min(100, p['hp'] + spec['heal'])
+                if skill == 'purify':
+                    p['water'] = min(100.0, p.get('water', 90.0) + 10.0)
+            if spec.get('cleanse'):
+                p['infection'] = max(0.0, p.get('infection', 0.0) - spec['cleanse'])
         else:
             enemies = [e for e in w['enemies'] if e['hp'] > 0 and dist(p, e) <= spec['range']]
             require(enemies or skill == 'attack', '가까운 공격 대상이 없습니다.')
-            if skill == 'sweep':
-                cooldown(w, 'skill:sweep', spec['cooldown'])
+            if action == 'skill':
+                cooldown(w, 'skill:' + skill, spec['cooldown'])
             cooldown(w, 'attack', COMBAT['attack']['cooldown'])
             p[meter] -= spec.get('cost', 0)
-            if skill == 'sweep':
+            if action == 'skill':
                 if is_vamp:
                     p['hp'] = max(1.0, p['hp'] - spec.get('hp_cost', 8))
                 else:
                     p['mp'] = max(0.0, p.get('mp', 100.0) - spec.get('mp_cost', 12))
-            targets = enemies if skill == 'sweep' else ([min(enemies, key=lambda e: dist(p, e))] if enemies else [])
+            targets = enemies if spec.get('aoe') else ([min(enemies, key=lambda e: dist(p, e))] if enemies else [])
             damage = (spec['damage'] + equipment_power(w, 'weapon') + (p['combat_level']-1)*3) * (1 + p['level'] * .02)
+            leech_mult = spec.get('leech_mult', 0.18)
             for enemy in targets:
                 damage_enemy(w, enemy, damage, rng)
                 if is_vamp:
-                    leeched = round(min(10.0, max(4.0, damage * 0.18)), 1)
+                    leeched = round(min(16.0, max(4.0, damage * leech_mult)), 1)
                     p['hp'] = min(100.0, p['hp'] + leeched)
                     p['blood'] = min(100.0, p['blood'] + 1.5)
     elif action == 'quest':

@@ -14,6 +14,7 @@ const campPanels=new Set(['camp','craft','build','research','dispatch']);
 const campActions=new Set(['craft','build','enhance','research','convert','dispatch']);
 const panelInfo={
  survival:['생존','내 상태를 살피고 필요한 소모품을 사용하세요.','SURVIVOR'],
+ skills:['종족 스킬','전투 레벨 성장에 따라 해금되는 종족별 고유 전투·회복 기술을 확인하고 시전하세요.','SPECIES SKILLS'],
  equip:['장착 장비','현재 착용 중인 무기·방어구와 보유 장비를 확인하고 장착·해제하세요.','EQUIPMENT'],
  bag:['인벤토리','아이템을 선택해 정보를 확인하고 사용하세요.','INVENTORY'],
  journal:['수첩','확인하고 싶은 기록을 선택하세요.','FIELD JOURNAL'],
@@ -462,27 +463,75 @@ function renderInventory(){
  const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent=g?(equipped?'착용 해제':'착용'):'1개 사용';$('item-use-reason').textContent=reason||(g?'같은 부위의 장비는 교체되며 가방에 보존됩니다.':'선택한 아이템 1개를 사용합니다.');
 }
 $('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){const g=gearItem(selectedItem);if(g)manualAction(state.world.equipment[g.slot]===g.id?'unequip':'equip',{item:g.id,slot:g.slot});else manualAction('consume',{item:selectedItem});}};
+const SKILL_IDS=['sweep','recover','strike','ranged','purify','ultimate'];
 function skillStatus(id){
  const w=state.world,p=w.player,spec=state.combat?.[id];
  if(!spec)return {reason:'서버 연결 중'};
- const isVamp=p.species==='vampire',meter=isVamp?'blood':'food',cost=spec.cost;
+ const isVamp=p.species==='vampire',meter=isVamp?'blood':'food',cost=spec.cost||0;
  const mpCost=spec.mp_cost??cost,hpCost=spec.hp_cost??6;
- const remaining=Math.max(0,(w.cooldowns['skill:'+id]||0)-w.elapsed,id==='sweep'?(w.cooldowns.attack||0)-w.elapsed:0);
- const reason=!connected?'연결 중':w.paused?'일시정지':p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='sweep'&&!w.enemies.some(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<=spec.range)?'적에게 접근':'';
- return {reason,spec,meter,cost,mpCost,hpCost,remaining};
+ const unlockLevel=spec.unlock_level||1,unlocked=(p.combat_level||1)>=unlockLevel;
+ const isHeal=Boolean(spec.heal);
+ const remaining=Math.max(0,(w.cooldowns['skill:'+id]||0)-w.elapsed,!isHeal?(w.cooldowns.attack||0)-w.elapsed:0);
+ const reason=!connected?'연결 중':w.paused?'일시정지':!unlocked?`Lv.${unlockLevel} 해금`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='purify'&&p.hp>=100&&(p.infection||0)<=0?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<=spec.range)?'적에게 접근':'';
+ return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,isHeal};
+}
+function renderSkillsMenu(){
+ if(!state||!$('skills-list'))return;
+ const w=state.world,p=w.player,isVamp=p.species==='vampire',lvl=p.combat_level||1;
+ const wepPow=gearItem(w.equipment?.weapon)?.power||0,lvlAtk=(lvl-1)*3,enhMult=1+(p.level||0)*.02;
+ const unlockedCount=SKILL_IDS.filter(id=>lvl>=(state.combat?.[id]?.unlock_level||1)).length;
+ const nextSkillId=SKILL_IDS.find(id=>lvl<(state.combat?.[id]?.unlock_level||1));
+ const nextSpec=nextSkillId?state.combat?.[nextSkillId]:null;
+ $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어 (혈족 비전 · HP 소모 & 흡혈)':'☀ 인간 (슬레이어 전술 · MP 소모)'} · 전투 Lv.${lvl} · 해금된 스킬 ${unlockedCount}/${SKILL_IDS.length}개`+(nextSpec?` · 다음 해금: Lv.${nextSpec.unlock_level} [${isVamp?nextSpec.vampire_name:nextSpec.name}]`:' · 모든 종족 스킬 마스터 완료!');
+ $('skills-list').replaceChildren(...SKILL_IDS.map(id=>{
+  const {reason,spec,mpCost,hpCost,cost,unlocked,unlockLevel,isHeal}=skillStatus(id);
+  if(!spec)return document.createElement('div');
+  const name=isVamp?spec.vampire_name:spec.name,altName=isVamp?spec.name:spec.vampire_name;
+  const desc=isVamp?(spec.vampire_desc||''):(spec.desc||'');
+  const totalDmg=spec.damage?Math.round((spec.damage+wepPow+lvlAtk)*enhMult):0;
+  const costText=isVamp?`HP ${hpCost} · 혈액 ${cost}`:`MP ${mpCost} · 포만 ${cost}`;
+  const card=document.createElement('div');card.className='skill-card '+(unlocked?'unlocked':'locked');
+  const left=document.createElement('div');left.className='equip-gear-info';
+  const glyph=document.createElement('div');glyph.className='skill-glyph-box';glyph.textContent=spec.glyph||'✦';
+  const txt=document.createElement('div');txt.className='equip-gear-text';
+  const head=document.createElement('div');head.className='skill-card-head';
+  const title=document.createElement('strong');title.textContent=`[${spec.key||id.toUpperCase()}] ${name}`;
+  const badge=span('skill-badge'+(unlocked?'':' locked'),unlocked?`✓ Lv.${unlockLevel} 해금됨`:`🔒 Lv.${unlockLevel} 달성 시 해금`);
+  head.append(title,badge);
+  const sub=document.createElement('small');
+  const effectText=isHeal?`회복 +${spec.heal}`+(spec.cleanse?` · 감염 −${spec.cleanse} 정화`:''):`${spec.aoe?'광역':'단일'} 피해 ${totalDmg} (기본 ${spec.damage}) · 사거리 ${spec.range}`+(isVamp?' · 흡혈 회복':'');
+  sub.textContent=`${effectText} · 쿨타임 ${spec.cooldown}초 · 소모: ${costText}`;
+  const descEl=document.createElement('small');descEl.textContent=(desc?desc+' ':'')+`(타 종족 전환 시: ${altName})`;
+  txt.append(head,sub,descEl);left.append(glyph,txt);
+  const btn=document.createElement('button');btn.type='button';btn.className=unlocked&&!reason?'accent':'';
+  btn.textContent=!unlocked?`🔒 Lv.${unlockLevel} 필요`:reason?reason:`시전 (${spec.key||id.toUpperCase()})`;
+  btn.disabled=!unlocked||Boolean(reason);
+  btn.onclick=()=>useSkill(id);
+  card.append(left,btn);return card;
+ }));
 }
 function updateSkills(){
  if(!state)return;$('skill-bar').hidden=!state.world.player.chosen;
  const isVamp=state.world.player.species==='vampire';
- for(const id of ['sweep','recover']){
-  const {reason,spec,mpCost,hpCost}=skillStatus(id);if(!spec)continue;
+ for(const id of SKILL_IDS){
+  const el=$('skill-'+id);if(!el)continue;
+  const {reason,spec,mpCost,hpCost,unlocked,unlockLevel}=skillStatus(id);if(!spec)continue;
   const name=isVamp?spec.vampire_name:spec.name;
   const costText=isVamp?`HP ${hpCost} 소모`:`MP ${mpCost}`;
-  $('skill-'+id+'-name').textContent=name;$('skill-'+id+'-status').textContent=reason||(spec.damage?`피해 ${spec.damage}${isVamp?'+흡혈':''}`:`회복 +${spec.heal}`)+' · '+costText;
-  $('skill-'+id).disabled=Boolean(reason);$('skill-'+id).title=name+' · '+(spec.damage?'주변 적 피해 '+spec.damage:'체력 +'+spec.heal)+' · 재사용 '+spec.cooldown+'초 · '+costText;
+  $('skill-'+id+'-name').textContent=name;
+  $('skill-'+id+'-status').textContent=!unlocked?`🔒 Lv.${unlockLevel} 해금`:reason||(spec.damage?`피해 ${spec.damage}${isVamp?'+흡혈':''}`:`회복 +${spec.heal}`)+' · '+costText;
+  if(!unlocked)el.classList.add('skill-locked');else el.classList.remove('skill-locked');
+  el.disabled=Boolean(reason);
+  el.title=name+(!unlocked?` · 전투 Lv.${unlockLevel} 달성 시 해금`:' · '+(spec.damage?`사거리 ${spec.range} 피해 ${spec.damage}`:`체력 +${spec.heal}`)+' · 재사용 '+spec.cooldown+'초 · '+costText);
  }
+ renderSkillsMenu();
 }
-function useSkill(id){const {reason}=skillStatus(id);if(reason){toast(reason);return;}manualAction('skill',{skill:id});}
+function useSkill(id){
+ const {reason,unlocked,unlockLevel}=skillStatus(id);
+ if(!unlocked){openPanel('skills');toast(`전투 Lv.${unlockLevel} 달성 시 해금되는 스킬입니다. (현재 Lv.${state?.world.player.combat_level||1})`);return;}
+ if(reason){toast(reason);return;}
+ manualAction('skill',{skill:id});
+}
 for(const button of document.querySelectorAll('[data-skill]'))button.onclick=()=>useSkill(button.dataset.skill);
 function renderRecipe(){
  if(!state?.recipes)return;
@@ -686,9 +735,10 @@ window.addEventListener('keydown',e=>{
  if(moveKeys.includes(k)){e.preventDefault();closePanel(false);closeLootBox();target=null;held.add(k);stepMovement();}
  if(e.repeat)return;
  if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closeLootBox();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
- const shortcut={h:'survival',c:'equip',i:'bag',j:'journal',u:'account',b:'camp'}[k];
+ const shortcut={h:'survival',k:'skills',c:'equip',i:'bag',j:'journal',u:'account',b:'camp'}[k];
  if(shortcut){e.preventDefault();if(activePanel===shortcut)closePanel();else openPanel(shortcut);}
- if(k==='q'||k==='r'){e.preventDefault();if(state?.world.player.chosen)useSkill(k==='q'?'sweep':'recover');}
+ const skillKey={q:'sweep',r:'recover','1':'strike','2':'ranged','3':'purify','4':'ultimate'}[k];
+ if(skillKey){e.preventDefault();if(state?.world.player.chosen)useSkill(skillKey);}
  if(k==='e'){e.preventDefault();interact();}
  if(k==='f'){e.preventDefault();quickLoot();}
  if(k==='g'){e.preventDefault();if(state?.world.player.chosen&&!state.world.paused){closePanel(false);closeLootBox();setAutoHunt(!autoHunt);if(autoHunt)stepMovement();}}
@@ -718,6 +768,7 @@ function stepMovement(){
  if(autoHunt&&!dx&&!dy){
   const w=state.world,p=w.player;
   if(p.hp<=35&&w.inventory.medicine>0){command('consume',{item:'medicine'});return;}
+  if((p.hp<=60||(p.infection||0)>=25)&&!skillStatus('purify').reason){command('skill',{skill:'purify'});return;}
   if(p.hp<=65&&!skillStatus('recover').reason){command('skill',{skill:'recover'});return;}
   const meter=p.species==='vampire'?'blood':'food',foodItem=p.species==='human'?(w.inventory.soup>0?'soup':w.inventory.water>0?'water':null):(w.inventory.elixir>0?'elixir':w.inventory.blood>0?'blood':null);
   if(p[meter]<20&&foodItem){command('consume',{item:foodItem});return;}
@@ -753,7 +804,7 @@ function stepMovement(){
   if(distance<=arriveDist){
    const id=target.id;if(!autoHunt||!id?.startsWith('enemy:'))target=null;
    if(id?.startsWith('enemy:')){
-    if(autoHunt&&!skillStatus('sweep').reason){command('skill',{skill:'sweep'});return;}
+    for(const sk of ['ultimate','sweep','strike','ranged']){if(autoHunt&&!skillStatus(sk).reason){command('skill',{skill:sk});return;}}
     if(!autoHunt||(state.world.cooldowns.attack||0)<=state.world.elapsed)command('attack');
    }else if(id?.startsWith('drop:')){
     if(autoHunt&&!isBagFull(state.world))command('loot',{id,item:'all'});
