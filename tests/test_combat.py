@@ -32,6 +32,10 @@ class CombatTests(unittest.TestCase):
         self.w['elapsed'] += COMBAT['sweep']['cooldown']
         self.action(action='skill', skill='sweep')
         self.assertEqual([e['hp'] for e in self.w['enemies'][:2]], [0, 0])
+        self.assertEqual(len(self.w.get('drops', [])), 2)
+        for drop in list(self.w['drops']):
+            self.w['player'].update(x=drop['x'], y=drop['y'])
+            self.action(action='loot', id=drop['id'])
         self.assertEqual(self.w['inventory']['scroll'], before['inventory']['scroll']+6)
         loot = self.w['inventory'].copy()
         self.w['elapsed'] += 6

@@ -22,7 +22,7 @@ ARMOR_NAMES = {
 }
 
 
-def roll_equipment(world, enemy, rng):
+def roll_equipment(world, enemy, rng, collect=True):
     roll = rng()
     threshold = 0
     for rarity, spec in RARITIES.items():
@@ -35,7 +35,8 @@ def roll_equipment(world, enemy, rng):
                     'name': f'{base_name} T{tier}',
                     'power': (4*tier if slot == 'weapon' else 2*tier) + spec['bonus']}
             world['next_gear_id'] += 1
-            world['gear'].append(item)
+            if collect:
+                world['gear'].append(item)
             return item
     return None
 

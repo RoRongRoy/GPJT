@@ -47,12 +47,16 @@ vm.runInContext('navigate(50,50)',sandbox);key('keydown','Escape');assert.equal(
 key('keydown','w');windowEvents.blur();assert.equal(vm.runInContext('held.size',sandbox),0);
 key('keydown','d');documentEvents.visibilitychange();assert.equal(vm.runInContext('held.size',sandbox),0);
 key('keydown','w');vm.runInContext('state.world.paused=true;update()',sandbox);assert.equal(vm.runInContext('held.size',sandbox),0);
-// Auto-hunt toggle (ON/OFF) tracks and attacks the nearest living enemy, and Escape cancels it.
+// Auto-hunt toggle (ON/OFF) tracks and attacks the nearest living enemy, auto-loots drops until bag is full, and Escape cancels it.
 vm.runInContext('state.world.paused=false;state.world.player.x=20;state.world.player.y=20;state.world.enemies[0].x=22;state.world.enemies[0].y=20;state.world.enemies[0].hp=60;globalThis.lastAction=null;',sandbox);
 key('keydown','g');assert.equal(vm.runInContext('autoHunt',sandbox),true);
 assert.equal(nodes.get('auto-hunt-label').textContent,'자동사냥 ON');
 for(let i=0;i<30&&!sandbox.lastAction;i++){now+=150;intervals[0]();}
 assert.ok(sandbox.lastAction&&(sandbox.lastAction.action==='attack'||sandbox.lastAction.action==='skill'));
+vm.runInContext('state.world.drops=[{id:"drop:1",x:21,y:20,label:"전리품",items:{scroll:3},gear:[]}];globalThis.lastAction=null;',sandbox);
+now+=150;intervals[0]();
+assert.equal(sandbox.lastAction?.action,'loot');assert.equal(sandbox.lastAction?.id,'drop:1');
+vm.runInContext('state.world.drops=[];',sandbox);
 key('keydown','Escape');assert.equal(vm.runInContext('autoHunt',sandbox),false);
 assert.equal(nodes.get('auto-hunt-label').textContent,'자동사냥 OFF');
 // Camera projection must round-trip at multiple zoom levels and positions.

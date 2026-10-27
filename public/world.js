@@ -113,7 +113,7 @@ class WorldView {
   const facilities=Object.entries(w.base.facilities).filter(([,level])=>level).map(([id,level])=>({x:w.base.x+offsets[id][0],y:w.base.y+offsets[id][1],id,level,type:'facility'}));
   const smooth=(e,key)=>{let v=this.entityPositions.get(key);if(!v||Math.hypot(v.x-e.x,v.y-e.y)>5||w.paused)v={x:e.x,y:e.y};
    const follow=1-Math.exp(-12*dt);v.x+=(e.x-v.x)*follow;v.y+=(e.y-v.y)*follow;this.entityPositions.set(key,v);return {...e,...v};};
-  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),{...w.base,type:'base'},...facilities,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
+  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...(w.drops||[]).map(d=>({...d,type:'drop'})),{...w.base,type:'base'},...facilities,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
   this.points=[];const labels=[];let playerCovered=false;
   const tree=(x,y,seed=0)=>{const [sx,sy]=project(x,y);art.tree(sx,sy,scale,seed);};
   for(const e of entities){
@@ -138,6 +138,21 @@ class WorldView {
     this.points.push({x:sx,y:sy-30*scale,id:'base',left:sx-115*scale,right:sx+115*scale,top:sy-245*scale,bottom:sy+35*scale});
    }
    if(e.type==='facility')art.facility(sx,sy,scale,e.id);
+   if(e.type==='drop'){
+    const gear=e.gear?.[0],rarityColor=gear?state.rarities?.[gear.rarity]?.color||'#efc878':'#e8c97a';
+    c.save();
+    if(gear){
+     const beam=c.createLinearGradient(sx,sy-85*scale,sx,sy);
+     beam.addColorStop(0,rarityColor+'00');beam.addColorStop(1,rarityColor+'88');
+     c.fillStyle=beam;c.fillRect(sx-8*scale,sy-85*scale,16*scale,85*scale);
+    }
+    c.strokeStyle=rarityColor;c.lineWidth=1.6;c.beginPath();c.ellipse(sx,sy,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
+    box(e.x,e.y,14,rarityColor,.32);
+    c.restore();
+    const dropTitle=gear?`★ [${state.rarities?.[gear.rarity]?.name||'장비'}] ${gear.name}`:`📦 ${e.label||'전리품'}`;
+    if(near<9||e.id===selected)labels.push([dropTitle,sx,sy-34*scale,rarityColor]);
+    this.points.push({x:sx,y:sy-10*scale,id:e.id,left:sx-36*scale,right:sx+36*scale,top:sy-48*scale,bottom:sy+12*scale});
+   }
    if(e.type==='poi'){
     if(e.kind==='wood')tree(e.x,e.y,.8);
     if(['water','metal','blood'].includes(e.kind)&&!art.prop(e.kind,sx,sy,scale))box(e.x,e.y,30,'#77716a');
@@ -199,6 +214,7 @@ class WorldView {
   for(const node of state.pois){c.fillStyle=node.kind==='npc'?'#e6be89':'#d9e3bc';c.fillRect(node.x*k-1,node.y*k-1,2,2);}
   const w=state.world;
   for(const enemy of w.enemies){if(enemy.hp>0){c.fillStyle='#eb8d78';c.fillRect(enemy.x*k-1,enemy.y*k-1,2,2);}}
+  for(const drop of (w.drops||[])){c.fillStyle='#ffd966';c.fillRect(drop.x*k-1.5,drop.y*k-1.5,3,3);}
   c.strokeStyle='#e9cf8f88';c.lineWidth=1;c.beginPath();c.arc(w.base.x*k,w.base.y*k,state.map.base_radius*k,0,Math.PI*2);c.stroke();
   c.fillStyle='#ffda8d';c.fillRect(w.base.x*k-3,w.base.y*k-3,6,6);
   if(this.projection){

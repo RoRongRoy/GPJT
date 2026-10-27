@@ -4,7 +4,7 @@ LAYOUT_VERSION = 2
 BASE_USE_RADIUS = 7.0
 BASE_CLEAR_RADIUS = 9.0
 START_BASE = (22, 22)
-MOVEMENT = {'step': .48, 'interval': .10, 'mount_base': 1.55, 'mount_tier': .25}
+MOVEMENT = {'step': .48, 'interval': .08, 'mount_base': 1.65, 'mount_tier': .20}
 REGIONS = [
     {'id': 'outskirts', 'name': '버려진 외곽', 'subtitle': '저렙 지역 · 넓은 공터와 약한 감염체 출몰지',
      'x': 27, 'y': 26, 'radius': 47, 'color': '#565962'},

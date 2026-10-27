@@ -22,6 +22,38 @@ COMBAT = {
     'recover': {'name': '숨 고르기', 'vampire_name': '혈액 재생', 'cooldown': 10, 'heal': 18, 'cost': 8},
 }
 
+POI_CONTENTS = {
+    'wood': [('wood', 3), ('scroll', 1), ('herb', 1)],
+    'water': [('water', 3), ('scroll', 1), ('crop', 1)],
+    'crop': [('crop', 3), ('scroll', 1), ('water', 1)],
+    'herb': [('herb', 3), ('scroll', 1), ('blood', 1)],
+    'blood': [('blood', 3), ('scroll', 1), ('herb', 1)],
+    'metal': [('metal', 3), ('scroll', 1), ('wood', 1)],
+}
+
+
+def bag_capacity(w):
+    return 160 + w['base']['facilities'].get('storage', 0) * 50 + (w['player'].get('combat_level', 1) - 1) * 10
+
+
+def bag_used(w):
+    return sum(w['inventory'].values()) + len(w.get('gear', [])) * 4
+
+
+def bag_full(w):
+    return bag_used(w) >= bag_capacity(w) or len(w.get('gear', [])) >= 20
+
+
+def gain_xp(w, amount):
+    p = w['player']
+    p['xp'] = p.get('xp', 0) + amount
+    while p['combat_level'] < 50 and p['xp'] >= p['combat_level'] * 40:
+        p['xp'] -= p['combat_level'] * 40
+        p['combat_level'] += 1
+        p['hp'] = min(100.0, p['hp'] + 25.0)
+    if p['combat_level'] >= 50:
+        p['xp'] = 0
+
 
 def damage_enemy(w, enemy, damage, rng=random.random):
     if enemy['hp'] <= 0:
@@ -30,29 +62,30 @@ def damage_enemy(w, enemy, damage, rng=random.random):
     if enemy['hp'] == 0:
         enemy['respawn'] = w['elapsed'] + 45
         tier_bonus = max(0, (enemy.get('level', 1) - 1) // 3)
-        scroll_drop = 3 + tier_bonus * 2
+        scroll_drop = 3 + (2 if enemy.get('level', 1) >= 8 else 0)
         metal_drop = 2 + tier_bonus
-        w['inventory']['scroll'] += scroll_drop
-        w['inventory']['metal'] += metal_drop
-        bonus_loot = ''
+        drop_items = {'scroll': scroll_drop, 'metal': metal_drop}
         if tier_bonus >= 1:
             supply_key = 'herb' if tier_bonus == 1 else 'blood' if tier_bonus == 2 else 'elixir'
-            w['inventory'][supply_key] += tier_bonus
-            bonus_loot = f' · {ITEMS[supply_key]} +{tier_bonus}'
-        p = w['player']
-        p['xp'] += enemy['xp']
-        while p['combat_level'] < 20 and p['xp'] >= p['combat_level']*40:
-            p['xp'] -= p['combat_level']*40
-            p['combat_level'] += 1
-        if p['combat_level'] == 20:
-            p['xp'] = 0
-        note(w, f"{enemy['name']} Lv.{enemy.get('level', 1)} 처치 · 경험치 +{enemy['xp']} · 주문서 +{scroll_drop} · 부품 +{metal_drop}{bonus_loot}")
+            drop_items[supply_key] = tier_bonus
         if rng() < .2:
-            w['inventory']['medicine'] += 1
-            note(w, '전리품 드랍 · 치료제 +1 (가방에 보관)')
-        item = roll_equipment(w, enemy, rng)
+            drop_items['medicine'] = 1
+        item = roll_equipment(w, enemy, rng, collect=False)
+        gain_xp(w, enemy['xp'])
+        drop_id = 'drop:' + str(w.get('next_drop_id', 1))
+        w['next_drop_id'] = w.get('next_drop_id', 1) + 1
+        w.setdefault('drops', []).append({
+            'id': drop_id,
+            'x': round(enemy['x'], 2),
+            'y': round(enemy['y'], 2),
+            'label': f"{enemy['name']} 전리품",
+            'items': drop_items,
+            'gear': [item] if item else [],
+        })
         if item:
-            note(w, f"장비 드랍 · [{RARITIES[item['rarity']]['name']}] {item['name']} (가방 → 장비)")
+            note(w, f"{enemy['name']} Lv.{enemy.get('level', 1)} 처치 · EXP +{enemy['xp']} · [{RARITIES[item['rarity']]['name']}] {item['name']} 필드 드랍!")
+        else:
+            note(w, f"{enemy['name']} Lv.{enemy.get('level', 1)} 처치 · EXP +{enemy['xp']} · 필드에 전리품을 드랍했습니다.")
 
 
 class RuleError(ValueError):
@@ -145,11 +178,74 @@ def act(w, command, rng=random.random):
         node = next((n for n in POIS if n['id'] == command.get('id')), None)
         require(node and node['kind'] != 'npc', '채집 지점 오류')
         require(dist(p, node) <= 2, '채집 지점 가까이 이동하세요.')
-        cooldown(w, node['id'], 3)
-        w['inventory'][node['kind']] += 3
-        w['inventory']['scroll'] += 1
-        w['quest']['collected'] += 1
-        note(w, f"{ITEMS[node['kind']]} +3 · 주문서 +1")
+        selected = command.get('items')
+        if selected is not None:
+            require(isinstance(selected, list) and len(selected) > 0, '파밍할 아이템을 선택하세요.')
+            require(not bag_full(w), '인벤토리가 가득 찼습니다.')
+            allowed = dict(POI_CONTENTS.get(node['kind'], [(node['kind'], 3), ('scroll', 1)]))
+            require(all(isinstance(k, str) and k in allowed for k in selected), '선택한 아이템 오류')
+            cooldown(w, node['id'], 3)
+            gained = []
+            for k in dict.fromkeys(selected):
+                space = max(0, bag_capacity(w) - bag_used(w))
+                take = min(allowed[k], space)
+                if take > 0:
+                    w['inventory'][k] += take
+                    gained.append(f"{ITEMS[k]} +{take}")
+            require(gained, '인벤토리가 가득 찼습니다.')
+            w['quest']['collected'] += 1
+            note(w, '선택 파밍 · ' + ' · '.join(gained))
+        else:
+            cooldown(w, node['id'], 3)
+            w['inventory'][node['kind']] += 3
+            w['inventory']['scroll'] += 1
+            w['quest']['collected'] += 1
+            note(w, f"{ITEMS[node['kind']]} +3 · 주문서 +1")
+    elif action == 'loot':
+        drops = w.get('drops', [])
+        drop_id = command.get('id')
+        drop = next((d for d in drops if d['id'] == drop_id), None) if drop_id else min((d for d in drops if dist(p, d) <= 2.5), key=lambda d: dist(p, d), default=None)
+        require(drop and dist(p, drop) <= 2.5, '전리품 가까이 이동하세요.')
+        require(not bag_full(w), '인벤토리가 가득 찼습니다.')
+        target_item = command.get('item')
+        gained = []
+        if target_item and target_item != 'all':
+            if isinstance(target_item, str) and target_item.startswith('gear:'):
+                g = next((x for x in drop.get('gear', []) if x['id'] == target_item), None)
+                require(g, '이미 획득한 장비입니다.')
+                require(len(w['gear']) < 20 and bag_used(w) + 4 <= bag_capacity(w), '인벤토리가 가득 찼습니다.')
+                drop['gear'].remove(g)
+                w['gear'].append(g)
+                gained.append(f"[{RARITIES[g['rarity']]['name']}] {g['name']}")
+            else:
+                require(isinstance(target_item, str) and target_item in drop.get('items', {}), '이미 획득한 아이템입니다.')
+                space = max(0, bag_capacity(w) - bag_used(w))
+                take = min(drop['items'][target_item], space)
+                require(take > 0, '인벤토리가 가득 찼습니다.')
+                w['inventory'][target_item] += take
+                drop['items'][target_item] -= take
+                if drop['items'][target_item] <= 0:
+                    del drop['items'][target_item]
+                gained.append(f"{ITEMS[target_item]} +{take}")
+        else:
+            for g in list(drop.get('gear', [])):
+                if len(w['gear']) < 20 and bag_used(w) + 4 <= bag_capacity(w):
+                    drop['gear'].remove(g)
+                    w['gear'].append(g)
+                    gained.append(f"[{RARITIES[g['rarity']]['name']}] {g['name']}")
+            for k, amount in list(drop.get('items', {}).items()):
+                space = max(0, bag_capacity(w) - bag_used(w))
+                take = min(amount, space)
+                if take > 0:
+                    w['inventory'][k] += take
+                    drop['items'][k] -= take
+                    if drop['items'][k] <= 0:
+                        del drop['items'][k]
+                    gained.append(f"{ITEMS[k]} +{take}")
+            require(gained, '인벤토리가 가득 찼습니다.')
+        if not drop.get('items') and not drop.get('gear'):
+            drops.remove(drop)
+        note(w, '전리품 루팅 · ' + ' · '.join(gained))
     elif action == 'equip':
         item = next((g for g in w['gear'] if g['id'] == command.get('item')), None)
         require(item, '보유하지 않은 장비입니다.')
@@ -233,7 +329,7 @@ def act(w, command, rng=random.random):
             cooldown(w, 'attack', COMBAT['attack']['cooldown'])
             p[meter] -= spec.get('cost', 0)
             targets = enemies if skill == 'sweep' else ([min(enemies, key=lambda e: dist(p, e))] if enemies else [])
-            damage = (spec['damage'] + equipment_power(w, 'weapon') + (p['combat_level']-1)*2) * (1 + p['level'] * .02)
+            damage = (spec['damage'] + equipment_power(w, 'weapon') + (p['combat_level']-1)*3) * (1 + p['level'] * .02)
             for enemy in targets:
                 damage_enemy(w, enemy, damage, rng)
     elif action == 'quest':
@@ -267,14 +363,13 @@ def act(w, command, rng=random.random):
         p['unlocks'][p['species']] += 1
         note(w, '이동수단 연구 완료')
     elif action == 'mount':
-        require(p['unlocks'][p['species']] > 0, '아지트에서 이동 연구를 먼저 하세요.')
         require(not threat(w), '적과 거리를 벌린 뒤 탑승·변신하세요.')
-        if not p['mounted'] and p['species'] == 'human':
-            spend(w, {'metal': 1})  # placeholder for actual fuel system
         if not p['mounted'] and p['species'] == 'vampire':
-            require(p['blood'] > 10, '혈액이 부족합니다.')
-            p['blood'] -= 3
+            require(p['blood'] > 5, '혈액이 부족합니다.')
+            p['blood'] -= 2
         p['mounted'] = not p['mounted']
+        form_name = ('다크에덴 슬레이어 바이크' if p['unlocks']['human'] < 2 else '아머드 배틀 크루저') if p['species'] == 'human' else ('블러드 배트 변신' if p['unlocks']['vampire'] < 2 else '아크데몬 군주 변신')
+        note(w, f"{form_name} {'탑승·변신 (이동속도 상승)' if p['mounted'] else '해제'}")
     elif action == 'rescue':
         require(p['hp'] <= 30 or p['infection'] >= 60, '위급할 때 이용할 수 있습니다.')
         p.update(x=float(w['base']['x']), y=float(w['base']['y']+1), hp=70., infection=0., mounted=False)
@@ -334,7 +429,7 @@ def tick(w, dt):
             move_toward(e, p, dt*.8)
         if d <= 1.3 and w['elapsed'] >= e['attack']:
             e['attack'] = w['elapsed'] + 2.5
-            p['hp'] = max(0, p['hp'] - max(1, e['damage'] - equipment_power(w, 'armor')))
+            p['hp'] = max(0, p['hp'] - max(1, e['damage'] - equipment_power(w, 'armor') - (p.get('combat_level', 1) - 1) // 2))
             p['infection'] = min(100, p['infection'] + 5)
             note(w, f"{e['name']} Lv.{e['level']}의 공격 · 치료제를 준비하세요.")
     if p['hp'] <= 0 or p['infection'] >= 100:
