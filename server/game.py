@@ -148,7 +148,7 @@ def new_world():
 
 
 def note(w, message):
-    w['log'] = [message] + w['log'][:7]
+    w['log'] = [message] + w.get('log', [])[:7]
 
 
 def dist(a, b):
@@ -192,7 +192,7 @@ def act(w, command, rng=random.random):
         require(command.get('species') in ('human', 'vampire'), '종족 오류')
         if p.get('chosen'):
             fresh = new_world()
-            for k in ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch'):
+            for k in ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch', 'log'):
                 w[k] = fresh[k]
             p = w['player']
             p['x'] = float(w['base']['x'])
@@ -471,7 +471,7 @@ def _tick_actor(w, prof, dt):
         for key, value in {'wood': 5, 'metal': 3, 'scroll': 5, 'blood': 3, 'crop': 3}.items():
             prof['inventory'][key] += value
         prof['dispatch'] = None
-        note(w, '파견 복귀 · 자원을 창고에 보관했습니다.')
+        note(prof, '파견 복귀 · 자원을 창고에 보관했습니다.')
 
 
 def _profile_armor(prof):
@@ -521,12 +521,12 @@ def tick(w, dt, extra_profiles=None):
             armor = _profile_armor(target_prof)
             p['hp'] = max(0, p['hp'] - max(1, e['damage'] - armor - (p.get('combat_level', 1) - 1) // 2))
             p['infection'] = min(100, p['infection'] + 5)
-            note(w, f"{e['name']} Lv.{e['level']}의 공격 · 치료제를 준비하세요.")
+            note(target_prof, f"{e['name']} Lv.{e['level']}의 공격 · 치료제를 준비하세요.")
     for prof in chosen_profiles:
         p = prof['player']
         if p['hp'] <= 0 or p['infection'] >= 100:
             p.update(x=float(w['base']['x']), y=float(w['base']['y']+1), hp=65., infection=0., mounted=False)
-            note(w, '감염/전투 불능 · 치료소에서 복구 (감염체 시체는 후속 구현)')
+            note(prof, '감염/전투 불능 · 치료소에서 복구 (감염체 시체는 후속 구현)')
 
 
 def move_toward(actor, target, step):

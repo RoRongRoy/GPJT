@@ -120,7 +120,7 @@ async function command(action, fields={}) {
   lastCommandAt=performance.now();busy=false;schedulePending();
  }
 }
-let welcomeForced=false;
+let welcomeForced=false,activityLogKey='';
 function accept(data) { if(!state || data.world.revision >= state.world.revision) { if(state && data.world.player.hp<state.world.player.hp)hurtUntil=performance.now()+350; state=data; update(); } }
 function span(className,text) { const n=document.createElement('span'); n.className=className; n.textContent=text; return n; }
 function update() {
@@ -158,6 +158,7 @@ function update() {
   title.textContent=`${name} · Lv.${level}`;cost.textContent=level>=3?'최대 레벨':`목재 ${3*(level+1)} · 부품 ${2*(level+1)}`;
   button.textContent=level?'개선':'건설';button.disabled=level>=3||w.paused||w.inventory.wood<3*(level+1)||w.inventory.metal<2*(level+1);button.title=cost.textContent;
  }
+ renderActivityLog();
  $('log').replaceChildren(...w.log.slice(0,5).map(t=>{const li=document.createElement('li');li.textContent=t;return li;}));
  $('quest-progress').textContent=`채집 ${Math.min(5,w.quest.collected)} / 5 · 완료 ${w.quest.round}회`;
  $('dispatch-cost').textContent=p.species==='human'?'파견 비용 · 작물 1':'파견 비용 · 원혈 1';
@@ -167,6 +168,15 @@ function update() {
  $('mount-toggle').textContent=p.mounted?'⏬ 하차·해제':p.species==='human'?'🏍 바이크 탑승':'🦇 박쥐 변신';
  document.querySelectorAll('[data-item]').forEach(b=>{const id=b.dataset.item;b.disabled=w.paused||!w.inventory[id]||(p.species==='human'?['blood','elixir'].includes(id):['soup','water'].includes(id));});
  renderRecipe();renderLootBox();
+}
+function renderActivityLog(){
+ const entries=(state.world.log||[]).slice(0,4),key=JSON.stringify(entries);
+ $('activity-feed').hidden=!state.world.player.chosen||welcomeForced||!entries.length;
+ if(key===activityLogKey)return;
+ activityLogKey=key;
+ $('activity-messages').replaceChildren(...entries.map(message=>{
+  const item=document.createElement('li');item.textContent=message;return item;
+ }));
 }
 function draw(){view.draw(state,target,selected,{hurtUntil});}
 function clearMovement(){held.clear();touchHeld.clear();target=null;document.querySelectorAll('[data-direction]').forEach(b=>b.classList.remove('pressed'));}

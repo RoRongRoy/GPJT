@@ -22,7 +22,7 @@ from .storage import Store
 from .worldmap import WORLD_MAP
 
 ROOT = Path(__file__).resolve().parent.parent
-PROFILE_KEYS = ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch')
+PROFILE_KEYS = ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch', 'log')
 
 
 class Runtime:
@@ -33,7 +33,10 @@ class Runtime:
             self.store.save(self.world)
         self.peers = self.store.load_peers()
         for sess_tok, peer_prof in self.peers.items():
-            if peer_prof.get('player', {}).get('chosen') and ensure_starter_gear(peer_prof):
+            missing_log = 'log' not in peer_prof
+            peer_prof.setdefault('log', [])
+            gear_changed = peer_prof.get('player', {}).get('chosen') and ensure_starter_gear(peer_prof)
+            if missing_log or gear_changed:
                 self.store.save_peer(sess_tok, peer_prof)
         self.lock = threading.Lock()
         self.session = None
@@ -105,6 +108,7 @@ class Runtime:
             saved_prof = self.store.load_account(username, password)
             if not saved_prof:
                 raise RuleError('계정 아이디 또는 비밀번호가 일치하지 않습니다.')
+            candidate['log'] = []  # Old accounts have no personal history to restore.
             for k in PROFILE_KEYS:
                 if k in saved_prof:
                     candidate[k] = copy.deepcopy(saved_prof[k])
