@@ -164,7 +164,7 @@ function update() {
  $('dispatch').textContent=w.dispatch?`파견 복귀까지 ${Math.ceil(w.dispatch.ends-w.elapsed)}초`:'파견 대기 · 완료 시 자원 자동 보관';
  const tier=p.unlocks[p.species],forms=p.species==='human'?['슬레이어 스카우트 바이크','슬레이어 나이트크루저','아머드 배틀 크루저']:['블러드 배트 변신','나이트메어 광폭 박쥐','아크데몬 군주 박쥐'];
  $('mobility').textContent=`다크에덴 이동 형태: ${forms[tier]} · ${p.mounted?'탑승·변신 중 (고속 이동)':'미사용 (M키 즉시 탑승)'}`;
- $('mount-toggle').textContent=p.mounted?'하차·해제 M':p.species==='human'?'바이크 탑승 M':'박쥐 변신 M';
+ $('mount-toggle').textContent=p.mounted?'⏬ 하차·해제':p.species==='human'?'🏍 바이크 탑승':'🦇 박쥐 변신';
  document.querySelectorAll('[data-item]').forEach(b=>{const id=b.dataset.item;b.disabled=w.paused||!w.inventory[id]||(p.species==='human'?['blood','elixir'].includes(id):['soup','water'].includes(id));});
  renderRecipe();renderLootBox();
 }
@@ -294,7 +294,7 @@ function updateContext(){
  const eqW=gearItem(state.world.equipment?.weapon),eqA=gearItem(state.world.equipment?.armor);
  $('field-equip').textContent=`⚔ ${eqW?itemName(eqW.id):'미착용'} · 🛡 ${eqA?itemName(eqA.id):'미착용'}`;
  $('field-infection').hidden=p.infection<1;$('field-infection').textContent=`감염 ${Math.ceil(p.infection)}`;
- $('account-top-btn').textContent=p.account?`💾 계정: ${p.account}`:'💾 계정저장';
+ $('account-top-btn').textContent=p.account?`💾 ${p.account}`:'💾 계정저장';
  if(p.account){
   $('account-current-title').textContent=`✅ 저장된 계정: ${p.account} (${p.species==='human'?'인간':'뱀파이어'} Lv.${p.combat_level||1})`;
   $('account-current-desc').textContent=`현재 모험(레벨·장비·인벤토리·아지트)이 서버 계정 '${p.account}'에 연결되어 자동 저장됩니다.`;
@@ -749,18 +749,18 @@ function updateGuide(){
   const nearDrop=[...(w.drops||[])].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
   const dropCount=(w.drops||[]).length;
   $('loot-btn').disabled=w.paused||isBagFull(w);
-  $('loot-btn-label').textContent=isBagFull(w)?'가방 가득 참':dropCount?`📦 전리품 루팅 (${dropCount})`:'📦 드랍 루팅';
+  $('loot-btn-label').textContent=isBagFull(w)?'📦 가방 가득':dropCount?`📦 루팅 (${dropCount})`:'📦 드랍 루팅';
   if(nearDrop&&Math.hypot(nearDrop.x-p.x,nearDrop.y-p.y)<=3.5){
    $('nearby-label').textContent=nearDrop.label||'몬스터 전리품';
    $('interact').disabled=w.paused||isBagFull(w);
-   $('interact').textContent=isBagFull(w)?'인벤 가득 참':'E · 전리품 내용물 확인';
+   $('interact').textContent=isBagFull(w)?'인벤 가득':'🔍 전리품 확인';
   }else{
    const nearest=[...state.pois].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
    const distance=Math.hypot(nearest.x-p.x,nearest.y-p.y),close=distance<=(nearest.kind==='npc'?2.5:3.5);
    const cooldown=close?Math.max(0,Math.ceil((w.cooldowns[nearest.id]||0)-w.elapsed)):0;
    $('nearby-label').textContent=close?nearest.label:`${nearest.label} (${Math.ceil(distance)}m)`;
    $('interact').disabled=w.paused;
-   $('interact').textContent=cooldown?`E · 내용물 확인 (${cooldown}초)`:close?(nearest.kind==='npc'?'E · 의뢰 보고':'E · 내용물 확인·파밍'):`E · ${nearest.label} 이동·파밍`;
+   $('interact').textContent=cooldown?`🔍 파밍 (${cooldown}s)`:close?(nearest.kind==='npc'?'💬 의뢰 보고':'🔍 내용물 파밍'):'🔍 이동·파밍';
   }
  $('location-hint').textContent=autoHunt?'● 자동사냥 중'+(isBagFull(w)?' (가방 가득 참·루팅 제외)':' (자동 루팅 ON)')+' · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):Math.hypot(p.x-w.base.x,p.y-w.base.y)<=state.map.base_radius?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
 }
