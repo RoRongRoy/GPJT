@@ -31,7 +31,7 @@ const panelInfo={
 };
 const panelParents={guide:'journal',quests:'journal',log:'journal',craft:'camp',build:'camp',research:'camp',dispatch:'camp'};
 const recipeDetails={soup:['♨','포만도 +45 · 수분 +15'],elixir:['⚗','혈액량 +40 · 안정도 +45'],medicine:['+','체력 +40 · 감염 −60']};
-const inventoryGroups={all:['wood','water','crop','herb','blood','metal','scroll','soup','elixir','medicine'],materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll'],equipment:[]};
+const inventoryGroups={all:['wood','water','crop','herb','blood','metal','scroll','skillbook','soup','elixir','medicine'],materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll','skillbook'],equipment:[]};
 const facilityNames = {kitchen:'주방',alchemy:'연금대',medical:'의료실',storage:'저장고'};
 const poiContents={
  wood:[['wood',3,'주요 벌목 자재'],['scroll',1,'숨겨진 고대 주문서'],['herb',1,'야생 약초']],
@@ -371,6 +371,7 @@ const itemInfo={
  crop:['식재료','따뜻한 수프를 만드는 기본 식재료.','아지트 → 제작 → 요리'],
  herb:['약재','치료제와 안정화 혈액, 종족 전환에 필요한 약초.','아지트 → 제작·연구에서 사용'],
  scroll:['강화 재료','현재 무기의 공격력을 강화하는 주문서.','아지트 → 연구·성장 → 장비 강화'],
+ skillbook:['스킬 해금 비전서','몬스터에게서 낮은 확률로 드랍되는 고대 스킬북. 상위 직업 스킬을 해금할 때 소모됩니다.','스킬 메뉴(K) → 상위 직업 스킬 해금에 사용'],
  soup:['인간 소모품','야채와 물로 끓인 따뜻한 식사.','포만도 +45 · 수분 +15'],
  water:['인간 소모품 / 재료','마실 수 있는 깨끗한 물. 제작에도 사용합니다.','수분 +40'],
  blood:['뱀파이어 소모품 / 재료','뱀파이어의 갈증을 달래는 원혈.','혈액량 +30'],
@@ -381,6 +382,7 @@ function itemUseReason(id){
  const w=state.world;
  if(gearItem(id))return !connected?'서버 연결을 기다리세요.':w.paused?'일시정지를 해제하세요.':'';
  if(!id)return '아이템을 선택하세요.';
+ if(id==='skillbook')return !connected?'서버 연결을 기다리세요.':!w.inventory.skillbook?'보유한 스킬북이 없습니다.':'';
  if(!['soup','water','blood','elixir','medicine'].includes(id))return '직접 사용할 수 없는 제작·강화 재료입니다.';
  if(!connected)return '서버 연결을 기다리세요.';
  if(w.paused)return '일시정지를 해제하세요.';
@@ -487,43 +489,57 @@ function renderInventory(){
  $('item-description').textContent=info?.[1]||'채집하거나 제작해 아이템을 획득하세요.';$('item-effect').textContent=info?.[2]||'';
  $('item-category').style.color=rarity?.color||'';
  $('item-owned').textContent=g?(equipped?'현재 착용 중':'가방에 보관 중'):selectedItem?'보유 수량 · '+(state.world.inventory[selectedItem]||0):'';
- const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent=g?(equipped?'착용 해제':'착용'):'1개 사용';$('item-use-reason').textContent=reason||(g?'같은 부위의 장비는 교체되며 가방에 보존됩니다.':'선택한 아이템 1개를 사용합니다.');
+ const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent=g?(equipped?'착용 해제':'착용'):selectedItem==='skillbook'?'스킬 메뉴 열기 (K)':'1개 사용';$('item-use-reason').textContent=reason||(g?'같은 부위의 장비는 교체되며 가방에 보존됩니다.':selectedItem==='skillbook'?'스킬 메뉴에서 스킬북을 사용해 직업 스킬을 해금합니다.':'선택한 아이템 1개를 사용합니다.');
 }
-$('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){const g=gearItem(selectedItem);if(g)manualAction(state.world.equipment[g.slot]===g.id?'unequip':'equip',{item:g.id,slot:g.slot});else manualAction('consume',{item:selectedItem});}};
+$('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){if(selectedItem==='skillbook'){openPanel('skills');return;}const g=gearItem(selectedItem);if(g)manualAction(state.world.equipment[g.slot]===g.id?'unequip':'equip',{item:g.id,slot:g.slot});else manualAction('consume',{item:selectedItem});}};
 const SKILL_IDS=['sweep','recover','strike','ranged','purify','ultimate'];
+function activeSkillSpec(id,species=state?.world.player.species||'human',job=state?.world.player.job||'warrior'){
+ const base=state?.combat?.[id];
+ if(!base)return null;
+ const jobSpec=state?.job_skills?.[`${species}_${job}`]?.[id];
+ return jobSpec?{...base,...jobSpec}:base;
+}
 function skillNameFor(spec,species,job){
  if(!spec)return '';
+ const jobSpec=state?.job_skills?.[`${species}_${job}`]?.[Object.keys(state?.combat||{}).find(k=>state.combat[k]?.key===spec.key)];
+ if(jobSpec?.name)return jobSpec.name;
  const isVamp=species==='vampire',isRanged=job==='ranged';
  if(isRanged)return (isVamp?spec.vampire_ranged_name:spec.human_ranged_name)||(isVamp?spec.vampire_name:spec.name);
  return isVamp?spec.vampire_name:spec.name;
 }
 function skillDescFor(spec,species,job){
  if(!spec)return '';
+ const jobSpec=state?.job_skills?.[`${species}_${job}`]?.[Object.keys(state?.combat||{}).find(k=>state.combat[k]?.key===spec.key)];
+ if(jobSpec?.desc)return jobSpec.desc;
  const isVamp=species==='vampire',isRanged=job==='ranged';
  if(isRanged)return (isVamp?spec.vampire_ranged_desc:spec.human_ranged_desc)||(isVamp?spec.vampire_desc:spec.desc)||'';
  return (isVamp?spec.vampire_desc:spec.desc)||'';
 }
 function skillStatus(id){
- const w=state.world,p=w.player,spec=state.combat?.[id];
+ const w=state.world,p=w.player,isVamp=p.species==='vampire',job=p.job||'warrior';
+ const spec=activeSkillSpec(id,p.species,job);
  if(!spec)return {reason:'서버 연결 중'};
- const isVamp=p.species==='vampire',job=p.job||'warrior',cls=classInfo(p.species,job),meter=isVamp?'blood':'food',cost=spec.cost||0;
+ const meter=isVamp?'blood':'food',cost=spec.cost||0;
  const mpCost=spec.mp_cost??cost,hpCost=spec.hp_cost??6;
- const unlockLevel=spec.unlock_level||1,unlocked=(p.combat_level||1)>=unlockLevel;
+ const unlockLevel=spec.unlock_level||1,levelMet=(p.combat_level||1)>=unlockLevel;
+ const bookCost=spec.book_cost??0,booksHave=w.inventory?.skillbook||0;
+ const learnedList=p.learned_skills||['sweep','recover'];
+ const learned=bookCost<=0||learnedList.includes(id);
+ const unlocked=levelMet&&learned;
+ const canLearn=levelMet&&!learned&&booksHave>=bookCost;
  const isHeal=Boolean(spec.heal);
- const effRange=isHeal?0:spec.range+(cls.skill_range_bonus||0);
+ const effRange=isHeal?0:spec.range;
  const remaining=Math.max(0,(w.cooldowns['skill:'+id]||0)-w.elapsed,!isHeal?(w.cooldowns.attack||0)-w.elapsed:0);
- const reason=!connected?'연결 중':w.paused?'일시정지':!unlocked?`Lv.${unlockLevel} 해금`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='purify'&&p.hp>=100&&(p.infection||0)<=0?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
- return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,isHeal,effRange};
+ const reason=!connected?'연결 중':w.paused?'일시정지':!levelMet?`Lv.${unlockLevel} 필요`:!learned?`스킬북 ${bookCost}권 필요`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='purify'&&p.hp>=100&&(p.infection||0)<=0?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
+ return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,levelMet,learned,bookCost,booksHave,canLearn,isHeal,effRange};
 }
 function renderSkillsMenu(){
  if(!state||!$('skills-list'))return;
  const w=state.world,p=w.player,isVamp=p.species==='vampire',job=p.job||'warrior',gender=p.gender||'male',lvl=p.combat_level||1;
- const cls=classInfo(p.species,job),gName=genderName(gender);
+ const cls=classInfo(p.species,job),gName=genderName(gender),booksHave=w.inventory?.skillbook||0;
  const wepPow=gearItem(w.equipment?.weapon)?.power||0,lvlAtk=(lvl-1)*3,enhMult=1+(p.level||0)*.02;
- const unlockedCount=SKILL_IDS.filter(id=>lvl>=(state.combat?.[id]?.unlock_level||1)).length;
- const nextSkillId=SKILL_IDS.find(id=>lvl<(state.combat?.[id]?.unlock_level||1));
- const nextSpec=nextSkillId?state.combat?.[nextSkillId]:null;
- $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어':'☀ 인간'} · ${gName} [${cls.style}] ${cls.name} (${cls.weapon_type} 사용 · 기본 사거리 ${cls.attack_range}) · 전투 Lv.${lvl} · 해금 스킬 ${unlockedCount}/${SKILL_IDS.length}개`+(nextSpec?` · 다음 해금: Lv.${nextSpec.unlock_level} [${skillNameFor(nextSpec,p.species,job)}]`:' · 전 스킬 마스터 완료!');
+ const learnedCount=SKILL_IDS.filter(id=>skillStatus(id).unlocked).length;
+ $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어':'☀ 인간'} · ${gName} [${cls.style}] ${cls.name} (${cls.weapon_type} · 기본 사거리 ${cls.attack_range}) · 전투 Lv.${lvl} · 습득 스킬 ${learnedCount}/${SKILL_IDS.length}개 · 📖 보유 고대 스킬북: ${booksHave}권 (몬스터 처치 시 낮은 확률 드랍)`;
  if($('class-switcher')){
   const gBar=document.createElement('div');gBar.className='gender-bar';
   gBar.append(span('custom-label',`현재 성별: ${gName} (${gender==='female'?'♀':'♂'})`));
@@ -549,9 +565,9 @@ function renderSkillsMenu(){
   $('class-switcher').replaceChildren(gBar,...jobCards);
  }
  $('skills-list').replaceChildren(...SKILL_IDS.map(id=>{
-  const {reason,spec,mpCost,hpCost,cost,unlocked,unlockLevel,isHeal,effRange}=skillStatus(id);
+  const {reason,spec,mpCost,hpCost,cost,unlocked,unlockLevel,levelMet,learned,bookCost,booksHave,canLearn,isHeal,effRange}=skillStatus(id);
   if(!spec)return document.createElement('div');
-  const name=skillNameFor(spec,p.species,job),altName=skillNameFor(spec,isVamp?'human':'vampire',job);
+  const name=skillNameFor(spec,p.species,job),altJob=job==='warrior'?'ranged':'warrior',altJobCls=classInfo(p.species,altJob),altJobName=skillNameFor(state.combat?.[id],p.species,altJob);
   const desc=skillDescFor(spec,p.species,job);
   const totalDmg=spec.damage?Math.round((spec.damage+wepPow+lvlAtk)*enhMult):0;
   const costText=isVamp?`HP ${hpCost} · 혈액 ${cost}`:`MP ${mpCost} · 포만 ${cost}`;
@@ -561,17 +577,26 @@ function renderSkillsMenu(){
   const txt=document.createElement('div');txt.className='equip-gear-text';
   const head=document.createElement('div');head.className='skill-card-head';
   const title=document.createElement('strong');title.textContent=`[${spec.key||id.toUpperCase()}] ${name}`;
-  const badge=span('skill-badge'+(unlocked?'':' locked'),unlocked?`✓ Lv.${unlockLevel} 해금됨`:`🔒 Lv.${unlockLevel} 달성 시 해금`);
+  const badgeText=unlocked?(bookCost>0?`✓ 습득 완료 (Lv.${unlockLevel})`:`✓ 기본 직업 스킬`):!levelMet?`🔒 Lv.${unlockLevel} + 📖 스킬북 ${bookCost}권 필요`:`📖 스킬북 ${bookCost}권으로 해금 가능 (보유 ${booksHave}/${bookCost})`;
+  const badge=span('skill-badge'+(unlocked?'':' locked'),badgeText);
   head.append(title,badge);
   const sub=document.createElement('small');
   const effectText=isHeal?`회복 +${spec.heal}`+(spec.cleanse?` · 감염 −${spec.cleanse} 정화`:''):`${spec.aoe?'광역':'단일'} 피해 ${totalDmg} (기본 ${spec.damage}) · 사거리 ${effRange.toFixed(1)}`+(isVamp?' · 흡혈 회복':'');
   sub.textContent=`${effectText} · 쿨타임 ${spec.cooldown}초 · 소모: ${costText}`;
-  const descEl=document.createElement('small');descEl.textContent=(desc?desc+' ':'')+`(타 종족 전환 시: ${altName})`;
+  const descEl=document.createElement('small');descEl.textContent=(desc?desc+' ':'')+`(${altJobCls.name} 전직 시: ${altJobName})`;
   txt.append(head,sub,descEl);left.append(glyph,txt);
-  const btn=document.createElement('button');btn.type='button';btn.className=unlocked&&!reason?'accent':'';
-  btn.textContent=!unlocked?`🔒 Lv.${unlockLevel} 필요`:reason?reason:`시전 (${spec.key||id.toUpperCase()})`;
-  btn.disabled=!unlocked||Boolean(reason);
-  btn.onclick=()=>useSkill(id);
+  const btn=document.createElement('button');btn.type='button';
+  if(!learned){
+   btn.className=canLearn?'accent':'';
+   btn.textContent=!levelMet?`🔒 Lv.${unlockLevel} 달성 필요`:canLearn?`📖 스킬 해금 (스킬북 ${bookCost}권)`:`📖 스킬북 부족 (${booksHave}/${bookCost})`;
+   btn.disabled=!connected||w.paused||!canLearn;
+   btn.onclick=()=>manualAction('learn_skill',{skill:id});
+  }else{
+   btn.className=!reason?'accent':'';
+   btn.textContent=reason?reason:`시전 (${spec.key||id.toUpperCase()})`;
+   btn.disabled=Boolean(reason);
+   btn.onclick=()=>useSkill(id);
+  }
   card.append(left,btn);return card;
  }));
 }
@@ -580,20 +605,25 @@ function updateSkills(){
  const p=state.world.player,isVamp=p.species==='vampire',job=p.job||'warrior';
  for(const id of SKILL_IDS){
   const el=$('skill-'+id);if(!el)continue;
-  const {reason,spec,mpCost,hpCost,unlocked,unlockLevel,effRange}=skillStatus(id);if(!spec)continue;
+  const {reason,spec,mpCost,hpCost,unlocked,unlockLevel,levelMet,learned,bookCost,canLearn,effRange}=skillStatus(id);if(!spec)continue;
   const name=skillNameFor(spec,p.species,job);
   const costText=isVamp?`HP ${hpCost} 소모`:`MP ${mpCost}`;
   $('skill-'+id+'-name').textContent=name;
-  $('skill-'+id+'-status').textContent=!unlocked?`🔒 Lv.${unlockLevel} 해금`:reason||(spec.damage?`피해 ${spec.damage}${isVamp?'+흡혈':''}`:`회복 +${spec.heal}`)+' · '+costText;
+  $('skill-'+id+'-status').textContent=!levelMet?`🔒 Lv.${unlockLevel} 해금`:!learned?(canLearn?`📖 클릭해 해금!`:`📖 스킬북 ${bookCost}권`):reason||(spec.damage?`피해 ${spec.damage}${isVamp?'+흡혈':''}`:`회복 +${spec.heal}`)+' · '+costText;
   if(!unlocked)el.classList.add('skill-locked');else el.classList.remove('skill-locked');
-  el.disabled=Boolean(reason);
-  el.title=name+(!unlocked?` · 전투 Lv.${unlockLevel} 달성 시 해금`:' · '+(spec.damage?`사거리 ${effRange.toFixed(1)} 피해 ${spec.damage}`:`체력 +${spec.heal}`)+' · 재사용 '+spec.cooldown+'초 · '+costText);
+  el.disabled=unlocked?Boolean(reason):false;
+  el.title=name+(!levelMet?` · 전투 Lv.${unlockLevel} 및 고대 스킬북 ${bookCost}권 필요`:!learned?` · 클릭하여 스킬 메뉴에서 고대 스킬북 ${bookCost}권으로 해금`:' · '+(spec.damage?`사거리 ${effRange.toFixed(1)} 피해 ${spec.damage}`:`체력 +${spec.heal}`)+' · 재사용 '+spec.cooldown+'초 · '+costText);
  }
  renderSkillsMenu();
 }
 function useSkill(id){
- const {reason,unlocked,unlockLevel}=skillStatus(id);
- if(!unlocked){openPanel('skills');toast(`전투 Lv.${unlockLevel} 달성 시 해금되는 스킬입니다. (현재 Lv.${state?.world.player.combat_level||1})`);return;}
+ const {reason,unlocked,unlockLevel,levelMet,learned,bookCost,canLearn}=skillStatus(id);
+ if(!unlocked){
+  if(canLearn){manualAction('learn_skill',{skill:id});return;}
+  openPanel('skills');
+  toast(!levelMet?`전투 Lv.${unlockLevel} 달성 및 고대 스킬북 ${bookCost}권이 필요한 스킬입니다.`:`고대 스킬북 ${bookCost}권이 필요합니다. 몬스터를 처치해 스킬북을 획득하세요!`);
+  return;
+ }
  if(reason){toast(reason);return;}
  manualAction('skill',{skill:id});
 }

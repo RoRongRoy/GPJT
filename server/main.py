@@ -16,7 +16,7 @@ if __name__ == '__main__' and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     __package__ = 'server'
 
-from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, CLASSES, GENDERS, live_pois, RARITIES
+from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, JOB_SKILLS, CLASSES, GENDERS, live_pois, RARITIES
 from .socketio_server import SocketIOHub
 from .storage import Store
 from .worldmap import WORLD_MAP
@@ -31,10 +31,14 @@ class Runtime:
         self.world = self.store.load()
         if self.world['player'].get('chosen') and ensure_starter_gear(self.world):
             self.store.save(self.world)
+        self.world['player'].setdefault('learned_skills', ['sweep', 'recover'])
+        self.world.setdefault('inventory', {}).setdefault('skillbook', 0)
         self.peers = self.store.load_peers()
         for sess_tok, peer_prof in self.peers.items():
             missing_log = 'log' not in peer_prof
             peer_prof.setdefault('log', [])
+            peer_prof.get('player', {}).setdefault('learned_skills', ['sweep', 'recover'])
+            peer_prof.setdefault('inventory', {}).setdefault('skillbook', 0)
             gear_changed = peer_prof.get('player', {}).get('chosen') and ensure_starter_gear(peer_prof)
             if missing_log or gear_changed:
                 self.store.save_peer(sess_tok, peer_prof)
@@ -122,6 +126,8 @@ class Runtime:
             candidate['player'].setdefault('mp', 100.0)
             candidate['player'].setdefault('gender', 'male')
             candidate['player'].setdefault('job', 'warrior')
+            candidate['player'].setdefault('learned_skills', ['sweep', 'recover'])
+            candidate.setdefault('inventory', {}).setdefault('skillbook', 0)
             ensure_starter_gear(candidate)
             candidate['cooldowns'] = {
                 ck: cv for ck, cv in candidate.get('cooldowns', {}).items() if cv <= candidate['elapsed'] + 60
@@ -233,6 +239,7 @@ class Runtime:
             'map': WORLD_MAP,
             'recipes': RECIPES,
             'combat': COMBAT,
+            'job_skills': {f'{sp}_{jb}': specs for (sp, jb), specs in JOB_SKILLS.items()},
             'classes': CLASSES,
             'genders': GENDERS,
             'rarities': RARITIES,
