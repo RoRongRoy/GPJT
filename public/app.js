@@ -46,29 +46,35 @@ function bagCapacity(w=state?.world){return w?160+(w.base.facilities.storage||0)
 function bagUsed(w=state?.world){return w?Object.values(w.inventory).reduce((a,b)=>a+b,0)+(w.gear?.length||0)*4:0;}
 function isBagFull(w=state?.world){return !w||bagUsed(w)>=bagCapacity(w)||(w.gear?.length||0)>=20;}
 function toast(message) { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600); }
-let socket=null;
+let socket=null,moveBusy=false,lastSocketAt=0;
 function updateConnectionBadge(){
  $('connection').classList.remove('status-error');
  const count=state?.online_count||1;
  $('connection').textContent=socket?.connected?`● Socket.IO 멀티플레이 (${count}명 접속) · 서버 상태 관리`:`● 서버 연결 (${count}명 접속) · 자동 저장`;
 }
 if(typeof io==='function'){
- socket=io({auth:{key,session},query:{key,session}});
- socket.on('connect',()=>{connected=true;updateConnectionBadge();});
- socket.on('state',data=>{connected=true;accept(data);updateConnectionBadge();});
+ socket=io({auth:{key,session},query:{key,session},reconnectionDelay:600});
+ socket.on('connect',()=>{connected=true;lastSocketAt=performance.now();updateConnectionBadge();});
+ socket.on('state',data=>{connected=true;lastSocketAt=performance.now();accept(data,true);updateConnectionBadge();});
+ socket.on('disconnect',()=>{updateConnectionBadge();});
  socket.on('connect_error',err=>{
-  if(!connected){$('connection').textContent=err.message||'서버 연결 오류';$('connection').classList.add('status-error');}
+  if(!connected&&!state){$('connection').textContent=err.message||'서버 연결 재시도 중...';$('connection').classList.add('status-error');}
  });
 }
 async function api(path, body) {
  if(socket?.connected){
-  return await new Promise((resolve,reject)=>{
-   const ev=path==='/api/action'?'action':'state';
-   socket.emit(ev,body||{},res=>{
-    if(res?.ok){connected=true;updateConnectionBadge();resolve(res.state);}
-    else{const error=new Error(res?.error||'서버 오류');error.status=res?.status||400;reject(error);}
+  try{
+   return await new Promise((resolve,reject)=>{
+    const ev=path==='/api/action'?'action':'state';
+    socket.emit(ev,body||{},res=>{
+     if(res?.ok){connected=true;lastSocketAt=performance.now();updateConnectionBadge();resolve(res.state);}
+     else{const error=new Error(res?.error||'서버 오류');error.status=res?.status||400;reject(error);}
+    });
    });
-  });
+  }catch(err){
+   if(err.status!==408&&err.status!==503)throw err;
+   // Seamless HTTP fallback if WebSocket ACK timed out or reset mid-flight
+  }
  }
  const response = await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','X-Access-Key':key,'X-Session-ID':session},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(5000)});
  const data = await response.json();
@@ -86,16 +92,18 @@ function schedulePending(){
 async function command(action, fields={}) {
  if(!state||!connected)return;
  if(campActions.has(action)&&!canUseCamp()){toast('아지트 가까이에서 이용하세요.');return;}
- if(busy||performance.now()-lastCommandAt<75){
-  if(action!=='move'){pendingAction={action,fields};schedulePending();}
+ const isMove=(action==='move');
+ if(busy||moveBusy||performance.now()-lastCommandAt<75){
+  if(!isMove){pendingAction={action,fields};schedulePending();}
   return;
  }
  const before=state.world;
- busy=true;lastCommandAt=performance.now();
- if(action==='move')view.predictMove(state,fields);
+ if(isMove)moveBusy=true;else busy=true;
+ lastCommandAt=performance.now();
+ if(isMove)view.predictMove(state,fields);
  try {
   const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
-  if(action==='move')view.endMove(true);
+  if(isMove)view.endMove(true);
   accept(result);
   const drops=(result.world.gear||[]).filter(g=>!(before.gear||[]).some(old=>old.id===g.id));
   const killed=(before.enemies||[]).filter(old=>old.hp>0&&result.world.enemies.some(e=>e.id===old.id&&e.hp<=0));
@@ -104,21 +112,24 @@ async function command(action, fields={}) {
   else if(killed.length)toast(result.world.log[0]||'몬스터 처치 · 전리품 획득');
   if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':fields.skill);
  }catch(e){
-  if(action==='move')view.endMove(false,e.status===409);
+  if(isMove)view.endMove(false,e.status===409||e.status===429||e.status===408||e.status===503);
   if(e.status===409){
    try{
     accept(await api('/api/state'));
-    if(['choose','new_adventurer','account_save','account_load'].includes(action)){
+    if(['choose','new_adventurer','account_save','account_load','learn_skill','change_class'].includes(action)){
      const retry=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
      accept(retry);
      return;
     }
-   }catch{connected=false;clearMovement();}
-  }else if(!e.status){connected=false;clearMovement();}
-  if(action!=='move')toast(e.message);
+   }catch{if(!socket?.connected){connected=false;clearMovement();}}
+  }else if(!e.status&&!socket?.connected){connected=false;clearMovement();}
+  if(!isMove&&e.status!==429)toast(e.message);
  }finally{
   // The server rate limit starts after its commit; retain this safety gap.
-  lastCommandAt=performance.now();busy=false;schedulePending();
+  lastCommandAt=performance.now();
+  if(isMove){moveBusy=false;if(held.size||touchHeld.size||target)setTimeout(stepMovement,12);}
+  else busy=false;
+  schedulePending();
  }
 }
 let welcomeForced=false,activityLogKey='',selectedGender='male',selectedJob='warrior';
@@ -148,7 +159,18 @@ function updateWelcomeCustomizer(){
 document.querySelectorAll('[data-select-gender]').forEach(b=>b.onclick=()=>{selectedGender=b.dataset.selectGender;updateWelcomeCustomizer();});
 document.querySelectorAll('[data-select-job]').forEach(b=>b.onclick=()=>{selectedJob=b.dataset.selectJob;updateWelcomeCustomizer();});
 updateWelcomeCustomizer();
-function accept(data) { if(!state || data.world.revision >= state.world.revision) { if(state && data.world.player.hp<state.world.player.hp)hurtUntil=performance.now()+350; state=data; update(); } }
+function accept(data,fromBroadcast=false) {
+ if(!data?.world)return;
+ if(!state || data.world.revision >= state.world.revision) {
+  if(state && data.world.player.hp<state.world.player.hp)hurtUntil=performance.now()+350;
+  // Prevent a delayed peer broadcast from snapping the local player's position backward while a move is in flight
+  if(fromBroadcast && moveBusy && state?.world?.player){
+   data.world.player.x=state.world.player.x;
+   data.world.player.y=state.world.player.y;
+  }
+  state=data; update();
+ }
+}
 function span(className,text) { const n=document.createElement('span'); n.className=className; n.textContent=text; return n; }
 function update() {
  if(!state) return;
@@ -856,8 +878,8 @@ for(const button of document.querySelectorAll('[data-direction]')){
  button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
 }
 function stepMovement(){
- if(!state||!connected||busy||pendingAction||state.world.paused||!state.world.player.chosen||document.hidden)return;
- const now=performance.now(),sprinting=isSprinting(),moveGap=state.world.player.mounted?(sprinting?64:82):(sprinting?68:92);
+ if(!state||!connected||busy||moveBusy||pendingAction||state.world.paused||!state.world.player.chosen||document.hidden)return;
+ const now=performance.now(),sprinting=isSprinting(),moveGap=state.world.player.mounted?(sprinting?58:76):(sprinting?62:84);
  if(now-lastMove<moveGap||now-lastCommandAt<75)return;
  let {dx,dy}=screenDirection();
  if(autoHunt&&!dx&&!dy){
@@ -954,5 +976,20 @@ function updateGuide(){
   }
  $('location-hint').textContent=autoHunt?'● 자동사냥 중'+(isBagFull(w)?' (가방 가득 참·루팅 제외)':' (자동 루팅 ON)')+' · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):Math.hypot(p.x-w.base.x,p.y-w.base.y)<=state.map.base_radius?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
 }
-async function poll(){if(polling||busy||document.hidden||socket?.connected)return;polling=true;try{accept(await api('/api/state'));}catch(e){connected=false;clearMovement();if(state)updateContext();$('connection').textContent=e.message;$('connection').classList.add('status-error');if(!state){$('objective').textContent='서버 접속 링크를 확인하세요';$('objective-detail').textContent=e.message;}}finally{polling=false;}}
-setInterval(poll,400);function frame(){if(!document.hidden)draw();requestAnimationFrame(frame);}frame();poll();
+let pollFailures=0;
+async function poll(){
+ if(polling||busy||moveBusy||document.hidden||(socket?.connected&&performance.now()-lastSocketAt<3500))return;
+ polling=true;
+ try{
+  accept(await api('/api/state'),true);
+  pollFailures=0;
+ }catch(e){
+  pollFailures++;
+  if(!socket?.connected&&pollFailures>=3){
+   connected=false;clearMovement();if(state)updateContext();
+   $('connection').textContent=e.message||'서버 재연결 중...';$('connection').classList.add('status-error');
+   if(!state){$('objective').textContent='서버 접속 링크를 확인하세요';$('objective-detail').textContent=e.message;}
+  }
+ }finally{polling=false;}
+}
+setInterval(poll,450);function frame(){if(!document.hidden)draw();requestAnimationFrame(frame);}frame();poll();

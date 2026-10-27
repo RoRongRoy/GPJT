@@ -158,10 +158,11 @@ class Runtime:
                 now = time.monotonic()
                 sess_info = self.sessions[token]
                 last_cmd = self.last_command if token == self.session else sess_info['last_command']
-                min_gap = .042 if isinstance(command, dict) and command.get('action') == 'move' else .06
+                is_move_cmd = isinstance(command, dict) and command.get('action') == 'move'
+                min_gap = .028 if is_move_cmd else .055
                 if last_cmd > 0 and now - last_cmd < min_gap:
                     return 429, {'error': '입력이 너무 빠릅니다.'}
-                if expected_revision is not None and expected_revision != self.world['revision']:
+                if not is_move_cmd and expected_revision is not None and expected_revision != self.world['revision']:
                     return 409, {'error': '상태가 변경됐습니다. 새 상태에서 다시 시도하세요.'}
                 if not isinstance(command, dict):
                     raise RuleError('명령 형식 오류')
@@ -174,7 +175,8 @@ class Runtime:
                 if not self._handle_account_action(candidate, command, is_peer):
                     act(candidate, command)
                 acc_name = candidate['player'].get('account')
-                if acc_name:
+                is_fast_move = isinstance(command, dict) and command.get('action') == 'move'
+                if acc_name and not is_fast_move:
                     self.store.sync_account(
                         acc_name,
                         {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'base', 'next_gear_id') if k in candidate},
@@ -184,12 +186,14 @@ class Runtime:
                     updated_peer = {k: candidate[k] for k in PROFILE_KEYS}
                     for k in PROFILE_KEYS:
                         candidate[k] = self.world[k]
-                    self.store.save(candidate)
-                    self.store.save_peer(token, updated_peer)
+                    if not is_fast_move:
+                        self.store.save(candidate)
+                        self.store.save_peer(token, updated_peer)
                     self.world = candidate
                     self.peers[token] = updated_peer
                 else:
-                    self.store.save(candidate)
+                    if not is_fast_move:
+                        self.store.save(candidate)
                     self.world = candidate
                     self.last_command = now
                 sess_info['last_command'] = now
