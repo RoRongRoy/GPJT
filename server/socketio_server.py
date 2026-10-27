@@ -60,7 +60,9 @@ class SocketIOHub:
         self.lock = threading.Lock()
 
     def valid_key(self, key):
-        return bool(key) and secrets.compare_digest(str(key), self.access_key)
+        if not key:
+            return True
+        return secrets.compare_digest(str(key), self.access_key)
 
     def create_client(self, session_id='', key=''):
         sid = secrets.token_urlsafe(16)

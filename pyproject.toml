@@ -1,9 +1,19 @@
 [project]
 name = "bloodfall-prototype"
 version = "0.8.0"
-description = "Single-player quarter-view survival and housing web prototype"
+description = "Server-authoritative multiplayer quarter-view survival and housing web prototype"
 requires-python = ">=3.11"
 dependencies = []
+
+[tool.poetry]
+name = "bloodfall-prototype"
+version = "0.8.0"
+description = "Server-authoritative multiplayer quarter-view survival and housing web prototype"
+package-mode = false
+packages = [{include = "server"}]
+
+[tool.poetry.dependencies]
+python = ">=3.11"
 
 [tool.ruff]
 line-length = 120

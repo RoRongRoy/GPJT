@@ -4,12 +4,18 @@ import copy
 import json
 import os
 import secrets
+import sys
 import threading
 import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+
+if __name__ == '__main__' and not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    __package__ = 'server'
+
 from .game import act, tick, new_world, RuleError, POIS, ITEMS, RECIPES, COMBAT, live_pois, RARITIES
 from .socketio_server import SocketIOHub
 from .storage import Store
@@ -170,7 +176,7 @@ def make_handler(runtime, access_key, sio=None):
 
         def allowed(self):
             supplied = self.headers.get('X-Access-Key', '')
-            if not secrets.compare_digest(supplied, access_key):
+            if supplied and not secrets.compare_digest(supplied, access_key):
                 self.send(401, {'error': '접속 키가 필요합니다. 서버 콘솔의 링크를 사용하세요.'})
                 return False
             token = self.headers.get('X-Session-ID', '')
@@ -255,10 +261,12 @@ def make_handler(runtime, access_key, sio=None):
 
 
 def main():
+    default_host = os.environ.get('HOST') or ('0.0.0.0' if (os.environ.get('PORT') or os.environ.get('RENDER')) else '127.0.0.1')
+    default_port = int(os.environ.get('PORT', '8080'))
     parser = argparse.ArgumentParser()
-    parser.add_argument('--host', default='127.0.0.1')
+    parser.add_argument('--host', default=default_host)
     parser.add_argument('--open-browser', action='store_true', help='Open the local play link in your browser')
-    parser.add_argument('--port', default=8080, type=int)
+    parser.add_argument('--port', default=default_port, type=int)
     parser.add_argument('--data', default=str(ROOT/'data'/'world.sqlite3'))
     args = parser.parse_args()
     key_path = Path(args.data).parent/'access.key'
@@ -309,7 +317,7 @@ def main():
     worker.start()
     print(f'BLOODFALL multiplayer — http://127.0.0.1:{args.port}/#key={key}', flush=True)
     print('Socket.IO server-authoritative multiplayer active. Ctrl+C saves and stops.', flush=True)
-    if args.open_browser:
+    if args.open_browser and not os.environ.get('RENDER') and not os.environ.get('PORT'):
         webbrowser.open(f'http://127.0.0.1:{args.port}/#key={key}')
     try:
         httpd.serve_forever()

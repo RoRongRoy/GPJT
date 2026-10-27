@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: gpjt-bloodfall
+    runtime: python
+    buildCommand: poetry install
+    startCommand: python -m server.main
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
