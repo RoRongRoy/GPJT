@@ -112,14 +112,42 @@ footer{color:#9a8587}
 .item-detail h3{font-size:17px;margin:6px 0 12px}.item-detail p{font-size:11px;line-height:1.75;margin:9px 0;color:#b9b2a7}
 .item-detail #item-effect{color:#dbc390}.item-detail #item-use-reason{font-size:10px;color:#afa19f}.item-detail .eyebrow{font-size:9px;letter-spacing:1px}
 #item-owned{border-top:1px solid #8c766333;padding-top:10px}#inventory-empty{font-size:12px;color:#b4a7a4}
+/* --- Top HUD Cleanup (Hide clutter, keep pure RPG gauges) --- */
+.field-badge, #field-vital, #field-bag, #field-equip-btn {
+ display: none !important;
+}
+.field-vitals{
+ position: absolute;
+ left: 18px;
+ top: 18px;
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ z-index: 4;
+}
+.field-vitals button{
+ display: flex;
+ align-items: center;
+ gap: 7px;
+ padding: 6px 12px;
+ background: #111722e8;
+ border: 1.5px solid #4a3e30aa;
+ border-radius: 6px;
+ box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+}
+#field-mp-wrap.vampire-blood #field-mp-bar{
+ background: linear-gradient(90deg, #991b1b, #ef4444) !important;
+ box-shadow: 0 0 8px rgba(239,68,68,0.6) !important;
+}
+
 /* --- Lineage M Style Action Cluster --- */
 #interaction.action-cluster{
  position:absolute;
  left:18px;
  bottom:18px;
- width:224px;
+ width:246px;
  padding:7px 9px;
- background:#121822f2;
+ background:#121822f5;
  border:1.5px solid #5a4832aa;
  border-radius:8px;
  box-shadow:0 8px 24px rgba(0,0,0,0.65);
@@ -138,16 +166,19 @@ footer{color:#9a8587}
  border-bottom:1px solid rgba(255,255,255,0.08);
 }
 .nearby-tracker .eyebrow{font-size:8px;letter-spacing:1.5px;color:#ffd166;font-weight:700}
-#nearby-label{font-size:9.5px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:145px}
+#nearby-label{font-size:9.5px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
 .action-grid{
  display:grid;
  grid-template-columns:repeat(3,minmax(0,1fr));
- gap:4px;
+ gap:5px;
 }
 .action-btn{
- padding:6px 3px;
- font-size:10px;
- font-weight:600;
+ width:100%;
+ min-width:0;
+ height:34px;
+ padding:3px 2px;
+ font-size:11px;
+ font-weight:700;
  border-radius:5px;
  background:#1c2430;
  border:1px solid #4a3c2c88;
@@ -155,15 +186,35 @@ footer{color:#9a8587}
  display:flex;
  align-items:center;
  justify-content:center;
- gap:3px;
+ gap:4px;
  white-space:nowrap;
+ overflow:hidden;
+ text-overflow:ellipsis;
+ position:relative;
+ box-sizing:border-box;
  transition:background 0.15s, border-color 0.15s, transform 0.1s;
 }
 .action-btn:hover{background:#2a3648;border-color:#ffd166aa;color:#fff}
 .action-btn:active{transform:translateY(1px)}
-.action-btn kbd{font-size:8px;padding:1px 3px;border-radius:2px;background:#0d131a;color:#cbd5e1;border:1px solid #475569}
-.action-glyph{font-size:12px;line-height:1}
-.action-text{font-size:9.5px}
+.action-btn kbd{
+ font-size:8.5px;
+ font-weight:800;
+ padding:1px 3px;
+ border-radius:2px;
+ background:#0d131a;
+ color:#ffd166;
+ border:1px solid #475569;
+ flex-shrink:0;
+ line-height:1;
+}
+.action-text{
+ font-size:11px;
+ font-weight:700;
+ white-space:nowrap;
+ overflow:hidden;
+ text-overflow:ellipsis;
+ line-height:1;
+}
 .action-btn.attack-button{background:#3b1e22;border-color:#8b3a42;color:#ffccd0}
 .action-btn.attack-button:hover{background:#54252a;border-color:#ff4d5e;color:#fff}
 .action-btn.auto-hunt-button[aria-pressed=true]{background:#3d2f10;border-color:#ffd166;color:#ffd166;box-shadow:0 0 10px rgba(255,209,102,0.35)}

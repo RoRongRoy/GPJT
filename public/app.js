@@ -418,10 +418,13 @@ function updateContext(){
  if(p.species==='human'){
   const mp=p.mp??100;
   $('field-mp-label').textContent='MP';$('field-mp').textContent=Math.ceil(mp);
+  $('field-mp-wrap').classList.remove('vampire-blood');
   $('field-mp-track').hidden=false;$('field-mp-bar').style.width=`${Math.max(0,Math.min(100,mp))}%`;
  }else{
-  $('field-mp-label').textContent='혈족특성';$('field-mp').textContent='흡혈·체력재생';
-  $('field-mp-track').hidden=true;
+  const blood=p.blood??100;
+  $('field-mp-label').textContent='혈액';$('field-mp').textContent=Math.ceil(blood);
+  $('field-mp-wrap').classList.add('vampire-blood');
+  $('field-mp-track').hidden=false;$('field-mp-bar').style.width=`${Math.max(0,Math.min(100,blood))}%`;
  }
  const maxXp=(p.combat_level||1)>=50?1:(p.combat_level||1)*40;
  $('field-level').textContent=`Lv.${p.combat_level||1}`;$('field-exp-bar').style.width=`${Math.max(0,Math.min(100,((p.xp||0)/maxXp)*100))}%`;
@@ -1159,18 +1162,21 @@ function updateGuide(){
   const nearDrop=[...(w.drops||[])].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
   const dropCount=(w.drops||[]).length;
   $('loot-btn').disabled=w.paused||isBagFull(w);
-  $('loot-btn-label').textContent=isBagFull(w)?'📦 가방 가득':dropCount?`📦 루팅 (${dropCount})`:'📦 드랍 루팅';
+  $('loot-btn-label').textContent=isBagFull(w)?'📦 가득':dropCount?`📦 ${dropCount}개`:'📦 루팅';
+  const interactLbl=$('interact-label');
   if(nearDrop&&Math.hypot(nearDrop.x-p.x,nearDrop.y-p.y)<=3.5){
    $('nearby-label').textContent=nearDrop.label||'몬스터 전리품';
    $('interact').disabled=w.paused||isBagFull(w);
-   $('interact').textContent=isBagFull(w)?'인벤 가득':'🔍 전리품 확인';
+   const nearTxt=isBagFull(w)?'🔍 가득':'🔍 확인';
+   if(interactLbl)interactLbl.textContent=nearTxt;else $('interact').textContent=nearTxt;
   }else{
    const nearest=[...state.pois].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
    const distance=Math.hypot(nearest.x-p.x,nearest.y-p.y),close=distance<=(nearest.kind==='npc'?2.5:3.5);
    const cooldown=close?Math.max(0,Math.ceil((w.cooldowns[nearest.id]||0)-w.elapsed)):0;
    $('nearby-label').textContent=close?nearest.label:`${nearest.label} (${Math.ceil(distance)}m)`;
    $('interact').disabled=w.paused;
-   $('interact').textContent=cooldown?`🔍 파밍 (${cooldown}s)`:close?(nearest.kind==='npc'?'💬 의뢰 보고':'🔍 내용물 파밍'):'🔍 이동·파밍';
+   const poiTxt=cooldown?`🔍 ${cooldown}s`:close?(nearest.kind==='npc'?'💬 보고':'🔍 파밍'):'🔍 파밍';
+   if(interactLbl)interactLbl.textContent=poiTxt;else $('interact').textContent=poiTxt;
   }
  $('location-hint').textContent=autoHunt?'● 자동사냥 중'+(isBagFull(w)?' (가방 가득 참·루팅 제외)':' (자동 루팅 ON)')+' · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):Math.hypot(p.x-w.base.x,p.y-w.base.y)<=state.map.base_radius?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
 }
