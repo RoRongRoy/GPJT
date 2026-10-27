@@ -152,4 +152,13 @@ main{height:calc(100dvh - 66px)}
 .equip-gear-text{display:flex;flex-direction:column;gap:2px;min-width:0}
 .equip-gear-text strong{font-size:11px}
 .equip-gear-text small{font-size:10px;color:#a8b8a4}
+.mp-badge b{background:#4da6ff!important}
+.fill.mp-fill{background:#4da6ff!important}
+.loot-subtitle{font-size:9px;color:#b2c4b4;margin-top:2px}
+.loot-list{list-style:none;padding:0;margin:0 0 10px}
+.loot-row{justify-content:space-between}
+.loot-check{width:auto!important;height:auto!important;display:flex!important;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer;text-align:left}
+.loot-item-name{display:block;font-size:11px;font-weight:600;color:#efe8d0}
+.loot-item-desc{display:block;font-size:9px;color:#9eb0a5}
+.loot-action-btn{color:#ffe08a!important;border-color:#d9bb8788!important}
 @media(max-width:600px){main{height:calc(100dvh - 56px)}.canvas-wrap,.focus-mode .canvas-wrap{min-height:340px}.equipped-slot-grid{grid-template-columns:1fr}}

@@ -18,8 +18,8 @@ ITEMS = {'wood': '목재', 'water': '식수', 'crop': '작물', 'herb': '약초'
 
 COMBAT = {
     'attack': {'name': '기본 공격', 'cooldown': .6, 'range': 2.1, 'damage': 24},
-    'sweep': {'name': '회전 베기', 'vampire_name': '혈월 베기', 'cooldown': 5, 'range': 2.7, 'damage': 32, 'cost': 6},
-    'recover': {'name': '숨 고르기', 'vampire_name': '혈액 재생', 'cooldown': 10, 'heal': 18, 'cost': 8},
+    'sweep': {'name': '회전 베기', 'vampire_name': '혈월 베기', 'cooldown': 5, 'range': 2.7, 'damage': 32, 'cost': 6, 'mp_cost': 12, 'hp_cost': 8},
+    'recover': {'name': '숨 고르기', 'vampire_name': '혈액 재생', 'cooldown': 10, 'heal': 18, 'cost': 8, 'mp_cost': 15, 'hp_cost': 6},
 }
 
 POI_CONTENTS = {
@@ -30,6 +30,40 @@ POI_CONTENTS = {
     'blood': [('blood', 3), ('scroll', 1), ('herb', 1)],
     'metal': [('metal', 3), ('scroll', 1), ('wood', 1)],
 }
+
+
+def ensure_starter_gear(w):
+    gear = w.setdefault('gear', [])
+    equip = w.setdefault('equipment', {'weapon': None, 'armor': None})
+    species = w['player'].get('species', 'human')
+    changed = False
+    if not any(g.get('slot') == 'weapon' for g in gear):
+        wep = {
+            'id': 'gear:starter-weapon',
+            'slot': 'weapon',
+            'rarity': 'common',
+            'tier': 0,
+            'power': 1,
+            'name': '녹슨 기본 단검' if species == 'human' else '무딘 혈족 손톱',
+        }
+        gear.append(wep)
+        if not equip.get('weapon'):
+            equip['weapon'] = wep['id']
+        changed = True
+    if not any(g.get('slot') == 'armor' for g in gear):
+        arm = {
+            'id': 'gear:starter-armor',
+            'slot': 'armor',
+            'rarity': 'common',
+            'tier': 0,
+            'power': 1,
+            'name': '해진 기본 조끼' if species == 'human' else '빛바랜 밤의 외투',
+        }
+        gear.append(arm)
+        if not equip.get('armor'):
+            equip['armor'] = arm['id']
+        changed = True
+    return changed
 
 
 def bag_capacity(w):
@@ -95,7 +129,7 @@ class RuleError(ValueError):
 def new_world():
     return {'version': 1, 'layout_version': LAYOUT_VERSION, 'revision': 0, 'elapsed': 0.0, 'paused': False,
             'player': {'x': float(START_BASE[0]), 'y': float(START_BASE[1]+1), 'species': 'human', 'origin': 'human', 'chosen': False,
-                       'hp': 100.0, 'food': 90.0, 'water': 90.0, 'blood': 90.0, 'stability': 90.0,
+                       'hp': 100.0, 'mp': 100.0, 'food': 90.0, 'water': 90.0, 'blood': 90.0, 'stability': 90.0,
                        'infection': 0.0, 'combat_level': 1, 'xp': 0, 'level': 0, 'pity': 0, 'mounted': False,
                        'unlocks': {'human': 0, 'vampire': 0}},
             'base': {'x': START_BASE[0], 'y': START_BASE[1], 'facilities': dict.fromkeys(FACILITIES, 0)},
@@ -154,7 +188,8 @@ def act(w, command, rng=random.random):
         require(command.get('species') in ('human', 'vampire'), '종족 오류')
         p['species'] = p['origin'] = command['species']
         p['chosen'] = True
-        note(w, '인간으로 시작합니다.' if p['species'] == 'human' else '뱀파이어로 시작합니다.')
+        ensure_starter_gear(w)
+        note(w, '인간으로 시작합니다. (기본 장비 착용 · MP 활성)' if p['species'] == 'human' else '뱀파이어로 시작합니다. (기본 장비 착용 · 흡혈/체력재생 활성)')
         return
     require(p['chosen'], '먼저 시작 종족을 선택하세요.')
     if action == 'move':
@@ -177,7 +212,7 @@ def act(w, command, rng=random.random):
     elif action == 'gather':
         node = next((n for n in POIS if n['id'] == command.get('id')), None)
         require(node and node['kind'] != 'npc', '채집 지점 오류')
-        require(dist(p, node) <= 2, '채집 지점 가까이 이동하세요.')
+        require(dist(p, node) <= 3.5, '채집 지점 가까이 이동하세요.')
         selected = command.get('items')
         if selected is not None:
             require(isinstance(selected, list) and len(selected) > 0, '파밍할 아이템을 선택하세요.')
@@ -204,8 +239,8 @@ def act(w, command, rng=random.random):
     elif action == 'loot':
         drops = w.get('drops', [])
         drop_id = command.get('id')
-        drop = next((d for d in drops if d['id'] == drop_id), None) if drop_id else min((d for d in drops if dist(p, d) <= 2.5), key=lambda d: dist(p, d), default=None)
-        require(drop and dist(p, drop) <= 2.5, '전리품 가까이 이동하세요.')
+        drop = next((d for d in drops if d['id'] == drop_id), None) if drop_id else min((d for d in drops if dist(p, d) <= 3.5), key=lambda d: dist(p, d), default=None)
+        require(drop and dist(p, drop) <= 3.5, '전리품 가까이 이동하세요.')
         require(not bag_full(w), '인벤토리가 가득 찼습니다.')
         target_item = command.get('item')
         gained = []
@@ -272,11 +307,12 @@ def act(w, command, rng=random.random):
         if item in ('blood', 'elixir'):
             require(p['species'] == 'vampire', '뱀파이어용 혈액입니다.')
         spend(w, {item: 1})
-        effects = {'soup': {'food': 45, 'water': 15}, 'water': {'water': 40},
-                   'blood': {'blood': 30}, 'elixir': {'blood': 40, 'stability': 45},
-                   'medicine': {'hp': 40}}
+        effects = {'soup': {'food': 45, 'water': 15, 'mp': 25}, 'water': {'water': 40, 'mp': 30},
+                   'blood': {'blood': 30, 'hp': 12}, 'elixir': {'blood': 40, 'stability': 45, 'hp': 20},
+                   'medicine': {'hp': 40, 'mp': 20}}
         for k, v in effects[item].items():
-            p[k] = min(100, p[k] + v)
+            if k in p:
+                p[k] = min(100, p[k] + v)
         if item == 'medicine':
             p['infection'] = max(0, p['infection'] - 60)
         note(w, ITEMS[item] + ' 사용')
@@ -314,13 +350,25 @@ def act(w, command, rng=random.random):
         require(isinstance(skill, str) and skill in ('attack', 'sweep', 'recover') and
                 (action == 'attack' or skill != 'attack'), '알 수 없는 스킬입니다.')
         spec = COMBAT[skill]
-        meter = 'blood' if p['species'] == 'vampire' else 'food'
+        is_vamp = (p['species'] == 'vampire')
+        meter = 'blood' if is_vamp else 'food'
         require(p[meter] >= spec.get('cost', 0), '포만도 또는 혈액량이 부족합니다.')
+        if not is_vamp and action == 'skill':
+            mp_cost = spec.get('mp_cost', spec.get('cost', 0))
+            require(p.get('mp', 100.0) >= mp_cost, 'MP가 부족합니다.')
+        if is_vamp and action == 'skill':
+            hp_cost = spec.get('hp_cost', 6)
+            require(p['hp'] > hp_cost, '스킬 사용에 필요한 체력이 부족합니다.')
         if skill == 'recover':
             require(p['hp'] < 100, '이미 체력이 가득합니다.')
             cooldown(w, 'skill:recover', spec['cooldown'])
             p[meter] -= spec['cost']
-            p['hp'] = min(100, p['hp'] + spec['heal'])
+            if is_vamp:
+                hp_cost = spec.get('hp_cost', 6)
+                p['hp'] = min(100, p['hp'] - hp_cost + spec['heal'] + hp_cost)
+            else:
+                p['mp'] = max(0.0, p.get('mp', 100.0) - spec.get('mp_cost', 15))
+                p['hp'] = min(100, p['hp'] + spec['heal'])
         else:
             enemies = [e for e in w['enemies'] if e['hp'] > 0 and dist(p, e) <= spec['range']]
             require(enemies or skill == 'attack', '가까운 공격 대상이 없습니다.')
@@ -328,10 +376,19 @@ def act(w, command, rng=random.random):
                 cooldown(w, 'skill:sweep', spec['cooldown'])
             cooldown(w, 'attack', COMBAT['attack']['cooldown'])
             p[meter] -= spec.get('cost', 0)
+            if skill == 'sweep':
+                if is_vamp:
+                    p['hp'] = max(1.0, p['hp'] - spec.get('hp_cost', 8))
+                else:
+                    p['mp'] = max(0.0, p.get('mp', 100.0) - spec.get('mp_cost', 12))
             targets = enemies if skill == 'sweep' else ([min(enemies, key=lambda e: dist(p, e))] if enemies else [])
             damage = (spec['damage'] + equipment_power(w, 'weapon') + (p['combat_level']-1)*3) * (1 + p['level'] * .02)
             for enemy in targets:
                 damage_enemy(w, enemy, damage, rng)
+                if is_vamp:
+                    leeched = round(min(10.0, max(4.0, damage * 0.18)), 1)
+                    p['hp'] = min(100.0, p['hp'] + leeched)
+                    p['blood'] = min(100.0, p['blood'] + 1.5)
     elif action == 'quest':
         require(any(n['kind'] == 'npc' and dist(p, n) <= 2.5 for n in live_pois(w)), '진영 NPC 가까이 가세요.')
         require(w['quest']['collected'] >= 5, '자원 채집을 5회 완료하세요.')
@@ -391,6 +448,10 @@ def _tick_actor(w, prof, dt):
     keys = ('food', 'water') if p['species'] == 'human' else ('blood', 'stability')
     for key in keys:
         p[key] = max(0, p[key] - dt * .035)
+    if p['species'] == 'human':
+        p['mp'] = min(100.0, p.get('mp', 100.0) + dt * 1.8)
+    elif p['hp'] > 0 and p.get('blood', 0) > 0:
+        p['hp'] = min(100.0, p['hp'] + dt * 1.2)
     if min(p[k] for k in keys) <= 0:
         p['hp'] = max(1, p['hp'] - dt * .2)
     if p['infection'] > 0:

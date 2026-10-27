@@ -16,7 +16,7 @@ if __name__ == '__main__' and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     __package__ = 'server'
 
-from .game import act, tick, new_world, RuleError, POIS, ITEMS, RECIPES, COMBAT, live_pois, RARITIES
+from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, live_pois, RARITIES
 from .socketio_server import SocketIOHub
 from .storage import Store
 from .worldmap import WORLD_MAP
@@ -29,7 +29,12 @@ class Runtime:
     def __init__(self, path):
         self.store = Store(path)
         self.world = self.store.load()
+        if self.world['player'].get('chosen') and ensure_starter_gear(self.world):
+            self.store.save(self.world)
         self.peers = self.store.load_peers()
+        for sess_tok, peer_prof in self.peers.items():
+            if peer_prof.get('player', {}).get('chosen') and ensure_starter_gear(peer_prof):
+                self.store.save_peer(sess_tok, peer_prof)
         self.lock = threading.Lock()
         self.session = None
         self.last_seen = 0

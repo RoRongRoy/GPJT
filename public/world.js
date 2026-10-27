@@ -149,9 +149,9 @@ class WorldView {
     c.strokeStyle=rarityColor;c.lineWidth=1.6;c.beginPath();c.ellipse(sx,sy,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
     box(e.x,e.y,14,rarityColor,.32);
     c.restore();
-    const dropTitle=gear?`★ [${state.rarities?.[gear.rarity]?.name||'장비'}] ${gear.name}`:`📦 ${e.label||'전리품'}`;
-    if(near<9||e.id===selected)labels.push([dropTitle,sx,sy-34*scale,rarityColor]);
-    this.points.push({x:sx,y:sy-10*scale,id:e.id,left:sx-36*scale,right:sx+36*scale,top:sy-48*scale,bottom:sy+12*scale});
+    const dropTitle=gear?`★ [${state.rarities?.[gear.rarity]?.name||'장비'}] ${gear.name} [F 루팅]`:`📦 ${e.label||'전리품'} [F 루팅]`;
+    if(near<16||e.id===selected)labels.push([dropTitle,sx,sy-36*scale,rarityColor]);
+    this.points.push({x:sx,y:sy-10*scale,id:e.id,left:sx-45*scale,right:sx+45*scale,top:sy-55*scale,bottom:sy+16*scale});
    }
    if(e.type==='poi'){
     if(e.kind==='wood')tree(e.x,e.y,.8);
@@ -171,9 +171,10 @@ class WorldView {
      const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused);
      art.character(sx,sy,scale,isVamp?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
     }
-    const focus=e.id===selected||near<2.5;
+    const focus=e.id===selected||near<=3.5;
     if(focus){c.strokeStyle='#e9d29a';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy,28*scale,14*scale,0,0,Math.PI*2);c.stroke();}
-    if(focus||near<7)labels.push([e.label,sx,sy-(e.kind==='wood'?214:e.kind==='blood'?140:e.kind==='water'||e.kind==='metal'?116:96)*scale,focus?'#ffe5aa':'#e0e4d2']);
+    const poiLabel=focus&&e.kind!=='npc'?`${e.label} [E: 내용물 확인]`:e.label;
+    if(focus||near<8)labels.push([poiLabel,sx,sy-(e.kind==='wood'?214:e.kind==='blood'?140:e.kind==='water'||e.kind==='metal'?116:96)*scale,focus?'#ffe5aa':'#e0e4d2']);
     const halfWidth=Math.max((e.kind==='wood'?66:e.kind==='metal'?72:45)*scale,e.label.length*5.5);
     this.points.push({x:sx,y:sy-22*scale,id:e.id,left:sx-halfWidth,right:sx+halfWidth,top:sy-(e.kind==='wood'?210:e.kind==='blood'?137:110)*scale,bottom:sy+12*scale});
    }
@@ -197,6 +198,14 @@ class WorldView {
    if(e.type==='player'){
     c.strokeStyle=p.species==='vampire'?'#ca8d9d':'#c4bd9d';c.lineWidth=1.2;c.beginPath();c.ellipse(sx,sy+2*scale,14*scale,7*scale,0,0,Math.PI*2);c.stroke();
     paintPlayer(sx,sy);
+    const barY=sy-(p.mounted?112:102)*scale;
+    c.fillStyle='#121822dd';c.fillRect(sx-19*scale,barY,38*scale,p.species==='human'?9*scale:5*scale);
+    c.fillStyle=p.species==='vampire'?'#d94f70':'#68c97a';
+    c.fillRect(sx-18*scale,barY+1*scale,36*scale*Math.min(1,Math.max(0,p.hp||0)/100),3.2*scale);
+    if(p.species==='human'){
+     c.fillStyle='#4da6ff';
+     c.fillRect(sx-18*scale,barY+5*scale,36*scale*Math.min(1,Math.max(0,(p.mp??100))/100),3*scale);
+    }
    }
   }
   c.globalAlpha=1;

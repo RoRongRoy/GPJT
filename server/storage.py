@@ -43,11 +43,13 @@ class Store:
                     enemy.setdefault(key, value)
             w['player'].setdefault('combat_level', 1)
             w['player'].setdefault('xp', 0)
+            w['player'].setdefault('mp', 100.0)
             w.setdefault('gear', [])
             w.setdefault('equipment', {'weapon': None, 'armor': None})
             w.setdefault('next_gear_id', 1)
             w.setdefault('npcs', new_npcs())
             w['encounter_version'] = 1
+        w['player'].setdefault('mp', 100.0)
         return w
 
     def save(self, world):
