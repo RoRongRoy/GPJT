@@ -10,7 +10,7 @@ class GothicArt {
   this.poly([[x+w,y-h],[x,y+d-h],[x,y+d],[x+w,y]],right,'#191a20');
   this.poly([[x-w,y-h],[x,y-d-h],[x+w,y-h],[x,y+d-h]],top,'#76716a55');
  }
- glow(x,y,r,color){const c=this.c,g=c.createRadialGradient(x,y,1,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'#d98d3d00');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);}
+ glow(x,y,r,color){const c=this.c,g=c.createRadialGradient?.(x,y,1,x,y,r);if(g){g.addColorStop(0,color);g.addColorStop(1,'#d98d3d00');c.fillStyle=g;}else{c.fillStyle=color;}c.fillRect(x-r,y-r,r*2,r*2);}
  arch(x,y,w,h,fill){const c=this.c;c.beginPath();c.moveTo(x-w,y);c.lineTo(x-w,y-h*.65);c.quadraticCurveTo(x-w,y-h*.8,x,y-h);c.quadraticCurveTo(x+w,y-h*.8,x+w,y-h*.65);c.lineTo(x+w,y);c.closePath();c.fillStyle=fill;c.fill();}
  tree(x,y,scale,seed=0){this.frame(x,y,scale,()=>{
   this.oval(9,2,25,10,'#070b1099');
@@ -132,11 +132,16 @@ class GothicArt {
     c.quadraticCurveTo((f1X+f2X)*.5-s*3,(f1Y+f2Y)*.5-5,f2X,f2Y);
     c.quadraticCurveTo((f2X+f3X)*.5-s*2,(f2Y+f3Y)*.5-4,f3X,f3Y);
     c.quadraticCurveTo(s*11,8,rootX,rootY);c.closePath();
-    const wg=c.createLinearGradient(0,wrY,tipX,f2Y);
-    wg.addColorStop(0,tier>=2?'#6e1129':'#4f1024');
-    wg.addColorStop(.55,tier>=1?'#330917':'#280915');
-    wg.addColorStop(1,'#14050c');
-    c.fillStyle=wg;c.fill();
+    const wg=c.createLinearGradient?.(0,wrY,tipX,f2Y);
+    if(wg){
+     wg.addColorStop(0,tier>=2?'#6e1129':'#4f1024');
+     wg.addColorStop(.55,tier>=1?'#330917':'#280915');
+     wg.addColorStop(1,'#14050c');
+     c.fillStyle=wg;
+    }else{
+     c.fillStyle=tier>=2?'#6e1129':'#4f1024';
+    }
+    c.fill();
     c.strokeStyle=tier>=2?'#ff6b8b':'#d94b6b';c.lineWidth=1.2;c.stroke();
     // Inner crimson membrane sheen
     this.poly([[shX,shY],[elX,elY],[wrX,wrY],[f2X*.9,f2Y*.7],[f3X*.85,f3Y*.75]],'#9e1b3c44');
