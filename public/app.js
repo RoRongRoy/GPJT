@@ -263,7 +263,7 @@ function update() {
  $('dispatch').textContent=w.dispatch?`파견 복귀까지 ${Math.ceil(w.dispatch.ends-w.elapsed)}초`:'파견 대기 · 완료 시 자원 자동 보관';
  const tier=p.unlocks[p.species],forms=p.species==='human'?['슬레이어 스카우트 바이크','슬레이어 나이트크루저','아머드 배틀 크루저']:['블러드 배트 변신','나이트메어 광폭 박쥐','아크데몬 군주 박쥐'];
  $('mobility').textContent=`다크에덴 이동 형태: ${forms[tier]} · ${p.mounted?'탑승·변신 중 (고속 이동)':'미사용 (M키 즉시 탑승)'}`;
- $('mount-toggle').textContent=p.mounted?'⏬ 하차·해제':p.species==='human'?'🏍 바이크 탑승':'🦇 박쥐 변신';
+ const mountLbl=$('mount-label');const mountTxt=p.mounted?'⏬ 하차':p.species==='human'?'🏍 탑승':'🦇 변신';if(mountLbl)mountLbl.textContent=mountTxt;else $('mount-toggle').textContent=mountTxt;
  document.querySelectorAll('[data-item]').forEach(b=>{const id=b.dataset.item;b.disabled=w.paused||!w.inventory[id]||(p.species==='human'?['blood','elixir'].includes(id):['soup','water'].includes(id));});
  renderRecipe();renderLootBox();
 }
@@ -281,7 +281,7 @@ function updateSprintUI(){
  const active=isSprinting();
  const btn=$('sprint-toggle'),lbl=$('sprint-label');
  if(btn){btn.disabled=!state?.world.player.chosen||!connected||state.world.paused;btn.setAttribute('aria-pressed',String(active));}
- if(lbl)lbl.textContent=active?'🏃 달리기 ON':'🏃 달리기 OFF';
+ if(lbl)lbl.textContent=active?'🏃 질주':'🏃 걷기';
 }
 function setSprint(active,silent=false){
  const next=Boolean(active&&state?.world.player.chosen&&!state?.world.paused&&connected);
@@ -336,7 +336,7 @@ function setAutoHunt(active,silent=false){
  autoHunt=next;
  if(!autoHunt&&target?.id?.startsWith('enemy:'))target=null;
  $('auto-hunt').setAttribute('aria-pressed',String(autoHunt));
- $('auto-hunt-label').textContent=autoHunt?'자동사냥 ON':'자동사냥 OFF';
+ $('auto-hunt-label').textContent=autoHunt?'자동사냥 ON':'자동사냥 OFF';const ahv=$('auto-hunt-visual');if(ahv){ahv.textContent=autoHunt?'⚡ ON':'⚡ AUTO';}
  if(!silent)toast(autoHunt?'자동사냥 ON · 주변 감염체를 자동으로 추적·공격합니다.':'자동사냥 OFF');
 }
 $('auto-hunt').onclick=()=>{if(!state?.world.player.chosen||!connected)return;if(state.world.paused){toast('일시정지를 해제하세요.');return;}closePanel(false);setAutoHunt(!autoHunt);if(autoHunt)stepMovement();};

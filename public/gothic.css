@@ -832,3 +832,158 @@ footer{color:#9a8587}
  .welcome-account-form button{height:26px !important;font-size:9px !important;padding:2px 6px !important}
  #welcome .welcome-foot{display:none !important}
 }
+
+/* --- Top-Right Zoom Tools (확대 축소 우상단, 아지트로는 제거) --- */
+.map-tools{
+ position:absolute !important;
+ top:18px !important;
+ right:18px !important;
+ bottom:auto !important;
+ left:auto !important;
+ z-index:5 !important;
+ display:flex !important;
+ align-items:center !important;
+ gap:4px !important;
+ background:#121822f5 !important;
+ border:1.5px solid #5a4832aa !important;
+ border-radius:6px !important;
+ padding:4px 8px !important;
+ box-shadow:0 6px 18px rgba(0,0,0,0.6) !important;
+}
+.map-tools #go-home, #go-home{
+ display:none !important;
+}
+#focus-view{
+ position:absolute !important;
+ top:18px !important;
+ right:132px !important;
+ z-index:5 !important;
+}
+.atlas{
+ top:58px !important;
+}
+
+/* --- In-game Bottom-Right Activity Feed (활동기록 인게임 우하단 배치) --- */
+#activity-feed, .activity-feed{
+ position:absolute !important;
+ right:18px !important;
+ bottom:18px !important;
+ left:auto !important;
+ top:auto !important;
+ width:320px !important;
+ max-width:320px !important;
+ z-index:3 !important;
+ pointer-events:none !important;
+ display:flex !important;
+ flex-direction:column !important;
+ align-items:flex-end !important;
+ text-align:right !important;
+}
+.activity-heading{
+ display:block !important;
+ font-size:9.5px !important;
+ letter-spacing:1.5px !important;
+ color:#ffd166 !important;
+ font-weight:700 !important;
+ margin:0 0 5px 0 !important;
+ text-align:right !important;
+ width:100% !important;
+}
+#activity-messages{
+ list-style:none !important;
+ padding:0 !important;
+ margin:0 !important;
+ display:flex !important;
+ flex-direction:column !important;
+ align-items:flex-end !important;
+ gap:4px !important;
+ width:100% !important;
+}
+#activity-messages li{
+ background:#0f151df5 !important;
+ border:1px solid #5a4832aa !important;
+ border-radius:5px !important;
+ padding:5px 9px !important;
+ font-size:11px !important;
+ color:#cbd5e1 !important;
+ line-height:1.4 !important;
+ backdrop-filter:blur(8px) !important;
+ box-shadow:0 4px 12px rgba(0,0,0,0.6) !important;
+ width:fit-content !important;
+ max-width:100% !important;
+ text-align:left !important;
+}
+
+/* --- Bottom-Left Action Cluster (Zero Overlap with Activity Feed) --- */
+#interaction.action-cluster{
+ position:absolute !important;
+ left:18px !important;
+ bottom:18px !important;
+ width:265px !important;
+ padding:7px 9px !important;
+ background:#121822f5 !important;
+ border:1.5px solid #5a4832aa !important;
+ border-radius:8px !important;
+ box-shadow:0 8px 24px rgba(0,0,0,0.65) !important;
+ backdrop-filter:blur(10px) !important;
+ z-index:5 !important;
+ display:flex !important;
+ flex-direction:column !important;
+ gap:5px !important;
+}
+.nearby-tracker{
+ display:flex !important;
+ align-items:center !important;
+ justify-content:space-between !important;
+ gap:6px !important;
+ padding-bottom:4px !important;
+ border-bottom:1px solid rgba(255,255,255,0.08) !important;
+}
+.nearby-tracker .eyebrow{font-size:8px !important;letter-spacing:1.5px !important;color:#ffd166 !important;font-weight:700 !important}
+#nearby-label{font-size:9.5px !important;color:#cbd5e1 !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;max-width:180px !important}
+.action-grid{
+ display:grid !important;
+ grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+ gap:5px !important;
+ width:100% !important;
+}
+.action-btn{
+ width:100% !important;
+ min-width:0 !important;
+ height:34px !important;
+ padding:3px 4px !important;
+ font-size:11px !important;
+ font-weight:700 !important;
+ border-radius:5px !important;
+ background:#1c2430 !important;
+ border:1px solid #4a3c2c88 !important;
+ color:#e2e8f0 !important;
+ display:flex !important;
+ align-items:center !important;
+ justify-content:center !important;
+ gap:4px !important;
+ white-space:nowrap !important;
+ overflow:hidden !important;
+ position:relative !important;
+ box-sizing:border-box !important;
+ transition:background 0.15s, border-color 0.15s, transform 0.1s !important;
+}
+.action-btn:hover{background:#2a3648 !important;border-color:#ffd166aa !important;color:#fff !important}
+.action-btn:active{transform:translateY(1px) !important}
+.action-btn kbd{
+ font-size:8px !important;
+ font-weight:800 !important;
+ padding:1px 3px !important;
+ border-radius:2px !important;
+ background:#0d131a !important;
+ color:#ffd166 !important;
+ border:1px solid #475569 !important;
+ flex-shrink:0 !important;
+ line-height:1 !important;
+}
+.action-text{
+ font-size:10.5px !important;
+ font-weight:700 !important;
+ white-space:nowrap !important;
+ line-height:1 !important;
+}
