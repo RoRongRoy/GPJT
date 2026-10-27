@@ -17,13 +17,13 @@ for(const [key,value] of Object.entries(manifest)){
 }
 assert.equal(art.loaded,13);
 for(const [x,y,row] of [[1,0,0],[0,1,1],[-1,0,2],[0,-1,3]]){
- art.pose('test',0,0,0);const pose=art.pose('test',x,y,300);assert.equal(pose.row,row);assert.equal(pose.frame,2);art.actors.delete('test');
+ art.pose('test',0,0,0);const pose=art.pose('test',x,y,300);assert.equal(pose.row,row);assert.equal(pose.frame,3,'Walk frame follows distance travelled');art.actors.delete('test');
 }
 art.pose('idle',0,0,0);art.pose('idle',1,0,300);
 assert.equal(art.pose('idle',1,0,800).frame,0,'Idle must stop walking');
 assert.equal(art.pose('idle',2,0,900,true).frame,0,'Pause must stop walking');
 art.character(100,200,1,'vampire',true,300,{pose:{row:3,frame:2}});
-assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest.vampire.frames[14]));
+assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest.vampire.frames[14]).slice(0,4));
 art.images.pine.complete=false;art.images.pine.naturalWidth=0;art.images.pine.onerror();
 assert.deepEqual(Array.from(art.failed),['pine']);assert.equal(art.sprite('pine',0,0,200),false);
 assert.doesNotThrow(()=>art.tree(0,0,1,.8),'Failed assets must retain a drawable fallback');
@@ -42,5 +42,5 @@ assert.ok(art.rasters.get('refuge:0').height<=640);
 console.log('Runtime sprite cache passed: repeated zooms reuse one bounded raster.');
 
 sandbox.document=undefined;art.rasters.clear();
-for(const [sp,g,k] of [['human','male','human-male'],['human','female','human'],['vampire','male','vampire'],['vampire','female','vampire-female']]){draws=[];art.character(100,200,1,sp,true,300,{pose:{row:0,frame:1},gender:g});assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest[k].frames[1]),sp+' '+g+' must use its own sheet');}
+for(const [sp,g,k] of [['human','male','human-male'],['human','female','human'],['vampire','male','vampire'],['vampire','female','vampire-female']]){draws=[];art.character(100,200,1,sp,true,300,{pose:{row:0,frame:1},gender:g});assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest[k].frames[1]).slice(0,4),sp+' '+g+' must use its own sheet');}
 console.log('Gender sprite sheets passed.');

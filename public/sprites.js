@@ -34,7 +34,8 @@ class FieldArt extends GothicArt {
  sprite(key,x,y,height,frame=0,flip=false,bottom=0){
   if(!this.ready(key))return false;
   const c=this.c,img=this.images[key],rect=FIELD_SPRITES[key].frames[frame], [sx,sy,sw,sh]=rect;
-  const width=height*sw/sh;
+  const sheet=FIELD_SPRITES[key],fixed=sheet.ref&&rect.length>4,k=fixed?height/sheet.ref:0; // Character sheets: one scale for every frame and a torso anchor, so frames never pop in size or sway.
+   const width=fixed?sw*k:height*sw/sh,drawHeight=fixed?sh*k:height,left=fixed?-rect[4]*k:-width/2;
   let source=img,sourceRect=[sx,sy,sw,sh];
   if(typeof document!=='undefined'){
    const id=key+':'+frame;let raster=this.rasters.get(id);
@@ -49,7 +50,7 @@ class FieldArt extends GothicArt {
   }
   c.save();c.translate(x,y+bottom);if(flip)c.scale(-1,1);
   c.imageSmoothingEnabled=true;c.imageSmoothingQuality='low';
-  c.drawImage(source,...sourceRect,-width/2,-height,width,height);c.restore();return true;
+  c.drawImage(source,...sourceRect,left,-drawHeight,width,drawHeight);c.restore();return true;
  }
  shadow(x,y,width,scale){this.oval(x+4*scale,y+3*scale,width*scale,width*.34*scale,'#070b1080');}
  tree(x,y,scale,seed=.7){
@@ -65,14 +66,17 @@ class FieldArt extends GothicArt {
  }
  lantern(x,y,scale){if(!this.prop('lantern',x,y,scale))super.lantern(x,y,scale);this.glow(x,y-101*scale,30*scale,'#e8b26924');}
  facility(x,y,scale,id){if(!this.prop(id,x,y,scale))super.facility(x,y,scale,id);}
+ // Walk cycle advances with distance travelled (feet never slide) and direction is smoothed, so diagonal jitter cannot flip the facing.
  pose(id,x,y,now,paused=false,sprint=false){
-  let a=this.actors.get(id);if(!a){a={x,y,row:0,until:0};this.actors.set(id,a);}
-  const dx=x-a.x,dy=y-a.y;
-  if(Math.hypot(dx,dy)>.0003){
-   const right=dx-dy>=0,front=dx+dy>=0;
-   a.row=front?(right?0:1):(right?3:2);a.until=now+440;
+  let a=this.actors.get(id);if(!a){a={x,y,row:0,until:0,dist:0,vx:0,vy:0};this.actors.set(id,a);}
+  const dx=x-a.x,dy=y-a.y,step=Math.hypot(dx,dy);
+  if(step>.0003){
+   a.vx=a.vx*.5+dx*.5;a.vy=a.vy*.5+dy*.5;if(Math.hypot(a.vx,a.vy)<1e-9){a.vx=dx;a.vy=dy;}
+   const right=a.vx-a.vy>=0,front=a.vx+a.vy>=0;
+   a.row=front?(right?0:1):(right?3:2);a.until=now+260;
+   if(!paused)a.dist+=Math.min(step,1.5);
   }
-  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(now/(sprint?92:145))%4:0};
+  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(a.dist/(sprint?.4:.3))%4:0};
  }
  // Base sheets: human = female, vampire = male. The opposite gender uses its own sheet.
  actorKey(species,options){const g=options.gender;if(options.npc||!g)return species;const female=g==='female';return species==='human'?(female?'human':'human-male'):(female?'vampire-female':'vampire');}
