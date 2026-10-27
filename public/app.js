@@ -14,6 +14,7 @@ const campPanels=new Set(['camp','craft','build','research','dispatch']);
 const campActions=new Set(['craft','build','enhance','research','convert','dispatch']);
 const panelInfo={
  survival:['생존','내 상태를 살피고 필요한 소모품을 사용하세요.','SURVIVOR'],
+ equip:['장착 장비','현재 착용 중인 무기·방어구와 보유 장비를 확인하고 장착·해제하세요.','EQUIPMENT'],
  bag:['인벤토리','아이템을 선택해 정보를 확인하고 사용하세요.','INVENTORY'],
  journal:['수첩','확인하고 싶은 기록을 선택하세요.','FIELD JOURNAL'],
  guide:['첫 생존','작은 목표를 하나씩 완성해보세요.','FIRST NIGHT'],
@@ -247,6 +248,8 @@ function updateContext(){
  $('field-level').textContent=`Lv.${p.combat_level||1}`;$('field-exp-bar').style.width=`${Math.max(0,Math.min(100,((p.xp||0)/maxXp)*100))}%`;
  $('field-vital').textContent=p.species==='human'?`포만 ${Math.ceil(p.food)} · 수분 ${Math.ceil(p.water)}`:`혈액 ${Math.ceil(p.blood)} · 안정 ${Math.ceil(p.stability)}`;
  $('field-bag').textContent=`가방 ${bagUsed()}/${bagCapacity()}`;
+ const eqW=gearItem(state.world.equipment?.weapon),eqA=gearItem(state.world.equipment?.armor);
+ $('field-equip').textContent=`⚔ ${eqW?itemName(eqW.id):'미착용'} · 🛡 ${eqA?itemName(eqA.id):'미착용'}`;
  $('field-infection').hidden=p.infection<1;$('field-infection').textContent=`감염 ${Math.ceil(p.infection)}`;
 }
 const itemSlots=new Map();let selectedItem=null,inventoryLayout='';
@@ -277,8 +280,69 @@ function itemUseReason(id){
 function gearItem(id){return state?.world.gear?.find(g=>g.id===id);}
 function itemName(id){const g=gearItem(id);return g?`[${state.rarities[g.rarity].name}] ${g.name}`:state.items[id];}
 function itemIcon(id){return gearItem(id)?.slot||id;}
+function makeEquippedSlotCard(slot,mode='equip'){
+ const g=gearItem(state.world.equipment?.[slot]),rarity=g?state.rarities?.[g.rarity]:null;
+ const card=document.createElement('div');card.className='equip-slot-card';
+ if(rarity)card.style.borderColor=rarity.color;
+ const head=document.createElement('div');head.className='equip-slot-head';
+ const img=document.createElement('img');img.src='/icons/'+slot+'.svg';img.alt='';img.width=34;img.height=34;
+ const titleBox=document.createElement('div');titleBox.className='equip-slot-title';
+ const slotLabel=document.createElement('small');slotLabel.textContent=(slot==='weapon'?'⚔ 주무기 슬롯':'🛡 방어구 슬롯')+(rarity?` · ${rarity.name} 등급`:'');
+ const nameEl=document.createElement('strong');nameEl.textContent=g?itemName(g.id):'장착된 장비 없음';
+ if(rarity)nameEl.style.color=rarity.color;
+ titleBox.append(slotLabel,nameEl);head.append(img,titleBox);
+ const stat=span('equip-slot-stat',g?(slot==='weapon'?`공격력 +${g.power} (무기강화 +${state.world.player.level||0})`:`방어력 +${g.power} (피해 감소 -${g.power})`):(slot==='weapon'?'무기를 장착해 공격력을 높이세요':'방어구를 장착해 받는 피해를 줄이세요'));
+ const actions=document.createElement('div');actions.className='equip-slot-actions';
+ if(g){
+  if(mode==='bag'){
+   const inspectBtn=document.createElement('button');inspectBtn.type='button';inspectBtn.textContent='상세 보기';
+   inspectBtn.onclick=()=>{selectedItem=g.id;renderInventory();};
+   actions.append(inspectBtn);
+  }
+  const unequipBtn=document.createElement('button');unequipBtn.type='button';unequipBtn.textContent='착용 해제';
+  unequipBtn.disabled=!connected||state.world.paused;
+  unequipBtn.onclick=()=>manualAction('unequip',{slot});
+  actions.append(unequipBtn);
+ }else if(mode==='survival'){
+  const openBtn=document.createElement('button');openBtn.type='button';openBtn.textContent='장비창 열기 (C)';
+  openBtn.onclick=()=>openPanel('equip');
+  actions.append(openBtn);
+ }
+ card.append(head,stat,actions);return card;
+}
+function renderEquippedViews(){
+ if(!state)return;
+ const w=state.world,p=w.player,gear=w.gear||[];
+ const wep=gearItem(w.equipment?.weapon),arm=gearItem(w.equipment?.armor);
+ const lvl=p.combat_level||1,lvlAtk=(lvl-1)*3,lvlDef=Math.floor((lvl-1)/2);
+ const wepPow=wep?.power||0,armPow=arm?.power||0;
+ $('equip-stats-summary').textContent=`전투 Lv.${lvl} · 총 공격력 보너스 +${lvlAtk+wepPow} (레벨 +${lvlAtk} / 무기 +${wepPow}) · 무기강화 +${p.level||0} · 총 방어력 +${lvlDef+armPow} (레벨 +${lvlDef} / 방어구 +${armPow})`;
+ $('equip-paperdoll').replaceChildren(makeEquippedSlotCard('weapon','equip'),makeEquippedSlotCard('armor','equip'));
+ $('bag-equipped-slots').replaceChildren(makeEquippedSlotCard('weapon','bag'),makeEquippedSlotCard('armor','bag'));
+ $('survival-equipped').replaceChildren(makeEquippedSlotCard('weapon','survival'),makeEquippedSlotCard('armor','survival'));
+ $('equip-gear-empty').hidden=gear.length>0;
+ $('equip-gear-list').replaceChildren(...gear.map(g=>{
+  const rarity=state.rarities?.[g.rarity],equipped=w.equipment?.[g.slot]===g.id;
+  const currentPow=gearItem(w.equipment?.[g.slot])?.power||0,diff=g.power-currentPow;
+  const row=document.createElement('div');row.className='equip-gear-row';
+  if(equipped&&rarity)row.style.borderColor=rarity.color;
+  const info=document.createElement('div');info.className='equip-gear-info';
+  const img=document.createElement('img');img.src='/icons/'+g.slot+'.svg';img.alt='';img.width=32;img.height=32;
+  const txt=document.createElement('div');txt.className='equip-gear-text';
+  const title=document.createElement('strong');title.textContent=itemName(g.id)+(equipped?' [착용 중]':'');
+  if(rarity)title.style.color=rarity.color;
+  const desc=document.createElement('small');desc.textContent=(g.slot==='weapon'?`무기 · 공격력 +${g.power}`:`방어구 · 방어력 +${g.power}`)+(equipped?' · 현재 장착 슬롯':` · 장착 시 ${diff>=0?'+'+diff:diff}`);
+  txt.append(title,desc);info.append(img,txt);
+  const btn=document.createElement('button');btn.type='button';btn.className=equipped?'':'accent';
+  btn.textContent=equipped?'착용 해제':'장착';
+  btn.disabled=!connected||w.paused;
+  btn.onclick=()=>manualAction(equipped?'unequip':'equip',{item:g.id,slot:g.slot});
+  row.append(info,btn);return row;
+ }));
+}
 function renderInventory(){
  if(!state)return;
+ renderEquippedViews();
  const gear=state.world.gear||[],allIds=[...inventoryGroups[inventoryFilter],...(['all','equipment'].includes(inventoryFilter)?gear.map(g=>g.id):[])];
  const ids=allIds.filter(id=>gearItem(id)||state.world.inventory[id]>0);
  if(!allIds.includes(selectedItem))selectedItem=ids[0]||null;
@@ -498,7 +562,7 @@ window.addEventListener('keydown',e=>{
  if(moveKeys.includes(k)){e.preventDefault();closePanel(false);closeLootBox();target=null;held.add(k);stepMovement();}
  if(e.repeat)return;
  if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closeLootBox();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
- const shortcut={h:'survival',i:'bag',j:'journal',b:'camp'}[k];
+ const shortcut={h:'survival',c:'equip',i:'bag',j:'journal',b:'camp'}[k];
  if(shortcut){e.preventDefault();if(activePanel===shortcut)closePanel();else openPanel(shortcut);}
  if(k==='q'||k==='r'){e.preventDefault();if(state?.world.player.chosen)useSkill(k==='q'?'sweep':'recover');}
  if(k==='e'){e.preventDefault();interact();}

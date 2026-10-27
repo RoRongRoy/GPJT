@@ -13,7 +13,7 @@
    <canvas id="world" aria-label="탐험 지도. WASD나 방향키로 화면 방향 이동, 클릭으로 목적지 이동, E로 상호작용." tabindex="0"></canvas>
    <div id="intro-art" class="intro-art" aria-hidden="true"><img src="/art/nightfall-city.png" alt=""></div>
    <div class="field-top"><span class="field-badge"><i></i> <span id="location-hint">안전지대 · 아지트</span></span><button id="focus-view" class="map-button" title="탐험 화면 넓히기 (V)" aria-pressed="false">⛶ <span>넓게 보기</span></button></div>
-   <div class="field-vitals"><button data-panel="survival" aria-label="생존 상태 열기"><span>HP</span><strong id="field-hp">100</strong><i><b id="field-health-bar"></b></i></button><button data-panel="survival" class="level-badge" aria-label="전투 레벨 및 경험치"><strong id="field-level">Lv.1</strong><i><b id="field-exp-bar"></b></i></button><span id="field-vital"></span><span id="field-bag"></span><span id="field-infection" hidden></span></div>
+   <div class="field-vitals"><button data-panel="survival" aria-label="생존 상태 열기"><span>HP</span><strong id="field-hp">100</strong><i><b id="field-health-bar"></b></i></button><button data-panel="survival" class="level-badge" aria-label="전투 레벨 및 경험치"><strong id="field-level">Lv.1</strong><i><b id="field-exp-bar"></b></i></button><span id="field-vital"></span><span id="field-bag"></span><button id="field-equip-btn" data-panel="equip" class="equip-hud-btn" aria-label="장착 장비 열기"><span id="field-equip">⚔ 미착용 · 🛡 미착용</span></button><span id="field-infection" hidden></span></div>
    <button id="camp-access" data-panel="camp" class="camp-access" hidden><span>⌂</span><strong>아지트 관리</strong><small>제작 · 시설 · 연구</small><kbd>B</kbd></button>
    <div class="atlas"><div class="atlas-heading"><span>격리구역</span><span id="coordinates">06 / 07</span></div><canvas id="minimap" width="320" height="320" aria-label="전체 지도. 클릭한 위치로 이동합니다." tabindex="0"></canvas><div class="atlas-caption">지도 클릭 → 이동</div></div>
    <div class="map-tools"><button id="zoom-out" class="map-button" aria-label="지도 축소">−</button><span id="zoom-level">100%</span><button id="zoom-in" class="map-button" aria-label="지도 확대">+</button><button id="go-home" class="map-button" title="아지트로 걸어가기">⌂ 아지트로</button></div>
@@ -36,11 +36,12 @@
    <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
   </div>
   <div class="field-caption"><button id="guide-hint" data-panel="guide">✦ 첫 생존 안내</button><span class="field-menu-hint">필요한 정보는 아래 메뉴에서</span></div>
-  <div class="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> 이동</span><span><kbd>E</kbd> 채집·의뢰</span><span><kbd>Space</kbd> 공격</span><span><kbd>Q / R</kbd> 스킬</span><span><kbd>G</kbd> 자동사냥</span><span><kbd>I</kbd> 인벤토리</span><span><kbd>M</kbd> 탑승·변신</span><span><kbd>Esc</kbd> 이동 취소</span><span class="controls-end">클릭 이동 · 휠 확대</span></div>
+  <div class="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> 이동</span><span><kbd>E</kbd> 채집·의뢰</span><span><kbd>Space</kbd> 공격</span><span><kbd>Q / R</kbd> 스킬</span><span><kbd>G</kbd> 자동사냥</span><span><kbd>C</kbd> 장착장비</span><span><kbd>I</kbd> 인벤토리</span><span><kbd>M</kbd> 탑승·변신</span><span><kbd>Esc</kbd> 이동 취소</span><span class="controls-end">클릭 이동 · 휠 확대</span></div>
  </section>
 </main>
 <nav class="menu-dock" aria-label="게임 메뉴">
  <button id="menu-survival" data-panel="survival" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">♡</span>생존<kbd>H</kbd></button>
+ <button id="menu-equip" data-panel="equip" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">⚔</span>장착장비<kbd>C</kbd></button>
  <button id="menu-bag" data-panel="bag" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▣</span>인벤토리<kbd>I</kbd></button>
  <button id="menu-journal" data-panel="journal" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▤</span>수첩<kbd>J</kbd></button>
  <button id="menu-travel" data-panel="travel" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">⌖</span>이동</button>
@@ -52,12 +53,24 @@
  <div class="menu-body">
   <section data-view="survival" hidden>
    <div class="survivor-heading"><span class="portrait"><img id="survivor-art" src="/art/human-warden.png" alt="인간 생존자 초상" width="1024" height="1536"></span><div><span class="eyebrow">YOUR SURVIVOR</span><h3 id="species">새로운 생존자</h3><span id="level">WEAPON +0</span></div></div>
-   <div id="meters"></div><h3 class="section-label">식사와 회복</h3>
+   <div id="meters"></div>
+   <h3 class="section-label">현재 장착 장비</h3>
+   <div id="survival-equipped" class="equipped-slot-grid"></div>
+   <h3 class="section-label">식사와 회복</h3>
    <div class="consume"><button data-item="soup">수프</button><button data-item="water">식수</button><button data-item="blood">원혈</button><button data-item="elixir">강화혈액</button><button data-item="medicine">치료제</button></div>
    <p class="panel-note">보유한 소모품을 눌러 사용하세요.</p>
   </section>
+  <section data-view="equip" hidden>
+   <div id="equip-stats-summary" class="equip-stats-box"></div>
+   <h3 class="section-label">장착 중인 슬롯 (무기 / 방어구)</h3>
+   <div id="equip-paperdoll" class="equipped-slot-grid"></div>
+   <h3 class="section-label">보유 장비 목록</h3>
+   <div id="equip-gear-list" class="equip-gear-list"></div>
+   <p id="equip-gear-empty" class="panel-note" hidden>현재 가방에 보유한 장비가 없습니다. 몬스터를 처치하고 전리품을 루팅해 장비를 획득하세요.</p>
+  </section>
   <section data-view="bag" hidden>
    <div class="filter-tabs" role="group" aria-label="인벤토리 분류"><button data-filter="all" aria-pressed="true">전체</button><button data-filter="materials" aria-pressed="false">재료</button><button data-filter="supplies" aria-pressed="false">소모품</button><button data-filter="equipment" aria-pressed="false">장비</button><button data-filter="growth" aria-pressed="false">강화</button></div>
+   <div id="bag-equipped-slots" class="equipped-slot-grid"></div>
    <p id="equipped-summary" class="panel-note"></p>
    <div class="bag-summary"><span>소지 아이템</span><strong id="bag-count"></strong></div>
    <div class="bag-layout"><div><div id="inventory" aria-label="아이템 슬롯"></div><p id="inventory-empty" hidden>이 분류에 보유한 아이템이 없습니다.</p></div>

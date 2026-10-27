@@ -132,4 +132,24 @@ main{height:calc(100dvh - 66px)}
 .world-panel{height:100%;display:flex;flex-direction:column}
 .world-title,.field-caption,.controls{flex-shrink:0}
 .canvas-wrap,.focus-mode .canvas-wrap{height:auto;flex:1;min-height:360px}
-@media(max-width:600px){main{height:calc(100dvh - 56px)}.canvas-wrap,.focus-mode .canvas-wrap{min-height:340px}}
+.equip-hud-btn{font-size:10px;color:#ead9a7;border:1px solid #d5bf8655;background:#131822cc;padding:5px 9px;border-radius:6px;cursor:pointer}
+.equip-hud-btn:hover{border-color:#ffd984;color:#fff4cf}
+.equip-stats-box{background:#121722;border:1px solid #9caf7d33;border-radius:8px;padding:11px 13px;font-size:11px;line-height:1.7;color:#d8e0cb;margin-bottom:14px}
+.equipped-slot-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 14px}
+.equip-slot-card{display:flex;flex-direction:column;gap:5px;padding:10px;background:#121722;border:1px solid #9caf7d38;border-radius:8px;font-size:11px}
+.equip-slot-head{display:flex;align-items:center;gap:8px}
+.equip-slot-head img{width:34px;height:34px;border-radius:6px;background:#1a2130;padding:4px}
+.equip-slot-title{display:flex;flex-direction:column;gap:2px;min-width:0}
+.equip-slot-title small{font-size:9px;color:#98a895}
+.equip-slot-title strong{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.equip-slot-stat{font-size:10px;color:#c9d6be}
+.equip-slot-actions{display:flex;gap:5px;margin-top:4px}
+.equip-slot-actions button{flex:1;padding:5px 7px;font-size:10px}
+.equip-gear-list{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.equip-gear-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;background:#121722;border:1px solid #9caf7d2e;border-radius:8px;font-size:11px}
+.equip-gear-info{display:flex;align-items:center;gap:9px;min-width:0}
+.equip-gear-info img{width:32px;height:32px;border-radius:5px;background:#1a2130;padding:3px}
+.equip-gear-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.equip-gear-text strong{font-size:11px}
+.equip-gear-text small{font-size:10px;color:#a8b8a4}
+@media(max-width:600px){main{height:calc(100dvh - 56px)}.canvas-wrap,.focus-mode .canvas-wrap{min-height:340px}.equipped-slot-grid{grid-template-columns:1fr}}
