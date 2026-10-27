@@ -161,4 +161,21 @@ main{height:calc(100dvh - 66px)}
 .loot-item-name{display:block;font-size:11px;font-weight:600;color:#efe8d0}
 .loot-item-desc{display:block;font-size:9px;color:#9eb0a5}
 .loot-action-btn{color:#ffe08a!important;border-color:#d9bb8788!important}
-@media(max-width:600px){main{height:calc(100dvh - 56px)}.canvas-wrap,.focus-mode .canvas-wrap{min-height:340px}.equipped-slot-grid{grid-template-columns:1fr}}
+.account-top-btn{color:#f2dfab;border-color:#d9bb8766}
+#welcome{max-height:calc(100% - 20px);overflow-y:auto}
+.welcome-mode-badge{background:#182d30cc;border:1px solid #8ba07d55;border-radius:6px;padding:7px 10px;margin:0 0 10px;text-align:center}
+.welcome-mode-badge strong{display:block;font-size:12px;color:#f0e3bd}
+.welcome-mode-badge small{display:block;font-size:9px;color:#b2c4b3;margin-top:2px}
+.welcome-account-box{margin-top:12px;padding:11px 12px;background:#132327eb;border:1px solid #8ba07d55;border-radius:6px;text-align:left}
+.welcome-account-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+.welcome-account-head strong{font-size:12px;color:#e7ddbe}
+.welcome-account-head small{font-size:9px;color:#9cb0a2}
+.welcome-account-form{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}
+.welcome-account-form input,.account-form input{background:#0e1b1f;color:var(--text);border:1px solid #556b65;border-radius:5px;padding:7px 9px;font-size:11px;min-width:0;width:100%}
+.welcome-account-form input:focus,.account-form input:focus{outline:2px solid var(--gold);border-color:var(--gold)}
+.account-card{padding:12px 0;border-bottom:1px solid #9caf7d29}
+.account-form{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.account-new-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.account-new-buttons .wide{grid-column:1/-1;margin-top:0}
+.account-feedback{font-size:10px;color:#e8cf9b;margin-top:6px!important;min-height:14px}
+@media(max-width:600px){main{height:calc(100dvh - 56px)}.canvas-wrap,.focus-mode .canvas-wrap{min-height:340px}.equipped-slot-grid,.welcome-account-form,.account-new-buttons{grid-template-columns:1fr}}

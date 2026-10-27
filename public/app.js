@@ -26,6 +26,7 @@ const panelInfo={
  build:['시설','시설을 건설하거나 한 단계 개선하세요.','CONSTRUCTION'],
  research:['연구·성장','장비와 이동 형태, 다음 삶을 준비하세요.','RESEARCH'],
  dispatch:['파견','동료와 종복에게 보급 임무를 맡기세요.','COMPANIONS'],
+ account:['계정 저장 · 불러오기','신규 모험자의 진행 상황을 계정/비밀번호로 서버에 저장하거나 불러오세요.','ACCOUNT & SAVE'],
 };
 const panelParents={guide:'journal',quests:'journal',log:'journal',craft:'camp',build:'camp',research:'camp',dispatch:'camp'};
 const recipeDetails={soup:['♨','포만도 +45 · 수분 +15'],elixir:['⚗','혈액량 +40 · 안정도 +45'],medicine:['+','체력 +40 · 감염 −60']};
@@ -208,6 +209,28 @@ document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction
 document.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>manualAction('consume',{item:b.dataset.item}));
 $('craft-submit').onclick=()=>manualAction('craft',{recipe:selectedRecipe});
 document.querySelectorAll('button[data-species]').forEach(b=>b.onclick=()=>manualAction('choose',{species:b.dataset.species}));
+async function submitAccountAction(action,fields,msgId){
+ const msgEl=$(msgId);
+ if(msgEl)msgEl.textContent='서버 처리 중...';
+ try{
+  const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
+  accept(result);
+  const noteText=result.world.log?.[0]||'처리되었습니다.';
+  if(msgEl)msgEl.textContent=noteText;
+  toast(noteText);
+  if(action==='account_load'&&activePanel==='account')closePanel();
+ }catch(e){
+  if(msgEl)msgEl.textContent=e.message||'오류가 발생했습니다.';
+  toast(e.message||'오류가 발생했습니다.');
+ }
+}
+$('welcome-load-btn').onclick=()=>submitAccountAction('account_load',{username:$('welcome-account-id').value,password:$('welcome-account-pw').value},'welcome-account-msg');
+for(const id of ['welcome-account-id','welcome-account-pw'])$(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('welcome-load-btn').click();}});
+$('account-save-btn').onclick=()=>submitAccountAction('account_save',{username:$('account-save-id').value,password:$('account-save-pw').value},'account-save-msg');
+$('account-load-btn').onclick=()=>submitAccountAction('account_load',{username:$('account-load-id').value,password:$('account-load-pw').value},'account-load-msg');
+$('account-new-human').onclick=()=>{closePanel();manualAction('new_adventurer',{species:'human'});toast('신규 인간 모험자로 새로운 여정을 시작합니다.');};
+$('account-new-vampire').onclick=()=>{closePanel();manualAction('new_adventurer',{species:'vampire'});toast('신규 뱀파이어 모험자로 새로운 여정을 시작합니다.');};
+$('account-new-welcome').onclick=()=>{closePanel();manualAction('new_adventurer',{});};
 function canUseCamp(){
  if(!state||!connected||!state.world.player.chosen)return false;
  const {player,base}=state.world;
@@ -260,6 +283,15 @@ function updateContext(){
  const eqW=gearItem(state.world.equipment?.weapon),eqA=gearItem(state.world.equipment?.armor);
  $('field-equip').textContent=`⚔ ${eqW?itemName(eqW.id):'미착용'} · 🛡 ${eqA?itemName(eqA.id):'미착용'}`;
  $('field-infection').hidden=p.infection<1;$('field-infection').textContent=`감염 ${Math.ceil(p.infection)}`;
+ $('account-top-btn').textContent=p.account?`💾 계정: ${p.account}`:'💾 계정저장';
+ if(p.account){
+  $('account-current-title').textContent=`✅ 저장된 계정: ${p.account} (${p.species==='human'?'인간':'뱀파이어'} Lv.${p.combat_level||1})`;
+  $('account-current-desc').textContent=`현재 모험(레벨·장비·인벤토리·아지트)이 서버 계정 '${p.account}'에 연결되어 자동 저장됩니다.`;
+  if(document.activeElement!==$('account-save-id')&&!$('account-save-id').value)$('account-save-id').value=p.account;
+ }else{
+  $('account-current-title').textContent=`✨ 신규 모험자 (미저장 상태 · ${p.species==='human'?'인간':'뱀파이어'} Lv.${p.combat_level||1})`;
+  $('account-current-desc').textContent='현재 계정 없이 자유롭게 플레이 중입니다. 아래에서 아이디/비밀번호를 생성해 현재 캐릭터를 서버에 영구 저장하세요.';
+ }
 }
 const itemSlots=new Map();let selectedItem=null,inventoryLayout='';
 const itemInfo={
@@ -605,7 +637,7 @@ window.addEventListener('keydown',e=>{
  if(moveKeys.includes(k)){e.preventDefault();closePanel(false);closeLootBox();target=null;held.add(k);stepMovement();}
  if(e.repeat)return;
  if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closeLootBox();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
- const shortcut={h:'survival',c:'equip',i:'bag',j:'journal',b:'camp'}[k];
+ const shortcut={h:'survival',c:'equip',i:'bag',j:'journal',u:'account',b:'camp'}[k];
  if(shortcut){e.preventDefault();if(activePanel===shortcut)closePanel();else openPanel(shortcut);}
  if(k==='q'||k==='r'){e.preventDefault();if(state?.world.player.chosen)useSkill(k==='q'?'sweep':'recover');}
  if(k==='e'){e.preventDefault();interact();}

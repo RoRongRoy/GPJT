@@ -1,9 +1,16 @@
 """SQLite snapshot store; each completed action and its resources commit together."""
+import hashlib
+import hmac
 import json
+import secrets
 import sqlite3
 from pathlib import Path
 from .game import new_world
 from .worldmap import ENEMY_SPAWNS, new_enemy, LAYOUT_VERSION, expand_coordinate, new_npcs
+
+
+def _hash_password(password, salt):
+    return hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), bytes.fromhex(salt), 100_000).hex()
 
 
 class Store:
@@ -14,6 +21,10 @@ class Store:
         self.db.execute('PRAGMA synchronous=FULL')
         self.db.execute('CREATE TABLE IF NOT EXISTS world (id INTEGER PRIMARY KEY, value TEXT NOT NULL)')
         self.db.execute('CREATE TABLE IF NOT EXISTS peers (session TEXT PRIMARY KEY, value TEXT NOT NULL)')
+        self.db.execute(
+            'CREATE TABLE IF NOT EXISTS accounts ('
+            'username TEXT PRIMARY KEY, salt TEXT NOT NULL, password_hash TEXT NOT NULL, value TEXT NOT NULL)'
+        )
         self.db.commit()
 
     def load(self):
@@ -65,6 +76,46 @@ class Store:
         with self.db:
             self.db.execute('INSERT INTO peers VALUES(?,?) ON CONFLICT(session) DO UPDATE SET value=excluded.value',
                             (session, json.dumps(profile, ensure_ascii=False)))
+
+    def save_account(self, username, password, profile, current_account=None):
+        row = self.db.execute('SELECT salt, password_hash FROM accounts WHERE username=?', (username,)).fetchone()
+        payload = json.dumps(profile, ensure_ascii=False)
+        if row:
+            salt, stored_hash = row
+            if not (current_account == username and not password):
+                if not password or not hmac.compare_digest(_hash_password(password, salt), stored_hash):
+                    return False
+            with self.db:
+                self.db.execute('UPDATE accounts SET value=? WHERE username=?', (payload, username))
+            return True
+        salt = secrets.token_hex(16)
+        pw_hash = _hash_password(password, salt)
+        with self.db:
+            self.db.execute(
+                'INSERT INTO accounts(username, salt, password_hash, value) VALUES(?,?,?,?)',
+                (username, salt, pw_hash, payload),
+            )
+        return True
+
+    def sync_account(self, username, profile):
+        if not username:
+            return
+        with self.db:
+            self.db.execute(
+                'UPDATE accounts SET value=? WHERE username=?',
+                (json.dumps(profile, ensure_ascii=False), username),
+            )
+
+    def load_account(self, username, password):
+        row = self.db.execute(
+            'SELECT salt, password_hash, value FROM accounts WHERE username=?', (username,)
+        ).fetchone()
+        if not row:
+            return None
+        salt, stored_hash, val = row
+        if not password or not hmac.compare_digest(_hash_password(password, salt), stored_hash):
+            return None
+        return json.loads(val)
 
     def close(self):
         self.db.close()

@@ -79,6 +79,61 @@ class Runtime:
             if tok != self.session and tok in self.peers and now - info['last_seen'] < 30
         ]
 
+    def _handle_account_action(self, candidate, command, is_peer):
+        action = command.get('action')
+        if action == 'account_save':
+            if not candidate['player'].get('chosen'):
+                raise RuleError('먼저 캐릭터(종족)를 선택해 모험을 시작한 뒤 계정을 저장하세요.')
+            username = str(command.get('username') or '').strip()
+            password = str(command.get('password') or '').strip()
+            if len(username) < 2 or len(username) > 20:
+                raise RuleError('계정 아이디는 2~20자로 입력하세요.')
+            current_acc = candidate['player'].get('account')
+            if not (current_acc == username and not password) and (len(password) < 4 or len(password) > 40):
+                raise RuleError('비밀번호는 4~40자로 입력하세요.')
+            candidate['player']['account'] = username
+            account_prof = {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'base', 'next_gear_id') if k in candidate}
+            if not self.store.save_account(username, password, account_prof, current_account=current_acc):
+                raise RuleError('이미 등록된 계정 아이디이거나 비밀번호가 일치하지 않습니다.')
+            candidate['log'] = [f"계정 '{username}'에 모험 데이터가 안전하게 저장되었습니다."] + candidate['log'][:7]
+            return True
+        if action == 'account_load':
+            username = str(command.get('username') or '').strip()
+            password = str(command.get('password') or '').strip()
+            if not username or not password:
+                raise RuleError('불러올 계정 아이디와 비밀번호를 모두 입력하세요.')
+            saved_prof = self.store.load_account(username, password)
+            if not saved_prof:
+                raise RuleError('계정 아이디 또는 비밀번호가 일치하지 않습니다.')
+            for k in PROFILE_KEYS:
+                if k in saved_prof:
+                    candidate[k] = copy.deepcopy(saved_prof[k])
+            if 'next_gear_id' in saved_prof:
+                candidate['next_gear_id'] = max(candidate.get('next_gear_id', 1), saved_prof['next_gear_id'])
+            if 'base' in saved_prof and not is_peer:
+                for fk, fv in saved_prof['base'].get('facilities', {}).items():
+                    candidate['base']['facilities'][fk] = max(candidate['base']['facilities'].get(fk, 0), fv)
+            candidate['player']['chosen'] = True
+            candidate['player']['account'] = username
+            candidate['player'].setdefault('mp', 100.0)
+            ensure_starter_gear(candidate)
+            candidate['cooldowns'] = {
+                ck: cv for ck, cv in candidate.get('cooldowns', {}).items() if cv <= candidate['elapsed'] + 60
+            }
+            lvl = candidate['player'].get('combat_level', 1)
+            candidate['log'] = [f"계정 '{username}' (Lv.{lvl}) 모험 데이터를 불러왔습니다."] + candidate['log'][:7]
+            return True
+        if action == 'new_adventurer':
+            fresh = new_world()
+            for k in PROFILE_KEYS:
+                candidate[k] = copy.deepcopy(fresh[k])
+            species = command.get('species')
+            if species in ('human', 'vampire'):
+                act(candidate, {'action': 'choose', 'species': species})
+            candidate['log'] = ['신규 모험자로 새로운 여정을 시작합니다. 언제든 계정을 생성해 저장할 수 있습니다.'] + candidate['log'][:7]
+            return True
+        return False
+
     def execute_action(self, token, command, expected_revision=None):
         with self.lock:
             try:
@@ -90,13 +145,22 @@ class Runtime:
                     return 429, {'error': '입력이 너무 빠릅니다.'}
                 if expected_revision is not None and expected_revision != self.world['revision']:
                     return 409, {'error': '상태가 변경됐습니다. 새 상태에서 다시 시도하세요.'}
+                if not isinstance(command, dict):
+                    raise RuleError('명령 형식 오류')
                 candidate = copy.deepcopy(self.world)
                 is_peer = (token != self.session)
                 if is_peer:
                     peer_prof = copy.deepcopy(self.peers[token])
                     for k in PROFILE_KEYS:
                         candidate[k] = peer_prof[k]
-                act(candidate, command)
+                if not self._handle_account_action(candidate, command, is_peer):
+                    act(candidate, command)
+                acc_name = candidate['player'].get('account')
+                if acc_name:
+                    self.store.sync_account(
+                        acc_name,
+                        {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'base', 'next_gear_id') if k in candidate},
+                    )
                 candidate['revision'] += 1
                 if is_peer:
                     updated_peer = {k: candidate[k] for k in PROFILE_KEYS}
@@ -136,7 +200,7 @@ class Runtime:
             p = prof['player']
             others.append({
                 'id': tok[:8],
-                'name': f"생존자 #{info['index']}",
+                'name': p.get('account') or f"생존자 #{info['index']}",
                 'x': p['x'],
                 'y': p['y'],
                 'species': p['species'],

@@ -176,6 +176,41 @@ class HttpTests(unittest.TestCase):
         for slot in ('weapon', 'armor'):
             self.assertEqual(self.request('/icons/'+slot+'.svg')[0], 200)
 
+    def test_new_adventurer_account_save_and_load(self):
+        self.assertEqual(self.request('/api/action', {'revision': 0, 'command': {'action': 'choose', 'species': 'human'}})[0], 200)
+        self.runtime.last_command = 0
+        self.assertEqual(self.request('/api/action', {'revision': 1, 'command': {'action': 'build', 'facility': 'kitchen'}})[0], 200)
+        self.runtime.last_command = 0
+        status, body = self.request('/api/action', {
+            'revision': 2,
+            'command': {'action': 'account_save', 'username': 'adventurer01', 'password': 'secret123'},
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)['world']['player']['account'], 'adventurer01')
+        self.runtime.last_command = 0
+        status, body = self.request('/api/action', {
+            'revision': 3,
+            'command': {'action': 'new_adventurer', 'species': 'vampire'},
+        })
+        self.assertEqual(status, 200)
+        reset_world = json.loads(body)['world']
+        self.assertEqual(reset_world['player']['species'], 'vampire')
+        self.assertIsNone(reset_world['player'].get('account'))
+        self.runtime.last_command = 0
+        self.assertEqual(self.request('/api/action', {
+            'revision': 4,
+            'command': {'action': 'account_load', 'username': 'adventurer01', 'password': 'wrong'},
+        })[0], 400)
+        self.runtime.last_command = 0
+        status, body = self.request('/api/action', {
+            'revision': 4,
+            'command': {'action': 'account_load', 'username': 'adventurer01', 'password': 'secret123'},
+        })
+        self.assertEqual(status, 200)
+        loaded_world = json.loads(body)['world']
+        self.assertEqual(loaded_world['player']['species'], 'human')
+        self.assertEqual(loaded_world['player']['account'], 'adventurer01')
+
 
 if __name__ == '__main__':
     unittest.main()
