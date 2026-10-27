@@ -1406,3 +1406,106 @@ main{
   padding:2px 6px !important;
  }
 }
+
+
+/* --- Embedded In-Game World Title (지역명 및 생존 기록을 인게임 캔버스 상단에 포함) --- */
+.world-title{
+ position:absolute !important;
+ top:10px !important;
+ left:50% !important;
+ transform:translateX(-50%) !important;
+ display:flex !important;
+ align-items:center !important;
+ justify-content:center !important;
+ gap:14px !important;
+ padding:4px 14px !important;
+ background:linear-gradient(180deg,rgba(16,22,32,0.85),rgba(10,14,20,0.92)) !important;
+ border:1px solid #5a483288 !important;
+ border-radius:6px !important;
+ box-shadow:0 4px 16px rgba(0,0,0,0.6) !important;
+ backdrop-filter:blur(8px) !important;
+ pointer-events:none !important;
+ z-index:3 !important;
+ max-width:calc(100% - 460px) !important;
+ white-space:nowrap !important;
+ margin:0 !important;
+ min-height:0 !important;
+}
+.world-title>div:first-child{
+ display:flex !important;
+ flex-direction:column !important;
+ align-items:center !important;
+ text-align:center !important;
+}
+.world-title .eyebrow{
+ font-size:7.5px !important;
+ letter-spacing:1.5px !important;
+ color:#ffd166 !important;
+ font-weight:700 !important;
+ line-height:1 !important;
+ margin-bottom:2px !important;
+}
+.world-title h1{
+ font-size:13.5px !important;
+ font-weight:700 !important;
+ color:#e2e8f0 !important;
+ letter-spacing:0.5px !important;
+ line-height:1.2 !important;
+ margin:0 !important;
+ font-family:system-ui,-apple-system,sans-serif !important;
+}
+.world-title p{
+ font-size:8.5px !important;
+ color:#94a3b8 !important;
+ margin:1px 0 0 !important;
+ line-height:1 !important;
+}
+.world-title .clock{
+ display:flex !important;
+ flex-direction:column !important;
+ align-items:flex-end !important;
+ padding-left:10px !important;
+ border-left:1px solid rgba(255,255,255,0.12) !important;
+ text-align:right !important;
+ gap:1px !important;
+}
+.world-title .clock span:first-child{
+ display:none !important;
+}
+.world-title .clock strong{
+ font-size:11px !important;
+ font-weight:700 !important;
+ color:#ffd166 !important;
+ line-height:1 !important;
+}
+.world-title .clock #time{
+ font-size:8px !important;
+ color:#cbd5e1 !important;
+ line-height:1 !important;
+}
+
+.canvas-wrap{
+ height:calc(100vh - 54px) !important;
+ min-height:600px !important;
+}
+main{
+ padding:4px 8px 6px !important;
+}
+
+@media(max-width:768px){
+ .world-title{
+  top:6px !important;
+  padding:2px 8px !important;
+  gap:8px !important;
+  max-width:calc(100% - 190px) !important;
+ }
+ .world-title h1{
+  font-size:10px !important;
+ }
+ .world-title p, .world-title .eyebrow{
+  display:none !important;
+ }
+ .canvas-wrap{
+  height:calc(100dvh - 48px) !important;
+ }
+}
