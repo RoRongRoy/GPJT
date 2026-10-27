@@ -82,7 +82,8 @@ class WorldView {
     let walkY=0,walkTilt=0;const sxScale=1,syScale=1,walkX=0;
     if(actor)actor.lean=(actor.lean||0)+(((activeMove&&!p.mounted&&!this.combat)?(sprinting?dirSign*.06:0):0)-(actor.lean||0))*.18;
     if(activeMove&&!p.mounted&&!this.combat){
-     /* The articulated hero carries its own bounce and lean; the world only supplies travel. */
+     walkY=-Math.abs(Math.sin(stridePhase))*(sprinting?3.2:1.6);
+     walkTilt=actor.lean;
     }
     const body=this.combat?.body(now)||{x:walkX,y:walkY,tilt:walkTilt};
    if(activeMove){
