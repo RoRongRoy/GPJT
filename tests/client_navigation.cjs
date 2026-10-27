@@ -17,15 +17,15 @@ const python=process.env.PYTHON || 'python';
 const fixture=JSON.parse(execFileSync(python,['-c',"import json;from server.game import new_world,POIS,ITEMS,RECIPES,COMBAT;from server.worldmap import WORLD_MAP;print(json.dumps({'world':new_world(),'pois':POIS,'items':ITEMS,'map':WORLD_MAP,'recipes':RECIPES,'combat':COMBAT}))"],{encoding:'utf8'}));
 sandbox.fixture=fixture;
 vm.runInContext('state=fixture;connected=true;state.world.player.chosen=true;command=(action,fields={})=>{if(action===\'move\'){const p=state.world.player,m=state.map.movement,s=m.step*(p.mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1),n=Math.hypot(fields.dx,fields.dy);p.x+=fields.dx/n*s;p.y+=fields.dy/n*s;}else globalThis.lastAction={action,...fields};};update();',sandbox);
-for(const mounted of [false,true])for(const destination of [[1,1],[20,20],[1,20],[20,1],[6.2,7.1],[8,4],[62,62],[1,62],[62,1],[43,15],[9,51],[55,52]]){
+for(const mounted of [false,true])for(const destination of [[1,1],[20,20],[1,20],[20,1],[6.2,7.1],[8,4],[126,126],[1,126],[126,1],[43,15],[9,51],[55,52]]){
  sandbox.destination=destination;sandbox.mounted=mounted;
  vm.runInContext('state.world.player.x=6;state.world.player.y=7;state.world.player.mounted=mounted;state.world.player.unlocks.human=2;navigate(...destination);',sandbox);
- for(let i=0;i<400 && vm.runInContext('!!target',sandbox);i++){now+=150;intervals[0]();}
+ for(let i=0;i<800 && vm.runInContext('!!target',sandbox);i++){now+=150;intervals[0]();}
  const error=vm.runInContext('Math.hypot(state.world.player.x-destination[0],state.world.player.y-destination[1])',sandbox);
  assert.ok(error<.8,`arrival distance: ${error}`);
  assert.equal(vm.runInContext('target===null',sandbox),true,`arrival: ${mounted} ${destination}`);
 }
-vm.runInContext("state.world.player.x=6;state.world.player.y=7;state.world.player.mounted=false;navigate(4,8,'grove')",sandbox);
+vm.runInContext("state.world.player.x=6;state.world.player.y=7;state.world.player.mounted=false;navigate(state.pois.find(n=>n.id==='grove').x,state.pois.find(n=>n.id==='grove').y,'grove')",sandbox);
 for(let i=0;i<50&&vm.runInContext('!!target',sandbox);i++){now+=150;intervals[0]();}
 assert.equal(sandbox.lastAction.action,'gather');assert.equal(sandbox.lastAction.id,'grove');
 vm.runInContext("navigate(20,20);state.world.paused=true;update()",sandbox);
@@ -57,16 +57,16 @@ vm.runInContext('view.setZoom(99)',sandbox);assert.equal(vm.runInContext('view.z
 console.log('Client navigation: 24 walking/mounted destinations, gathering, screen-relative controls, cancellation, camera projection and guide completion passed.');
 
 // Camp details share the server radius and close if authoritative position changes.
-vm.runInContext('state.world.paused=false;state.world.player.x=6;state.world.player.y=7;connected=true;update()',sandbox);
+vm.runInContext('state.world.paused=false;state.world.player.x=state.world.base.x;state.world.player.y=state.world.base.y+1;connected=true;update()',sandbox);
 assert.equal(vm.runInContext('openPanel("craft")',sandbox),true);
 assert.equal(vm.runInContext('activePanel',sandbox),'craft');
 vm.runInContext('state.world.player.x=40;state.world.player.y=40;update()',sandbox);
 assert.equal(vm.runInContext('activePanel',sandbox),null);
 assert.equal(nodes.get('menu-camp').hidden,true);
 assert.equal(vm.runInContext('openPanel("craft")',sandbox),false);
-vm.runInContext('state.world.player.x=6;state.world.player.y=8.79;update()',sandbox);
+vm.runInContext('state.world.player.x=state.world.base.x;state.world.player.y=state.world.base.y+state.map.base_radius-.01;update()',sandbox);
 assert.equal(vm.runInContext('canUseCamp()',sandbox),true);
-vm.runInContext('state.world.player.y=8.81;update()',sandbox);
+vm.runInContext('state.world.player.y=state.world.base.y+state.map.base_radius+.01;update()',sandbox);
 assert.equal(vm.runInContext('canUseCamp()',sandbox),false);
 assert.equal(vm.runInContext('openPanel("bag")',sandbox),true);
 vm.runInContext('connected=false;updateContext()',sandbox);
@@ -98,7 +98,7 @@ console.log('Contextual menu checks passed: camp radius, leaving camp, remote ac
  requests[1].resolve({ok:false,status:400,json:async()=>({error:'Rejected move'})});await new Promise(setImmediate);
  assert.equal(vm.runInContext('view.prediction',sandbox),null);assert.equal(vm.runInContext('view.player',sandbox),null,'Rejected prediction must snap back on the next frame');
  assert.equal(vm.runInContext('state.world.player.x',sandbox),predicted.x);
- vm.runInContext('state.world.player.x=62;state.world.player.y=62;view.predictMove(state,{dx:1,dy:1})',sandbox);
- assert.equal(vm.runInContext('view.prediction.x',sandbox),62,'Prediction must respect map boundaries');
+ vm.runInContext('state.world.player.x=126;state.world.player.y=126;view.predictMove(state,{dx:1,dy:1})',sandbox);
+ assert.equal(vm.runInContext('view.prediction.x',sandbox),126,'Prediction must respect map boundaries');
  console.log('Input latency checks passed: throttled input retry, one-step prediction, authoritative reconciliation, delayed response/key release, reversal, rejection and map bounds.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

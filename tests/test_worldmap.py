@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from server.game import act, new_world, tick, RuleError
 from server.storage import Store
-from server.worldmap import SIZE, POIS, ENEMY_SPAWNS, WORLD_MAP
+from server.worldmap import SIZE, POIS, ENEMY_SPAWNS, WORLD_MAP, region_at, BASE_USE_RADIUS, expand_coordinate
 
 
 class WorldMapTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class WorldMapTests(unittest.TestCase):
         tick(world, .15)
         world['player'].update(x=SIZE-2, y=SIZE-2)
         act(world, {'action': 'move', 'dx': 1, 'dy': 1})
-        self.assertEqual((world['player']['x'], world['player']['y']), (62, 62))
+        self.assertEqual((world['player']['x'], world['player']['y']), (SIZE-2, SIZE-2))
         tick(world, .15)
         world['player'].update(x=1, y=1)
         act(world, {'action': 'move', 'dx': -1, 'dy': -1})
@@ -30,8 +30,7 @@ class WorldMapTests(unittest.TestCase):
     def test_expansion_has_usable_landmarks_in_each_region(self):
         self.assertEqual(len({node['id'] for node in POIS}), len(POIS))
         for region in WORLD_MAP['regions']:
-            nodes = [node for node in POIS if region['x'] <= node['x'] < region['x']+region['width']
-                     and region['y'] <= node['y'] < region['y']+region['height']]
+            nodes = [node for node in POIS if region_at(node['x'],node['y'])['id']==region['id']]
             self.assertTrue(any(node['kind'] == 'npc' for node in nodes))
             for node in nodes:
                 self.assertTrue(1 <= node['x'] <= SIZE-2 and 1 <= node['y'] <= SIZE-2)
@@ -93,3 +92,51 @@ class WorldMapTests(unittest.TestCase):
             store.save(world)
             self.assertEqual(store.load(), world)
             store.close()
+
+    def test_layout_upgrade_runs_once_without_losing_progress(self):
+        w=new_world();w.pop('layout_version');w['player'].update(x=6,y=7,species='vampire',level=7)
+        w['base'].update(x=6,y=6);w['base']['facilities']['storage']=3
+        w['inventory']['wood']=231;w['cooldowns']['skill:sweep']=73;w['elapsed']=69
+        w['enemies'][0].update(x=12,y=11,hp=0,respawn=123,attack=77)
+        before=copy.deepcopy(w)
+        with tempfile.TemporaryDirectory() as directory:
+            store=Store(Path(directory)/'world.sqlite3');store.save(w);restored=store.load()
+            self.assertEqual(restored['layout_version'],2)
+            self.assertEqual(restored['player']['x'],expand_coordinate(6))
+            self.assertEqual(restored['base']['y'],expand_coordinate(6))
+            for key in ('inventory','cooldowns','elapsed','milestones'):
+                self.assertEqual(restored[key],before[key])
+            self.assertEqual(restored['base']['facilities'],before['base']['facilities'])
+            self.assertEqual(restored['player']['level'],7)
+            self.assertEqual(restored['enemies'][0]['hp'],0)
+            self.assertEqual(restored['enemies'][0]['respawn'],123)
+            self.assertEqual((restored['enemies'][0]['x'],restored['enemies'][0]['y']),ENEMY_SPAWNS[0])
+            store.save(restored);self.assertEqual(store.load(),restored);store.close()
+
+    def test_spacing_and_non_grid_layout(self):
+        self.assertEqual(SIZE,128);self.assertEqual(len(POIS),29);self.assertEqual(len(ENEMY_SPAWNS),11)
+        for i,a in enumerate(POIS):
+            for b in POIS[i+1:]:self.assertGreaterEqual(math.hypot(a['x']-b['x'],a['y']-b['y']),8)
+        for i,a in enumerate(ENEMY_SPAWNS):
+            for b in ENEMY_SPAWNS[i+1:]:self.assertGreater(math.dist(a,b),17)
+        base=new_world()['base']
+        for node in POIS:self.assertGreater(math.hypot(node['x']-base['x'],node['y']-base['y']),10)
+        self.assertTrue(all('width' not in r for r in WORLD_MAP['regions']))
+        for road in WORLD_MAP['roads']:
+            self.assertGreater(len({p[0] for p in road}),2);self.assertGreater(len({p[1] for p in road}),2)
+
+    def test_expanded_camp_crafting_and_protection_use_same_boundary(self):
+        w=new_world();w['player'].update(chosen=True,x=41.9,y=12);w['base'].update(x=35,y=12)
+        for e in w['enemies']:e.update(x=100,y=100)
+        w['enemies'][0].update(x=42,y=12)
+        act(w,{'action':'build','facility':'kitchen'})
+        hp=w['player']['hp'];tick(w,.2);self.assertEqual(w['player']['hp'],hp)
+        w['player']['x']=42.1
+        with self.assertRaises(RuleError):act(copy.deepcopy(w),{'action':'build','facility':'storage'})
+        tick(w,.2);self.assertLess(w['player']['hp'],hp)
+
+    def test_lost_enemy_returns_to_home_without_healing(self):
+        w=new_world();w['player'].update(chosen=True,x=110,y=20)
+        e=w['enemies'][0];e.update(x=e['x']+8,hp=19)
+        before=math.dist((e['x'],e['y']),ENEMY_SPAWNS[0]);tick(w,1)
+        self.assertLess(math.dist((e['x'],e['y']),ENEMY_SPAWNS[0]),before);self.assertEqual(e['hp'],19)

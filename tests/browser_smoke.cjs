@@ -52,7 +52,7 @@ async function until(check,message,timeout=10000){
   assert.equal(await page.locator('#intro-art').isVisible(),false);
   await until(()=>page.locator('#world').getAttribute('data-art').then(v=>v==='ready'),'Gameplay sprites failed to load',20000);
   assert.equal(await page.locator('body').getAttribute('data-species'),'human');
-  const initial=await readState();assert.equal(initial.map.size,64);assert.equal(initial.map.regions.length,4);
+  const initial=await readState();assert.equal(initial.map.size,128);assert.equal(initial.map.regions.length,4);
   assert.equal(await page.locator('#menu-dialog').isVisible(),false,'Details must start closed');
   assert.equal(await page.locator('#meters').isVisible(),false);
   assert.equal(await page.locator('#craft-submit').isVisible(),false);
@@ -97,11 +97,12 @@ async function until(check,message,timeout=10000){
   assert.ok(Math.abs(Math.hypot(latencyEnd.x-latencyStart.x,latencyEnd.y-latencyStart.y)-initial.map.movement.step)<.001,'Released input queued extra movement');
   await page.unroute('**/api/action',delayMove);
   const atlas=await page.locator('#minimap').boundingBox();
-  async function mapClick(x,y){await page.mouse.click(atlas.x+x/64*atlas.width,atlas.y+y/64*atlas.height);}
+  async function mapClick(x,y){await page.mouse.click(atlas.x+x/initial.map.size*atlas.width,atlas.y+y/initial.map.size*atlas.height);}
   // Click the upper part of the visible tree, not only its ground coordinate.
   await delay(700);const player=(await readState()).world.player;
   const field=await page.locator('#world').boundingBox();
-  await page.mouse.click(field.x+field.width/2+(4-8-player.x+player.y)*34,field.y+field.height*.52+(4+8-player.x-player.y)*17-75);
+  const grove=initial.pois.find(n=>n.id==='grove');
+  await page.mouse.click(field.x+field.width/2+(grove.x-grove.y-player.x+player.y)*34,field.y+field.height*.52+(grove.x+grove.y-player.x-player.y)*17-75);
   await until(async()=> (await readState()).world.inventory.wood>initial.world.inventory.wood,'Click-to-gather did not complete');
   await page.locator('#zoom-in').click();assert.equal(await page.locator('#zoom-level').textContent(),'110%');
   await page.locator('#zoom-out').click();assert.equal(await page.locator('#zoom-level').textContent(),'100%');
@@ -164,8 +165,8 @@ async function until(check,message,timeout=10000){
   await page.locator('#menu-camp').click();await page.locator('[data-panel=craft]').click();
   await page.keyboard.down('d');await delay(160);await page.keyboard.up('d');
   assert.equal(await page.locator('#menu-dialog').isVisible(),false,'Movement must dismiss crafting');
-  await mapClick(37,9);
-  await until(async()=>{const s=await readState();return s.world.inventory.wood>=forestWood+3;},'Expanded-map navigation/gather failed',25000);
+  const pine=initial.pois.find(n=>n.id==='pine');await mapClick(pine.x,pine.y);
+  await until(async()=>{const s=await readState();return s.world.inventory.wood>=forestWood+3;},'Expanded-map navigation/gather failed',45000);
   assert.equal(await page.locator('#region-name').textContent(),'잿빛 소나무숲');
   assert.equal(await page.locator('#menu-camp').isVisible(),false,'Camp category must disappear outside camp');
   assert.equal(await page.locator('#camp-access').isVisible(),false);
@@ -205,7 +206,7 @@ async function until(check,message,timeout=10000){
   if(screenshots)await mobile.screenshot({path:path.join(screenshots,'mobile-forest.png'),fullPage:true,animations:'disabled'});
   // Return through real world movement and open the contextual menu on mobile.
   await mobile.locator('#go-home').tap();
-  await until(async()=>{const w=(await readState(mobile)).world;return Math.hypot(w.player.x-w.base.x,w.player.y-w.base.y)<.6;},'Mobile return to camp failed',25000);
+  await until(async()=>{const w=(await readState(mobile)).world;return Math.hypot(w.player.x-w.base.x,w.player.y-w.base.y)<.6;},'Mobile return to camp failed',45000);
   await mobile.locator('#camp-access').tap();await mobile.locator('[data-panel=craft]').tap();
   assert.equal(await mobile.locator('#craft-submit').isVisible(),true);
   const menuBox=await mobile.locator('#menu-dialog').boundingBox();

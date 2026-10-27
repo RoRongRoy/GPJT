@@ -87,47 +87,63 @@ class FieldArt extends GothicArt {
  }
  ground(state,projection){
   if(!this.ready('earth')||!this.ready('stone')||typeof DOMMatrix==='undefined')return false;
-  const size=state.map.size;
-  if(!this.groundCache||this.groundSize!==size){
-   // Project static terrain once. Frames copy only the visible rectangle;
-   // they never rotate/resample the entire 64x64 terrain texture again.
-   const canvas=document.createElement('canvas');canvas.width=size*68;canvas.height=size*34;
-   const g=canvas.getContext('2d');g.setTransform(34,17,-34,17,size*34,17);
-   const patterns={};
-   for(const key of ['stone','earth']){
-    const texture=document.createElement('canvas');texture.width=texture.height=384;
-    texture.getContext('2d').drawImage(this.images[key],0,0,384,384);
-    patterns[key]=g.createPattern(texture,'repeat');patterns[key].setTransform(new DOMMatrix().scale(8/384));
+  const {size}=state.map,{scale,tw,th,ox,oy,width,height}=projection,c=this.c,span=16;
+  if(this.terrainVersion!==state.map.layout_version){this.terrainChunks=new Map();this.terrainVersion=state.map.layout_version;}
+  const inverse=(x,y)=>[((x-ox)/tw+(y-oy)/th)/2,((y-oy)/th-(x-ox)/tw)/2];
+  const corners=[inverse(0,0),inverse(width,0),inverse(0,height),inverse(width,height)];
+  const loX=Math.max(0,Math.floor(Math.min(...corners.map(p=>p[0]))/span)),hiX=Math.min(size/span-1,Math.floor(Math.max(...corners.map(p=>p[0]))/span));
+  const loY=Math.max(0,Math.floor(Math.min(...corners.map(p=>p[1]))/span)),hiY=Math.min(size/span-1,Math.floor(Math.max(...corners.map(p=>p[1]))/span));
+  const visible=new Set();
+  for(let cy=loY;cy<=hiY;cy++)for(let cx=loX;cx<=hiX;cx++){
+   const left=ox+(cx-cy)*span*tw-span*tw-2*scale,top=oy+(cx+cy)*span*th-th-2*scale;
+   const w=(span*68+4)*scale,h=(span*34+4)*scale;
+   if(left>width||left+w<0||top>height||top+h<0)continue;
+   const key=cx+':'+cy;visible.add(key);let img=this.terrainChunks.get(key);
+   if(!img){
+    img=document.createElement('canvas');img.width=span*68+4;img.height=span*34+4;
+    const g=img.getContext('2d');g.setTransform(34,17,-34,17,span*34+2-(cx-cy)*span*34,19-(cx+cy)*span*17);
+    this.paintTerrain(g,state.map,cx*span-.505,cy*span-.505,span+.01,span+.01);
    }
-   for(const r of state.map.regions){
-    g.fillStyle=patterns[r.id==='works'?'stone':'earth'];g.fillRect(r.x-.5,r.y-.5,r.width,r.height);
-    g.fillStyle={outskirts:'#252b3230',forest:'#1d393c24',marsh:'#25425055',works:'#312b3538'}[r.id];g.fillRect(r.x-.5,r.y-.5,r.width,r.height);
-   }
-   for(const n of [10,32,50]){
-    g.fillStyle=patterns.stone;g.fillRect(n-.5,-.5,1,size);g.fillRect(-.5,n-.5,size,1);
-    g.fillStyle='#14202a16';g.fillRect(n-.5,-.5,1,size);g.fillRect(-.5,n-.5,size,1);
-   }
-   this.groundCache=canvas;this.groundSize=size;
+   this.terrainChunks.delete(key);this.terrainChunks.set(key,img);c.drawImage(img,left,top,w,h);
   }
-  const c=this.c,{scale,ox,oy,width,height}=projection,img=this.groundCache;
-  const left=ox-size*34*scale,top=oy-17*scale;
-  const sx=Math.max(0,-left/scale),sy=Math.max(0,-top/scale);
-  const sw=Math.min(img.width-sx,(width-left)/scale-sx),sh=Math.min(img.height-sy,(height-top)/scale-sy);
-  if(sw>0&&sh>0)c.drawImage(img,sx,sy,sw,sh,left+sx*scale,top+sy*scale,sw*scale,sh*scale);
+  // Keep only a small LRU neighbourhood, never allocate a full 128x128 bitmap.
+  const budget=Math.max(width<600?12:24,visible.size);
+  for(const key of this.terrainChunks.keys()){if(this.terrainChunks.size<=budget)break;if(!visible.has(key))this.terrainChunks.delete(key);}
   return true;
  }
-
- campGround(x,y,projection){
-  if(!this.ready('stone')||typeof DOMMatrix==='undefined')return false;
-  const c=this.c,{scale,tw,th,ox,oy,width,height}=projection;
-  const sx=ox+(x-y)*tw,sy=oy+(x+y)*th;
-  if(sx+170*scale<0||sx-170*scale>width||sy+85*scale<0||sy-85*scale>height)return true;
-  if(!this.campCache){
-   const canvas=document.createElement('canvas');canvas.width=340;canvas.height=170;
-   const g=canvas.getContext('2d');g.setTransform(34,17,-34,17,170,85);
-   const pattern=g.createPattern(this.images.stone,'repeat');pattern.setTransform(new DOMMatrix().scale(8/this.images.stone.naturalWidth));
-   g.fillStyle=pattern;g.fillRect(-2.5,-2.5,5,5);g.fillStyle='#34303b16';g.fillRect(-2.5,-2.5,5,5);this.campCache=canvas;
+ paintTerrain(g,map,x,y,w,h){
+  g.save();g.beginPath();g.rect(x,y,w,h);g.clip();
+  const patterns={};
+  for(const key of ['earth','stone']){
+   if(!this[key+'Texture']){const tex=document.createElement('canvas');tex.width=tex.height=384;tex.getContext('2d').drawImage(this.images[key],0,0,384,384);this[key+'Texture']=tex;}
+   patterns[key]=g.createPattern(this[key+'Texture'],'repeat');patterns[key].setTransform(new DOMMatrix().scale(8/384));
   }
-  c.drawImage(this.campCache,sx-170*scale,sy-85*scale,340*scale,170*scale);return true;
+  g.fillStyle=patterns.earth;g.fillRect(x,y,w,h);g.fillStyle='#252b3228';g.fillRect(x,y,w,h);
+  for(const r of map.regions){
+   const tint={outskirts:'#64606228',forest:'#1d474748',marsh:'#355c7260',works:'#67545e48'}[r.id];
+   const gradient=g.createRadialGradient(r.x,r.y,3,r.x,r.y,r.radius);gradient.addColorStop(0,tint);gradient.addColorStop(1,tint.slice(0,7)+'00');g.fillStyle=gradient;g.fillRect(x,y,w,h);
+  }
+  g.lineJoin='round';g.lineCap='round';
+  for(const road of map.roads){
+   g.beginPath();g.moveTo(...road[0]);
+   for(let i=1;i<road.length-1;i++)g.quadraticCurveTo(...road[i],(road[i][0]+road[i+1][0])/2,(road[i][1]+road[i+1][1])/2);
+   g.lineTo(...road[road.length-1]);g.globalAlpha=.25;g.strokeStyle='#a0927a';g.lineWidth=1.8;g.stroke();g.globalAlpha=.8;g.strokeStyle=patterns.stone;g.lineWidth=1.1;g.stroke();
+  }
+  g.restore();
+ }
+ campGround(x,y,projection,radius=7){
+  if(!this.ready('stone')||typeof DOMMatrix==='undefined')return false;
+  const c=this.c,{scale,tw,th,ox,oy,width,height}=projection,sx=ox+(x-y)*tw,sy=oy+(x+y)*th;
+  const rx=radius*48.1,ry=radius*24.05;
+  if(sx+rx*scale<0||sx-rx*scale>width||sy+ry*scale<0||sy-ry*scale>height)return true;
+  if(!this.campCache||this.campRadius!==radius){
+   const canvas=document.createElement('canvas');canvas.width=Math.ceil(rx*2+8);canvas.height=Math.ceil(ry*2+8);
+   const g=canvas.getContext('2d');g.setTransform(34,17,-34,17,canvas.width/2,canvas.height/2);
+   const pattern=g.createPattern(this.images.stone,'repeat');pattern.setTransform(new DOMMatrix().scale(8/this.images.stone.naturalWidth));
+   g.save();g.beginPath();g.arc(0,0,radius,0,Math.PI*2);g.clip();g.globalAlpha=.32;g.fillStyle=pattern;g.fillRect(-radius,-radius,radius*2,radius*2);g.restore();
+   g.strokeStyle='#c9b08055';g.lineWidth=.035;g.setLineDash([.22,.2]);g.beginPath();g.arc(0,0,radius,0,Math.PI*2);g.stroke();
+   this.campCache=canvas;this.campRadius=radius;
+  }
+  c.drawImage(this.campCache,sx-this.campCache.width/2*scale,sy-this.campCache.height/2*scale,this.campCache.width*scale,this.campCache.height*scale);return true;
  }
 }

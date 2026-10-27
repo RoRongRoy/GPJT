@@ -47,7 +47,7 @@ class GameTests(unittest.TestCase):
         self.assertEqual(self.w['base']['facilities'], before['base']['facilities'])
 
     def test_remote_crafting_rejected(self):
-        self.w['player'].update(x=20, y=20)
+        self.w['player'].update(x=90, y=90)
         with self.assertRaises(RuleError):
             self.action('build', facility='kitchen')
 
@@ -70,7 +70,8 @@ class GameTests(unittest.TestCase):
     def test_gather_distance_and_cooldown(self):
         with self.assertRaises(RuleError):
             self.action('gather', id='blood')
-        self.w['player'].update(x=4, y=8)
+        node=next(n for n in POIS if n['id']=='grove')
+        self.w['player'].update(x=node['x'], y=node['y'])
         self.action('gather', id='grove')
         with self.assertRaises(RuleError):
             self.action('gather', id='grove')

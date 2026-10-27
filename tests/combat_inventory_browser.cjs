@@ -6,7 +6,7 @@ async function until(check,message){for(let i=0;i<80;i++){if(await check())retur
 (async()=>{
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'bloodfall-combat-')),save=path.join(tmp,'world.sqlite3'),key=crypto.randomBytes(32).toString('hex');
  execFileSync(process.env.PYTHON||'python',['-c',`import sys;from server.game import new_world;from server.storage import Store
-w=new_world();w['player'].update(chosen=True,x=20,y=20,hp=90);w['inventory']['water']=1
+w=new_world();w['player'].update(chosen=True,x=20,y=20,hp=90);w['inventory']['water']=1;w['base'].update(x=6,y=6)
 for e in w['enemies']:e.update(x=50,y=50)
 w['enemies'][0].update(x=21,y=20);w['enemies'][1].update(x=20,y=21.5)
 s=Store(sys.argv[1]);s.save(w);s.close()`,save],{cwd:root});

@@ -2,7 +2,7 @@
 import math
 import random
 
-from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS
+from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION
 
 RECIPES = {
     'soup': {'cost': {'crop': 2, 'water': 1}, 'facility': 'kitchen', 'name': '채소 수프'},
@@ -35,12 +35,12 @@ class RuleError(ValueError):
 
 
 def new_world():
-    return {'version': 1, 'revision': 0, 'elapsed': 0.0, 'paused': False,
-            'player': {'x': 6.0, 'y': 7.0, 'species': 'human', 'origin': 'human', 'chosen': False,
+    return {'version': 1, 'layout_version': LAYOUT_VERSION, 'revision': 0, 'elapsed': 0.0, 'paused': False,
+            'player': {'x': float(START_BASE[0]), 'y': float(START_BASE[1]+1), 'species': 'human', 'origin': 'human', 'chosen': False,
                        'hp': 100.0, 'food': 90.0, 'water': 90.0, 'blood': 90.0, 'stability': 90.0,
                        'infection': 0.0, 'level': 0, 'pity': 0, 'mounted': False,
                        'unlocks': {'human': 0, 'vampire': 0}},
-            'base': {'x': 6, 'y': 6, 'facilities': dict.fromkeys(FACILITIES, 0)},
+            'base': {'x': START_BASE[0], 'y': START_BASE[1], 'facilities': dict.fromkeys(FACILITIES, 0)},
             'inventory': {'wood': 12, 'water': 12, 'crop': 8, 'herb': 8, 'blood': 8,
                           'metal': 6, 'scroll': 15, 'soup': 2, 'elixir': 2, 'medicine': 1},
             'milestones': [], 'cooldowns': {}, 'dispatch': None, 'quest': {'collected': 0, 'round': 0},
@@ -276,7 +276,14 @@ def tick(w, dt):
                 e['x'], e['y'] = ENEMY_SPAWNS[e['id']]
             continue
         d = dist(e, p)
-        if dist(p, w['base']) <= 2.5:
+        protected = dist(p, w['base']) <= BASE_USE_RADIUS
+        home = dict(zip(('x', 'y'), ENEMY_SPAWNS[e['id']]))
+        if protected or d >= 4.8:
+            distance = dist(e, home)
+            if distance > .1:
+                step = min(distance, dt * .65)
+                e['x'] += (home['x']-e['x']) / distance * step
+                e['y'] += (home['y']-e['y']) / distance * step
             continue
         if 1 < d < 4.8:
             e['x'] += (p['x']-e['x']) / d * dt * .65

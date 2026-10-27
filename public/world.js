@@ -18,15 +18,17 @@ class WorldView {
   this.mapSource=state.map;this.poiSource=state.pois;
   const key=JSON.stringify([state.map,state.pois]);if(key===this.mapKey)return;this.mapKey=key;
   this.scenery=[];this.ponds=[];
-  for(let y=0;y<state.map.size;y++)for(let x=0;x<state.map.size;x++){
-   if(state.pois.some(n=>Math.hypot(x-n.x,y-n.y)<1.7))continue;
-   const region=this.region(state,x,y).id,n=this.noise(x,y),road=[10,32,50].includes(x)||[10,32,50].includes(y);
-   if(road){if([10,32,50].includes(x)&&y%7===0)this.scenery.push({x:x+.65,y,type:'lantern'});continue;}
-   if(region==='marsh'&&n>.73)this.ponds.push({x,y});
-   if(x%2||y%2||n<=(region==='forest'?.42:.72))continue;
-   const type=region==='works'||(region==='outskirts'&&n>.88)?'ruin':'tree';
-   if(type==='ruin'&&(x%4||y%4))continue;
-   this.scenery.push({x,y,type,seed:region==='marsh'?this.noise(y+12,x)*.4:region==='forest'?.5+this.noise(y,x)*.5:this.noise(y+7,x)});
+  // Irregular sparse clusters, with real gaps for travel and landmarks.
+  for(let gy=3;gy<state.map.size;gy+=3)for(let gx=3;gx<state.map.size;gx+=3){
+   const x=gx+(this.noise(gx,gy)-.5)*1.8,y=gy+(this.noise(gy,gx)-.5)*1.8;
+   if(state.pois.some(n=>Math.hypot(x-n.x,y-n.y)<3.8)||this.nearRoad(state.map,x,y))continue;
+   const region=this.region(state,x,y).id,n=this.noise(gx+47,gy+13);
+   const cluster=(Math.sin(x/8)+Math.cos(y/11)+Math.sin((x+y)/17))/3;
+   if(region==='marsh'&&n>.82)this.ponds.push({x,y});
+   if(n<(region==='forest'?(cluster>.15?.48:.87):.88))continue;
+   const type=region==='works'||(region==='outskirts'&&n>.97)?'ruin':'tree';
+   if(type==='ruin'&&this.scenery.some(e=>e.type==='ruin'&&Math.hypot(e.x-x,e.y-y)<10))continue;
+   this.scenery.push({x,y,type,seed:region==='marsh'?n*.4:region==='forest'?.5+n*.5:this.noise(y+7,x)});
   }
  }
  setZoom(value) { this.zoom=Math.max(.65,Math.min(1.6,value)); return this.zoom; }
@@ -35,7 +37,14 @@ class WorldView {
   return {x:((x-ox)/tw+(y-oy)/th)/2,y:((y-oy)/th-(x-ox)/tw)/2};
  }
  project(x,y,z=0) { const {ox,oy,tw,th,scale}=this.projection; return [ox+(x-y)*tw,oy+(x+y)*th-z*scale]; }
- region(state,x,y) { return state.map.regions.find(r=>x>=r.x&&y>=r.y&&x<r.x+r.width&&y<r.y+r.height)||state.map.regions[0]; }
+ region(state,x,y) {
+  const wx=x+Math.sin(y/13)*5,wy=y+Math.sin(x/17)*4;
+  return state.map.regions.reduce((a,b)=>((wx-a.x)**2+(wy-a.y)**2)/a.radius**2<=((wx-b.x)**2+(wy-b.y)**2)/b.radius**2?a:b);
+ }
+ nearRoad(map,x,y){
+  return map.roads.some(road=>road.slice(1).some((b,i)=>{const a=road[i],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy)));return Math.hypot(x-a[0]-t*dx,y-a[1]-t*dy)<2;}));
+ }
+
  noise(x,y) { const n=Math.sin(x*127.1+y*311.7)*43758.5453; return n-Math.floor(n); }
  draw(state,target,selected,effects={}) {
   if(!state?.map)return;
@@ -86,20 +95,20 @@ class WorldView {
   const minY=Math.max(0,Math.floor(Math.min(...corners.map(n=>n.y)))),maxY=Math.min(size-1,Math.ceil(Math.max(...corners.map(n=>n.y))));
   const visible=(x,y)=>x>=minX&&x<=maxX&&y>=minY&&y<=maxY;
   this.prepareScenery(state);
-  const outsideCamp=e=>Math.hypot(e.x-w.base.x,e.y-w.base.y)>=3;
+  const outsideCamp=e=>Math.hypot(e.x-w.base.x,e.y-w.base.y)>=state.map.base_clear_radius;
   const scenery=this.scenery.filter(e=>visible(e.x,e.y)&&outsideCamp(e));
   if(!art.ground(state,this.projection)){
    const palettes={outskirts:'#404449',forest:'#2f3b39',marsh:'#33434a',works:'#4d494b'};
-   for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++)tile(x,y,[10,32,50].includes(x)||[10,32,50].includes(y)?'#515257':palettes[this.region(state,x,y).id]);
+   for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++)tile(x,y,palettes[this.region(state,x,y).id]);
   }
   for(const pond of this.ponds){if(!visible(pond.x,pond.y)||!outsideCamp(pond))continue;const [sx,sy]=project(pond.x,pond.y);ellipse(sx,sy,22,9,'#253842');ellipse(sx+3*scale,sy,14,4,'#93a8b02c');}
-  if(!art.campGround(w.base.x,w.base.y,this.projection))for(let x=-2;x<=2;x++)for(let y=-2;y<=2;y++)tile(w.base.x+x,w.base.y+y,'#5c5757');
+  if(!art.campGround(w.base.x,w.base.y,this.projection,state.map.base_radius))for(let x=-2;x<=2;x++)for(let y=-2;y<=2;y++)tile(w.base.x+x,w.base.y+y,'#5c5757');
   if(target){
    const [tx,ty]=project(target.x,target.y),[px,py]=project(this.player.x,this.player.y);
    c.setLineDash([3,9]);c.strokeStyle='#ead3a488';c.lineWidth=1.5;c.beginPath();c.moveTo(px,py);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);
    c.strokeStyle='#f2d39b';c.beginPath();c.ellipse(tx,ty,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
   }
-  const offsets={kitchen:[-.5,2],alchemy:[2,-.5],medical:[1,2],storage:[2,1]};
+  const offsets={kitchen:[-4,2],alchemy:[3,-4],medical:[2,4],storage:[5,0]};
   const facilities=Object.entries(w.base.facilities).filter(([,level])=>level).map(([id,level])=>({x:w.base.x+offsets[id][0],y:w.base.y+offsets[id][1],id,level,type:'facility'}));
   const entities=[...scenery,...state.pois.map(n=>({...n,type:'poi'})),{...w.base,type:'base'},...facilities,...w.enemies.filter(e=>e.hp>0).map(e=>({...e,type:'enemy'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
   this.points=[];const labels=[];let playerCovered=false;
@@ -118,7 +127,6 @@ class WorldView {
     c.strokeStyle='#8d9386';c.lineWidth=2*scale;
     for(let j=0;j<5;j++){c.beginPath();c.moveTo(sx+(j-2)*5*scale,sy);c.lineTo(sx+(j-3)*6*scale,sy-(18+j%3*5)*scale);c.stroke();}continue;
    }
-   if(e.type==='ruin'&&(e.x%4!==0||e.y%4!==0))continue;
    if(e.type==='ruin'){art.ruin(sx,sy,scale,e.seed);continue;}
    ellipse(sx+4*scale,sy+3*scale,18,8,'#152c2955');
    if(e.type==='base'){
@@ -175,12 +183,14 @@ class WorldView {
   const canvas=this.minimap,c=canvas.getContext('2d'),d=160,size=state.map.size,k=d/size;
   if(canvas.width!==320){canvas.width=320;canvas.height=320;}
   c.setTransform(2,0,0,2,0,0);c.clearRect(0,0,d,d);
-  for(const region of state.map.regions){c.fillStyle=region.color;c.fillRect(region.x*k,region.y*k,region.width*k,region.height*k);}
-  c.strokeStyle='#d3bd8d66';c.lineWidth=2;c.beginPath();
-  for(const n of [10,32,50]){c.moveTo(n*k,0);c.lineTo(n*k,d);c.moveTo(0,n*k);c.lineTo(d,n*k);}c.stroke();
+  c.fillStyle='#414b49';c.fillRect(0,0,d,d);
+  for(const r of state.map.regions){const g=c.createRadialGradient(r.x*k,r.y*k,0,r.x*k,r.y*k,r.radius*k);g.addColorStop(0,r.color);g.addColorStop(1,r.color+'00');c.fillStyle=g;c.fillRect(0,0,d,d);}
+  c.strokeStyle='#c7baa466';c.lineWidth=1.3;
+  for(const road of state.map.roads){c.beginPath();road.forEach(([x,y],i)=>i?c.lineTo(x*k,y*k):c.moveTo(x*k,y*k));c.stroke();}
   for(const node of state.pois){c.fillStyle=node.kind==='npc'?'#e6be89':'#d9e3bc';c.fillRect(node.x*k-1,node.y*k-1,2,2);}
   const w=state.world;
   for(const enemy of w.enemies){if(enemy.hp>0){c.fillStyle='#eb8d78';c.fillRect(enemy.x*k-1,enemy.y*k-1,2,2);}}
+  c.strokeStyle='#e9cf8f88';c.lineWidth=1;c.beginPath();c.arc(w.base.x*k,w.base.y*k,state.map.base_radius*k,0,Math.PI*2);c.stroke();
   c.fillStyle='#ffda8d';c.fillRect(w.base.x*k-3,w.base.y*k-3,6,6);
   if(this.projection){
    const r=this.canvas.getBoundingClientRect(),corners=[[0,0],[r.width,0],[r.width,r.height],[0,r.height]].map(([x,y])=>this.toWorld(x,y));

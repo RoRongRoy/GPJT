@@ -3,7 +3,7 @@ import copy
 import tempfile
 import unittest
 from pathlib import Path
-from server.game import act, new_world, RuleError
+from server.game import act, new_world, RuleError, POIS
 from server.storage import Store
 
 
@@ -13,9 +13,10 @@ class OnboardingTests(unittest.TestCase):
             with self.subTest(species=species), tempfile.TemporaryDirectory() as directory:
                 world = new_world()
                 act(world, {'action': 'choose', 'species': species})
-                world['player'].update(x=4, y=8)
+                node=next(n for n in POIS if n['id']=='grove')
+                world['player'].update(x=node['x'], y=node['y'])
                 act(world, {'action': 'gather', 'id': 'grove'})
-                world['player'].update(x=6, y=7)
+                world['player'].update(x=world['base']['x'], y=world['base']['y']+1)
                 act(world, {'action': 'build', 'facility': facility})
                 act(world, {'action': 'craft', 'recipe': recipe})
                 act(world, {'action': 'consume', 'item': recipe})
@@ -39,7 +40,7 @@ class OnboardingTests(unittest.TestCase):
         act(world, {'action': 'build', 'facility': 'kitchen'})
         self.assertEqual(world['milestones'], ['build:kitchen'])
         self.assertEqual(world['inventory']['wood'], before['wood']-3)
-        self.assertEqual(world['base']['x'], 6)
+        self.assertEqual(world['base']['x'], new_world()['base']['x'])
 
     def test_failed_action_does_not_award_progress(self):
         world = new_world()
