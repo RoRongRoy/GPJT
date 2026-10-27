@@ -14,6 +14,22 @@ ITEMS = {'wood': '목재', 'water': '식수', 'crop': '작물', 'herb': '약초'
          'metal': '부품', 'scroll': '강화 주문서', 'soup': '채소 수프', 'elixir': '안정화 혈액', 'medicine': '치료제'}
 
 
+COMBAT = {
+    'attack': {'name': '기본 공격', 'cooldown': .6, 'range': 2.1, 'damage': 24},
+    'sweep': {'name': '회전 베기', 'vampire_name': '혈월 베기', 'cooldown': 5, 'range': 2.7, 'damage': 32, 'cost': 6},
+    'recover': {'name': '숨 고르기', 'vampire_name': '혈액 재생', 'cooldown': 10, 'heal': 18, 'cost': 8},
+}
+
+
+def damage_enemy(w, enemy, damage):
+    enemy['hp'] = max(0, enemy['hp'] - damage)
+    if enemy['hp'] == 0:
+        enemy['respawn'] = w['elapsed'] + 45
+        w['inventory']['scroll'] += 3
+        w['inventory']['metal'] += 2
+        note(w, '감염체 처치 · 주문서 +3 · 부품 +2')
+
+
 class RuleError(ValueError):
     pass
 
@@ -159,18 +175,29 @@ def act(w, command, rng=random.random):
         else:
             p['pity'] += 1
             note(w, f"강화 실패 · 단계 유지 · 누적 {p['pity']}")
-    elif action == 'attack':
-        require(not p['mounted'], '하차·변신 해제 후 공격하세요.')
-        cooldown(w, 'attack', 0.6)
-        enemies = [e for e in w['enemies'] if e['hp'] > 0 and dist(p, e) <= 2.1]
-        require(enemies, '가까운 공격 대상이 없습니다.')
-        e = min(enemies, key=lambda e: dist(p, e))
-        e['hp'] -= 24 * (1 + p['level'] * .02)
-        if e['hp'] <= 0:
-            e['respawn'] = w['elapsed'] + 45
-            w['inventory']['scroll'] += 3
-            w['inventory']['metal'] += 2
-            note(w, '감염체 처치 · 주문서 +3 · 부품 +2')
+    elif action in ('attack', 'skill'):
+        require(not p['mounted'], '하차·변신 해제 후 사용하세요.')
+        skill = command.get('skill') if action == 'skill' else 'attack'
+        require(isinstance(skill, str) and skill in ('attack', 'sweep', 'recover') and
+                (action == 'attack' or skill != 'attack'), '알 수 없는 스킬입니다.')
+        spec = COMBAT[skill]
+        meter = 'blood' if p['species'] == 'vampire' else 'food'
+        require(p[meter] >= spec.get('cost', 0), '포만도 또는 혈액량이 부족합니다.')
+        if skill == 'recover':
+            require(p['hp'] < 100, '이미 체력이 가득합니다.')
+            cooldown(w, 'skill:recover', spec['cooldown'])
+            p[meter] -= spec['cost']
+            p['hp'] = min(100, p['hp'] + spec['heal'])
+        else:
+            enemies = [e for e in w['enemies'] if e['hp'] > 0 and dist(p, e) <= spec['range']]
+            require(enemies or skill == 'attack', '가까운 공격 대상이 없습니다.')
+            if skill == 'sweep':
+                cooldown(w, 'skill:sweep', spec['cooldown'])
+            cooldown(w, 'attack', COMBAT['attack']['cooldown'])
+            p[meter] -= spec.get('cost', 0)
+            targets = enemies if skill == 'sweep' else ([min(enemies, key=lambda e: dist(p, e))] if enemies else [])
+            for enemy in targets:
+                damage_enemy(w, enemy, spec['damage'] * (1 + p['level'] * .02))
     elif action == 'quest':
         require(any(n['kind'] == 'npc' and dist(p, n) <= 2.5 for n in POIS), '진영 NPC 가까이 가세요.')
         require(w['quest']['collected'] >= 5, '자원 채집을 5회 완료하세요.')

@@ -97,6 +97,27 @@ class HttpTests(unittest.TestCase):
                 self.assertEqual(self.runtime.store.load(), before)
                 self.assertEqual(world, before)
 
+    def test_skill_commit_and_failed_replay_are_atomic(self):
+        w=self.runtime.world
+        w['player'].update(chosen=True, hp=50)
+        self.runtime.store.save(w)
+        payload={'revision':0, 'command':{'action':'skill','skill':'recover'}}
+        self.assertEqual(self.request('/api/action',payload)[0],200)
+        saved=self.runtime.store.load()
+        self.assertEqual(saved['player']['hp'],68)
+        self.assertEqual(saved['player']['food'],82)
+        self.runtime.last_command=0
+        payload['revision']=saved['revision']
+        self.assertEqual(self.request('/api/action',payload)[0],400)
+        self.assertEqual(self.runtime.store.load(),saved)
+        self.assertEqual(self.runtime.world,saved)
+        status,body=self.request('/api/state')
+        self.assertEqual(json.loads(body)['combat']['sweep']['cooldown'],5)
+        for item in ('wood','water','crop','herb','blood','metal','scroll','soup','elixir','medicine'):
+            self.assertEqual(self.request('/icons/'+item+'.svg')[0],200)
+        self.assertEqual(self.request('/icons/unknown.svg')[0],404)
+        self.assertEqual(self.request('/combat.js')[0],200)
+
     def test_bad_action_shape(self):
         self.assertEqual(self.request('/api/action', {'command': []})[0], 400)
 

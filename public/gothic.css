@@ -83,3 +83,38 @@ footer{color:#9a8587}
  .species-caption{padding:9px 9px 10px}.species-choice strong{font-size:15px;letter-spacing:1px}.species-choice small{font-size:6px;letter-spacing:.2px}.species-choice .species-symbol{right:9px;top:6px;font-size:21px}.species-trait{font-size:7px;margin-top:5px}#welcome .welcome-foot{font-size:6px;margin-top:11px}
 }
 @media(prefers-reduced-motion:reduce){.species-choice button,.species-choice button img{transition:none}}
+/* Slot inventory and combat hotbar. */
+#menu-dialog[data-panel=bag]{width:620px;max-width:calc(100vw - 32px)}
+.bag-summary{display:flex;justify-content:space-between;margin:0 0 12px;color:#c9bba6;font-size:11px}
+.bag-layout{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:18px;align-items:start}
+#inventory{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.item-slot{position:relative;min-width:0;aspect-ratio:1;padding:3px;border:1px solid #70604d;background:radial-gradient(ellipse at 50% 25%,#484049,#191c26 85%);box-shadow:inset 0 0 0 2px #080e1855;display:flex;align-items:center;justify-content:center}
+.item-slot img{width:85%;height:85%;object-fit:contain;filter:drop-shadow(0 3px 2px #0008)}
+.item-slot .slot-name{position:absolute;bottom:0;left:1px;right:1px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;font-size:8px;line-height:1.5;background:#111722d9;text-align:center;color:#d8cebb}
+.item-slot .slot-count{position:absolute;top:0;right:3px;font:bold 11px system-ui;color:#f6e6c5;text-shadow:0 1px 3px #000,1px 0 #000}
+.item-slot[aria-pressed=true]{border-color:#f3c887;background:radial-gradient(#74604c,#292330);box-shadow:inset 0 0 0 1px #d4ae70,0 0 9px #cfa96b22}
+.item-slot:hover{border-color:#cdb795}.empty-slot{background:#10151e77;border-color:#574b424f;box-shadow:inset 0 0 12px #0003}
+.item-detail{border:1px solid #8f776455;background:#0d131b88;padding:16px 13px;min-height:280px}
+.item-detail>img{display:block;margin:0 auto 10px;background:radial-gradient(#72534466,transparent 70%)}
+.item-detail h3{font-size:17px;margin:6px 0 12px}.item-detail p{font-size:11px;line-height:1.75;margin:9px 0;color:#b9b2a7}
+.item-detail #item-effect{color:#dbc390}.item-detail #item-use-reason{font-size:10px;color:#afa19f}.item-detail .eyebrow{font-size:9px;letter-spacing:1px}
+#item-owned{border-top:1px solid #8c766333;padding-top:10px}#inventory-empty{font-size:12px;color:#b4a7a4}
+.skill-bar{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:7px;z-index:3}
+.skill-bar button{position:relative;min-width:105px;padding:8px 10px 7px 32px;text-align:left;border-color:#ac876688;background:linear-gradient(#3c2e3bef,#161c28f5);box-shadow:0 4px 15px #0005}
+.skill-bar kbd{position:absolute;top:5px;left:5px;font-size:9px}.skill-glyph{position:absolute;left:11px;bottom:10px;color:#dbaf83;font-size:18px}
+.skill-bar strong{display:block;font-size:11px;color:#e2c9ab}.skill-bar small{display:block;font-size:9px;color:#bba99e}
+.skill-bar button:disabled{opacity:.65}.skill-bar button:not(:disabled):hover{border-color:#e4b784;background:#60404b}
+@media(max-width:900px){.skill-bar{bottom:78px}}
+@media(max-width:600px){
+ #menu-dialog[data-panel=bag]{width:auto;max-width:none}.bag-layout{grid-template-columns:1fr;gap:12px}
+ .item-detail{min-height:0;padding:12px}.item-detail>img{float:left;margin:0 12px 8px 0;width:54px;height:54px}.item-detail h3{margin:3px 0 8px}
+ .item-detail #item-description{min-height:28px}.item-detail #item-use-reason{margin-bottom:0}
+ .skill-bar{left:auto;right:10px;bottom:135px;transform:none;gap:5px}.skill-bar button{min-width:95px;padding:7px 7px 6px 28px}.skill-bar strong{font-size:10px}
+}
+
+@media(max-width:600px){
+ .map-tools{bottom:198px}
+ #inventory .empty-slot:nth-child(n+11){display:none}
+ .item-detail p{margin:5px 0}.bag-summary{margin-bottom:7px}
+ [data-view=bag]>.panel-note{display:none}
+}

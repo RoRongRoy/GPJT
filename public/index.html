@@ -26,16 +26,17 @@
     </div><span class="welcome-foot">종족은 의료실에서 바꿀 수 있습니다 · 아지트와 자산은 유지됩니다</span>
    </div>
    <div id="interaction"><div><span class="eyebrow">NEARBY</span><span id="nearby-label">주변을 탐색하세요</span></div><button id="interact"><kbd>E</kbd> 상호작용</button><button data-action="attack" class="attack-button" title="가까운 감염체 공격 (Space)">공격 <kbd>Space</kbd></button></div>
+   <div id="skill-bar" class="skill-bar" aria-label="전투 스킬" hidden><button id="skill-sweep" data-skill="sweep"><kbd>Q</kbd><span class="skill-glyph">✦</span><strong id="skill-sweep-name">회전 베기</strong><small id="skill-sweep-status"></small></button><button id="skill-recover" data-skill="recover"><kbd>R</kbd><span class="skill-glyph">✚</span><strong id="skill-recover-name">숨 고르기</strong><small id="skill-recover-status"></small></button></div>
    <div class="touch-pad" aria-label="터치 이동"><button data-direction="up" aria-label="위로 이동">↑</button><button data-direction="left" aria-label="왼쪽 이동">←</button><button data-direction="down" aria-label="아래로 이동">↓</button><button data-direction="right" aria-label="오른쪽 이동">→</button></div>
    <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
   </div>
   <div class="field-caption"><button id="guide-hint" data-panel="guide">✦ 첫 생존 안내</button><span class="field-menu-hint">필요한 정보는 아래 메뉴에서</span></div>
-  <div class="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> 이동</span><span><kbd>E</kbd> 채집·의뢰</span><span><kbd>Space</kbd> 공격</span><span><kbd>M</kbd> 탑승·변신</span><span><kbd>Esc</kbd> 이동 취소</span><span class="controls-end">클릭 이동 · 휠 확대</span></div>
+  <div class="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> 이동</span><span><kbd>E</kbd> 채집·의뢰</span><span><kbd>Space</kbd> 공격</span><span><kbd>Q / R</kbd> 스킬</span><span><kbd>I</kbd> 인벤토리</span><span><kbd>M</kbd> 탑승·변신</span><span><kbd>Esc</kbd> 이동 취소</span><span class="controls-end">클릭 이동 · 휠 확대</span></div>
  </section>
 </main>
 <nav class="menu-dock" aria-label="게임 메뉴">
  <button id="menu-survival" data-panel="survival" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">♡</span>생존<kbd>H</kbd></button>
- <button id="menu-bag" data-panel="bag" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▣</span>보관품<kbd>I</kbd></button>
+ <button id="menu-bag" data-panel="bag" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▣</span>인벤토리<kbd>I</kbd></button>
  <button id="menu-journal" data-panel="journal" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▤</span>수첩<kbd>J</kbd></button>
  <button id="menu-travel" data-panel="travel" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">⌖</span>이동</button>
  <button id="menu-camp" data-panel="camp" aria-controls="menu-dialog" aria-expanded="false" class="camp-menu" hidden><span aria-hidden="true">⌂</span>아지트<kbd>B</kbd></button>
@@ -51,8 +52,11 @@
    <p class="panel-note">보유한 소모품을 눌러 사용하세요.</p>
   </section>
   <section data-view="bag" hidden>
-   <div class="filter-tabs" role="group" aria-label="보관품 분류"><button data-filter="materials" aria-pressed="true">재료</button><button data-filter="supplies" aria-pressed="false">소모품</button><button data-filter="growth" aria-pressed="false">강화</button></div>
-   <div id="inventory"></div><p class="panel-note">휴대품과 아지트가 공유하는 보관품입니다.</p>
+   <div class="filter-tabs" role="group" aria-label="인벤토리 분류"><button data-filter="all" aria-pressed="true">전체</button><button data-filter="materials" aria-pressed="false">재료</button><button data-filter="supplies" aria-pressed="false">소모품</button><button data-filter="growth" aria-pressed="false">강화</button></div>
+   <div class="bag-summary"><span>소지 아이템</span><strong id="bag-count"></strong></div>
+   <div class="bag-layout"><div><div id="inventory" aria-label="아이템 슬롯"></div><p id="inventory-empty" hidden>이 분류에 보유한 아이템이 없습니다.</p></div>
+   <aside class="item-detail" aria-label="선택한 아이템"><img id="item-art" alt="" width="64" height="64"><span id="item-category" class="eyebrow"></span><h3 id="item-name">아이템 선택</h3><p id="item-description"></p><p id="item-owned"></p><p id="item-effect"></p><button id="item-use" class="wide accent" disabled>사용</button><p id="item-use-reason" role="status"></p></aside></div>
+   <p class="panel-note">아이템을 클릭하면 상세 정보를 볼 수 있습니다. 아지트와 보관품을 공유합니다.</p>
   </section>
   <section data-view="journal" hidden>
    <div class="category-grid">
@@ -90,6 +94,6 @@
  <div id="menu-context" class="menu-context"></div>
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
-<footer>BLOODFALL 0.5.1 · 싱글 생존 · 자동 저장</footer>
-<script src="/gothic.js"></script><script src="/sprite-manifest.js"></script><script src="/sprites.js"></script><script src="/world.js"></script><script src="/app.js" type="module"></script>
+<footer>BLOODFALL 0.6.0 · 싱글 생존 · 자동 저장</footer>
+<script src="/gothic.js"></script><script src="/sprite-manifest.js"></script><script src="/sprites.js"></script><script src="/combat.js"></script><script src="/world.js"></script><script src="/app.js" type="module"></script>
 </body></html>

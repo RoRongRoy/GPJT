@@ -5,16 +5,16 @@ const key = sessionStorage.getItem('bloodfall-key') || '';
 // Deliberately per-tab: a second tab must not silently share control of this P0 world.
 const session = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}-${Math.random()}`;
 let state = null, busy = false, connected = false, polling = false, toastTimer, selected = null;
-let target=null, attackUntil=0, hurtUntil=0, pendingAction=null, pendingTimer=null, lastCommandAt=-Infinity, lastMove= -Infinity;
+let target=null, hurtUntil=0, pendingAction=null, pendingTimer=null, lastCommandAt=-Infinity, lastMove= -Infinity;
 const held=new Set(), touchHeld=new Set();
 const canvas=$('world'), view=new WorldView(canvas,$('minimap'));
 const facilityRows=new Map();
-let activePanel=null, panelOpener=null, inventoryFilter='materials', selectedRecipe='soup';
+let activePanel=null, panelOpener=null, inventoryFilter='all', selectedRecipe='soup';
 const campPanels=new Set(['camp','craft','build','research','dispatch']);
 const campActions=new Set(['craft','build','enhance','research','convert','dispatch']);
 const panelInfo={
  survival:['생존','내 상태를 살피고 필요한 소모품을 사용하세요.','SURVIVOR'],
- bag:['보관품','분류를 눌러 모아둔 물자를 확인하세요.','INVENTORY'],
+ bag:['인벤토리','아이템을 선택해 정보를 확인하고 사용하세요.','INVENTORY'],
  journal:['수첩','확인하고 싶은 기록을 선택하세요.','FIELD JOURNAL'],
  guide:['첫 생존','작은 목표를 하나씩 완성해보세요.','FIRST NIGHT'],
  quests:['의뢰','물자를 모으고 다음 하루를 준비하세요.','SUPPLY RUN'],
@@ -28,7 +28,7 @@ const panelInfo={
 };
 const panelParents={guide:'journal',quests:'journal',log:'journal',craft:'camp',build:'camp',research:'camp',dispatch:'camp'};
 const recipeDetails={soup:['♨','포만도 +45 · 수분 +15'],elixir:['⚗','혈액량 +40 · 안정도 +45'],medicine:['+','체력 +40 · 감염 −60']};
-const inventoryGroups={materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll']};
+const inventoryGroups={all:['wood','water','crop','herb','blood','metal','scroll','soup','elixir','medicine'],materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll']};
 const facilityNames = {kitchen:'주방',alchemy:'연금대',medical:'의료실',storage:'저장고'};
 function toast(message) { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600); }
 async function api(path, body) {
@@ -52,13 +52,14 @@ async function command(action, fields={}) {
   if(action!=='move'){pendingAction={action,fields};schedulePending();}
   return;
  }
+ const before=state.world;
  busy=true;lastCommandAt=performance.now();
  if(action==='move')view.predictMove(state,fields);
  try {
   const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
   if(action==='move')view.endMove(true);
   accept(result);
-  if(action==='attack')attackUntil=performance.now()+260;
+  if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':fields.skill);
  }catch(e){
   if(action==='move')view.endMove(false);
   if(e.status===409){
@@ -96,7 +97,7 @@ function update() {
   const row=document.createElement('div'), label=document.createElement('div');label.className='meter-label';label.append(span('',name),span('',String(Math.ceil(value))));
   const track=document.createElement('div'),fill=document.createElement('div'); track.className='track'; fill.className='fill'+(name==='감염'?' danger':'');fill.style.width=`${Math.max(0,Math.min(100,value))}%`;track.append(fill);row.append(label,track);return row;
  }));
- renderInventory();
+ renderInventory();updateSkills();
  for(const [id,name] of Object.entries(facilityNames)){
   if(!facilityRows.has(id)){
    const row=document.createElement('div'),info=document.createElement('div'),title=span('',''),cost=document.createElement('small'),button=document.createElement('button');
@@ -116,7 +117,7 @@ function update() {
  document.querySelectorAll('[data-item]').forEach(b=>{const id=b.dataset.item;b.disabled=w.paused||!w.inventory[id]||(p.species==='human'?['blood','elixir'].includes(id):['soup','water'].includes(id));});
  renderRecipe();
 }
-function draw(){view.draw(state,target,selected,{attackUntil,hurtUntil});}
+function draw(){view.draw(state,target,selected,{hurtUntil});}
 function clearMovement(){held.clear();touchHeld.clear();target=null;document.querySelectorAll('[data-direction]').forEach(b=>b.classList.remove('pressed'));}
 function navigate(x,y,id=null){
  if(!state?.world.player.chosen||state.world.paused||!connected)return;
@@ -146,7 +147,7 @@ $('zoom-in').onclick=()=>changeZoom(.1);$('zoom-out').onclick=()=>changeZoom(-.1
 function goHome(){if(state){navigate(state.world.base.x,state.world.base.y);stepMovement();}}
 $('go-home').onclick=goHome;$('travel-home').onclick=goHome;
 $('interact').onclick=()=>interact();
-function manualAction(action,fields={}){clearMovement();pendingAction=null;clearTimeout(pendingTimer);command(action,fields);}
+function manualAction(action,fields={}){if(action==='attack'||action==='skill')closePanel(false);clearMovement();pendingAction=null;clearTimeout(pendingTimer);command(action,fields);}
 $('pause').onclick=()=>manualAction('pause');
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action));
 document.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>manualAction('consume',{item:b.dataset.item}));
@@ -170,7 +171,7 @@ function openPanel(name,opener=null){
  if(campPanels.has(name)&&!canUseCamp())return false;
  clearMovement();pendingAction=null;clearTimeout(pendingTimer);
  if(!activePanel)panelOpener=opener||document.activeElement;
- activePanel=name;
+ activePanel=name;$('menu-dialog').dataset.panel=name;
  const [title,description,eyebrow]=panelInfo[name];
  $('menu-title').textContent=title;$('menu-description').textContent=description;$('menu-eyebrow').textContent=eyebrow;
  $('menu-back').hidden=!panelParents[name];
@@ -179,7 +180,7 @@ function openPanel(name,opener=null){
  document.querySelectorAll('[data-panel]').forEach(button=>button.setAttribute('aria-expanded',String(button.dataset.panel===root)));
  $('menu-context').textContent=campPanels.has(name)?'⌂ 아지트 안 · 벗어나면 이 메뉴는 닫힙니다.':'Esc로 닫기 · 메뉴를 연 동안에도 월드 시간은 흐릅니다.';
  if(!$('menu-dialog').open)$('menu-dialog').show();
- renderRecipe();$('menu-title').focus({preventScroll:true});return true;
+ renderInventory();renderRecipe();$('menu-title').focus({preventScroll:true});return true;
 }
 function updateContext(){
  const {player:p}=state.world,atCamp=canUseCamp();
@@ -190,13 +191,75 @@ function updateContext(){
  $('field-vital').textContent=p.species==='human'?`포만 ${Math.ceil(p.food)} · 수분 ${Math.ceil(p.water)}`:`혈액 ${Math.ceil(p.blood)} · 안정 ${Math.ceil(p.stability)}`;
  $('field-infection').hidden=p.infection<1;$('field-infection').textContent=`감염 ${Math.ceil(p.infection)}`;
 }
+const itemSlots=new Map();let selectedItem=null,inventoryLayout='';
+const itemInfo={
+ wood:['제작 재료','시설을 건설하고 개선하는 데 쓰는 목재.','아지트 → 시설에서 사용'],
+ metal:['제작 재료','시설과 이동 연구에 필요한 금속 부품.','아지트 → 시설·연구에서 사용'],
+ crop:['식재료','따뜻한 수프를 만드는 기본 식재료.','아지트 → 제작 → 요리'],
+ herb:['약재','치료제와 안정화 혈액, 종족 전환에 필요한 약초.','아지트 → 제작·연구에서 사용'],
+ scroll:['강화 재료','현재 무기의 공격력을 강화하는 주문서.','아지트 → 연구·성장 → 장비 강화'],
+ soup:['인간 소모품','야채와 물로 끓인 따뜻한 식사.','포만도 +45 · 수분 +15'],
+ water:['인간 소모품 / 재료','마실 수 있는 깨끗한 물. 제작에도 사용합니다.','수분 +40'],
+ blood:['뱀파이어 소모품 / 재료','뱀파이어의 갈증을 달래는 원혈.','혈액량 +30'],
+ elixir:['뱀파이어 소모품','혈액을 안정화한 연금 혼합물.','혈액량 +40 · 안정도 +45'],
+ medicine:['공용 소모품','상처와 감염을 치료하는 약품.','체력 +40 · 감염 −60'],
+};
+function itemUseReason(id){
+ const w=state.world;
+ if(!id)return '아이템을 선택하세요.';
+ if(!['soup','water','blood','elixir','medicine'].includes(id))return '직접 사용할 수 없는 제작·강화 재료입니다.';
+ if(!connected)return '서버 연결을 기다리세요.';
+ if(w.paused)return '일시정지를 해제하세요.';
+ if(!w.inventory[id])return '보유한 아이템이 없습니다.';
+ if(['soup','water'].includes(id)&&w.player.species!=='human')return '인간만 사용할 수 있습니다.';
+ if(['blood','elixir'].includes(id)&&w.player.species!=='vampire')return '뱀파이어만 사용할 수 있습니다.';
+ return '';
+}
 function renderInventory(){
  if(!state)return;
- $('inventory').replaceChildren(...inventoryGroups[inventoryFilter].map(id=>{
-  const row=document.createElement('div');row.className='item';row.append(span('',state.items[id]));
-  const count=document.createElement('strong');count.textContent=state.world.inventory[id]||0;row.append(count);return row;
- }));
+ const ids=inventoryGroups[inventoryFilter].filter(id=>state.world.inventory[id]>0);
+ if(!inventoryGroups[inventoryFilter].includes(selectedItem))selectedItem=ids[0]||null;
+ const layout=inventoryFilter+':'+ids.join(',');
+ if(layout!==inventoryLayout){
+  const slots=ids.map(id=>{
+   if(!itemSlots.has(id)){
+    const button=document.createElement('button'),img=document.createElement('img'),name=span('slot-name',state.items[id]),count=span('slot-count','');
+    button.className='item-slot';button.dataset.inventoryItem=id;img.src='/icons/'+id+'.svg';img.alt='';img.width=48;img.height=48;
+    button.append(img,name,count);button.onclick=()=>{selectedItem=id;renderInventory();};itemSlots.set(id,{button,count});
+   }
+   return itemSlots.get(id).button;
+  });
+  for(let i=ids.length;i<20;i++){const empty=document.createElement('span');empty.className='item-slot empty-slot';empty.setAttribute('aria-hidden','true');slots.push(empty);}
+  $('inventory').replaceChildren(...slots);inventoryLayout=layout;
+ }
+ for(const id of ids){const {button,count}=itemSlots.get(id),amount=state.world.inventory[id];count.textContent=amount;button.setAttribute('aria-label',state.items[id]+' '+amount+'개');button.setAttribute('aria-pressed',String(id===selectedItem));}
+ $('bag-count').textContent=Object.values(state.world.inventory).filter(n=>n>0).length+'종 보유';$('inventory-empty').hidden=ids.length>0;
+ const info=itemInfo[selectedItem];$('item-art').hidden=!info;if(info)$('item-art').src='/icons/'+selectedItem+'.svg';
+ $('item-category').textContent=info?.[0]||'';$('item-name').textContent=selectedItem?state.items[selectedItem]:'비어 있는 가방';
+ $('item-description').textContent=info?.[1]||'채집하거나 제작해 아이템을 획득하세요.';$('item-effect').textContent=info?.[2]||'';
+ $('item-owned').textContent=selectedItem?'보유 수량 · '+(state.world.inventory[selectedItem]||0):'';
+ const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent='1개 사용';$('item-use-reason').textContent=reason||'선택한 아이템 1개를 사용합니다.';
 }
+$('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem))manualAction('consume',{item:selectedItem});};
+function skillStatus(id){
+ const w=state.world,p=w.player,spec=state.combat?.[id];
+ if(!spec)return {reason:'서버 연결 중'};
+ const meter=p.species==='vampire'?'blood':'food',cost=spec.cost;
+ const remaining=Math.max(0,(w.cooldowns['skill:'+id]||0)-w.elapsed,id==='sweep'?(w.cooldowns.attack||0)-w.elapsed:0);
+ const reason=!connected?'연결 중':w.paused?'일시정지':p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='sweep'&&!w.enemies.some(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<=spec.range)?'적에게 접근':'';
+ return {reason,spec,meter,cost,remaining};
+}
+function updateSkills(){
+ if(!state)return;$('skill-bar').hidden=!state.world.player.chosen;
+ for(const id of ['sweep','recover']){
+  const {reason,spec,cost}=skillStatus(id);if(!spec)continue;
+  const name=state.world.player.species==='vampire'?spec.vampire_name:spec.name;
+  $('skill-'+id+'-name').textContent=name;$('skill-'+id+'-status').textContent=reason||(spec.damage?'피해 '+spec.damage:'회복 '+spec.heal)+' · '+(state.world.player.species==='vampire'?'혈액 ':'포만 ')+cost;
+  $('skill-'+id).disabled=Boolean(reason);$('skill-'+id).title=name+' · '+(spec.damage?'주변 적 피해 '+spec.damage:'체력 +'+spec.heal)+' · 재사용 '+spec.cooldown+'초 · '+(state.world.player.species==='vampire'?'혈액 ':'포만 ')+cost;
+ }
+}
+function useSkill(id){const {reason}=skillStatus(id);if(reason){toast(reason);return;}manualAction('skill',{skill:id});}
+for(const button of document.querySelectorAll('[data-skill]'))button.onclick=()=>useSkill(button.dataset.skill);
 function renderRecipe(){
  if(!state?.recipes)return;
  const recipe=state.recipes[selectedRecipe],w=state.world,[icon,effect]=recipeDetails[selectedRecipe];
@@ -247,10 +310,11 @@ window.addEventListener('keydown',e=>{
  if(k==='escape'){e.preventDefault();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
  const shortcut={h:'survival',i:'bag',j:'journal',b:'camp'}[k];
  if(shortcut){e.preventDefault();if(activePanel===shortcut)closePanel();else openPanel(shortcut);}
+ if(k==='q'||k==='r'){e.preventDefault();if(state?.world.player.chosen)useSkill(k==='q'?'sweep':'recover');}
  if(k==='e'){e.preventDefault();interact();}
  if(k==='m')manualAction('mount');
  if(k==='v')toggleFocus();
- if(k===' '&&e.target.tagName!=='BUTTON'){e.preventDefault();manualAction('attack');}
+ if(k===' '&&(!activePanel||e.target.tagName!=='BUTTON')){e.preventDefault();manualAction('attack');}
 });
 window.addEventListener('keyup',e=>held.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>{clearMovement();pendingAction=null;clearTimeout(pendingTimer);});

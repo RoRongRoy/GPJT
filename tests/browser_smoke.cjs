@@ -152,6 +152,8 @@ async function until(check,message,timeout=10000){
   await until(()=>page.locator('body').getAttribute('data-species').then(s=>s==='vampire'),'Vampire art theme not applied');
   await page.locator('#menu-survival').click();
   await until(()=>page.locator('#survivor-art').evaluate(img=>img.src.includes('vampire-scholar')&&img.complete&&img.naturalWidth>0),'Vampire portrait failed to load');
+  assert.equal(await page.locator('#skill-sweep-name').textContent(),'혈월 베기');
+  assert.equal(await page.locator('#skill-recover-name').textContent(),'혈액 재생');
   if(screenshots)await page.screenshot({path:path.join(screenshots,'desktop-vampire.png'),fullPage:true,animations:'disabled'});
   await page.locator('#menu-camp').click();await page.locator('[data-panel=research]').click();
   await page.locator('[data-action=convert]').click();
@@ -185,6 +187,9 @@ async function until(check,message,timeout=10000){
   await mobile.locator('[data-filter=supplies]').tap();
   assert.equal(await mobile.locator('[data-filter=supplies]').getAttribute('aria-pressed'),'true');
   assert.equal(await mobile.locator('[data-filter=materials]').getAttribute('aria-pressed'),'false');
+  await mobile.locator('[data-inventory-item=medicine]').tap();
+  assert.equal(await mobile.locator('#item-name').textContent(),'치료제');
+  await mobile.locator('#item-use').scrollIntoViewIfNeeded();
   if(screenshots)await mobile.screenshot({path:path.join(screenshots,'mobile-inventory.png'),fullPage:true,animations:'disabled'});
   await mobile.locator('#menu-close').tap();
   const mobileBefore=(await readState(mobile)).world.player;

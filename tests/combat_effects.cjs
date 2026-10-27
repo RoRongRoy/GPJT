@@ -1,0 +1,14 @@
+const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
+const sandbox={window:{matchMedia:()=>({matches:false})}};vm.createContext(sandbox);vm.runInContext(fs.readFileSync('public/combat.js','utf8'),sandbox);
+const Combat=vm.runInContext('CombatEffects',sandbox);
+const before={player:{x:2,y:2,hp:50,species:'human'},enemies:[{id:1,x:3,y:2,hp:60},{id:2,x:2,y:3,hp:60}]};
+const after=JSON.parse(JSON.stringify(before));after.enemies[0].hp=28;after.enemies[1].hp=28;
+const snapshot=JSON.stringify(before),effect=new Combat(before,after,'sweep',100);
+assert.equal(effect.hits.length,2);assert.equal(effect.hits[0].damage,32);assert.equal(JSON.stringify(before),snapshot);
+assert.ok(effect.body(420).x>0,'Strike must lunge toward its target');assert.equal(effect.active(1400),false);
+let depth=0,texts=[];const ctx=new Proxy({}, {get:(_,key)=>key==='save'?()=>depth++:key==='restore'?()=>depth--:key==='fillText'?(t)=>texts.push(t):()=>{}});
+effect.draw(ctx,(x,y)=>[x*34,y*17],1,420);assert.equal(depth,0);assert.deepEqual(texts,['32','32']);
+sandbox.window.matchMedia=()=>({matches:true});const reduced=new Combat(before,after,'sweep',100);assert.deepEqual(JSON.parse(JSON.stringify(reduced.body(420))),{x:0,y:0,tilt:0});
+const empty=new Combat(before,before,'attack',100,2);assert.equal(empty.row,2);assert.equal(empty.hits.length,0);
+after.player.hp=68;after.enemies=before.enemies;const heal=new Combat(before,after,'recover',100);assert.equal(heal.heal,18);assert.equal(heal.hits.length,0);
+console.log('Combat presentation passed: confirmed hits, immutable snapshots, directional strike, reduced motion, empty swing facing, heal and effect expiration.');

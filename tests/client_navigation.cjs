@@ -9,11 +9,12 @@ vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync('public/gothic.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/sprite-manifest.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/sprites.js','utf8'),sandbox);
+vm.runInContext(fs.readFileSync('public/combat.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/world.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('public/app.js','utf8'),sandbox);
 const originalCommand=vm.runInContext('command',sandbox);
 const python=process.env.PYTHON || 'python';
-const fixture=JSON.parse(execFileSync(python,['-c',"import json;from server.game import new_world,POIS,ITEMS,RECIPES;from server.worldmap import WORLD_MAP;print(json.dumps({'world':new_world(),'pois':POIS,'items':ITEMS,'map':WORLD_MAP,'recipes':RECIPES}))"],{encoding:'utf8'}));
+const fixture=JSON.parse(execFileSync(python,['-c',"import json;from server.game import new_world,POIS,ITEMS,RECIPES,COMBAT;from server.worldmap import WORLD_MAP;print(json.dumps({'world':new_world(),'pois':POIS,'items':ITEMS,'map':WORLD_MAP,'recipes':RECIPES,'combat':COMBAT}))"],{encoding:'utf8'}));
 sandbox.fixture=fixture;
 vm.runInContext('state=fixture;connected=true;state.world.player.chosen=true;command=(action,fields={})=>{if(action===\'move\'){const p=state.world.player,m=state.map.movement,s=m.step*(p.mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1),n=Math.hypot(fields.dx,fields.dy);p.x+=fields.dx/n*s;p.y+=fields.dy/n*s;}else globalThis.lastAction={action,...fields};};update();',sandbox);
 for(const mounted of [false,true])for(const destination of [[1,1],[20,20],[1,20],[20,1],[6.2,7.1],[8,4],[62,62],[1,62],[62,1],[43,15],[9,51],[55,52]]){

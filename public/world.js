@@ -4,6 +4,7 @@ class WorldView {
   this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.minimap=minimap;this.art=new FieldArt(this.ctx);
   this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;
  }
+ playCombat(before,after,kind){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0);}
  predictMove(state,{dx,dy}){
   const p=state.world.player,m=state.map.movement;
   const mounted=p.mounted&&!(p.species==='vampire'&&p.blood<=5);
@@ -56,9 +57,16 @@ class WorldView {
   this.camera.y+=(this.player.y-this.camera.y)*(1-Math.exp(-16*dt));
   const scale=this.zoom*(width<600?.85:1),tw=34*scale,th=17*scale;
   this.projection={scale,tw,th,width,height,ox:width/2-(this.camera.x-this.camera.y)*tw,oy:height*.52-(this.camera.x+this.camera.y)*th};
+  if(this.combat&&!this.combat.active(now))this.combat=null;
   const art=this.art;art.sky(width,height,now);
   this.canvas.dataset.art=art.failed.length?'fallback':art.loaded===Object.keys(FIELD_SPRITES).length?'ready':'loading';
   const project=(x,y,z=0)=>this.project(x,y,z);
+  const paintPlayer=(sx,sy)=>{
+   const normal=art.pose('player',this.player.x,this.player.y,now,w.paused),pose=this.combat?this.combat.pose(normal,now):normal;
+   const body=this.combat?.body(now)||{x:0,y:0,tilt:0};
+   c.save();c.translate(sx+body.x*scale,sy+body.y*scale);c.rotate(body.tilt);
+   art.character(0,0,scale,p.species,moving&&!w.paused,now,{mounted:p.mounted,tier:p.unlocks[p.species],pose});c.restore();
+  };
   const poly=(points,color)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle=color;c.fill();};
   const tile=(x,y,color)=>{const [sx,sy]=project(x,y);poly([[sx,sy-th],[sx+tw+.6,sy],[sx,sy+th+.5],[sx-tw-.6,sy]],color);};
   const ellipse=(x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx*scale,ry*scale,0,0,Math.PI*2);c.fill();};
@@ -148,17 +156,17 @@ class WorldView {
    }
    if(e.type==='player'){
     c.strokeStyle=p.species==='vampire'?'#ca8d9d':'#c4bd9d';c.lineWidth=1.2;c.beginPath();c.ellipse(sx,sy+2*scale,14*scale,7*scale,0,0,Math.PI*2);c.stroke();
-    art.character(sx,sy,scale,p.species,moving&&!w.paused,now,{mounted:p.mounted,tier:p.unlocks[p.species],pose:art.pose('player',e.x,e.y,now,w.paused)});
-    if(now<(effects.attackUntil||0)){c.strokeStyle='#ffe3a3';c.lineWidth=4*scale;c.beginPath();c.arc(sx,sy-18*scale,38*scale,-1.2,1.1);c.stroke();}
+    paintPlayer(sx,sy);
    }
   }
   c.globalAlpha=1;
   if(playerCovered){
    const [px,py]=project(this.player.x,this.player.y);
    c.save();c.shadowColor='#c6c0a5';c.shadowBlur=4*scale;
-   art.character(px,py,scale,p.species,moving&&!w.paused,now,{mounted:p.mounted,tier:p.unlocks[p.species],pose:art.pose('player',this.player.x,this.player.y,now,w.paused)});c.restore();
+   paintPlayer(px,py);c.restore();
   }
   for(const args of labels)label(...args);
+  this.combat?.draw(c,project,scale,now);
   art.atmosphere(width,height,now);
   if(now<(effects.hurtUntil||0)){c.fillStyle='#9e294b2b';c.fillRect(0,0,width,height);}
   if(!this.lastMinimap||now-this.lastMinimap>=100){this.drawMinimap(state,target);this.lastMinimap=now;}
