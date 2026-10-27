@@ -833,34 +833,119 @@ footer{color:#9a8587}
  #welcome .welcome-foot{display:none !important}
 }
 
-/* --- Top-Right Zoom Tools (확대 축소 우상단, 아지트로는 제거) --- */
+/* --- Top-Right Zoom Tools & Minimap (완전 비겹침 일체형 배치, 100% 축소) --- */
 .map-tools{
  position:absolute !important;
- top:18px !important;
- right:18px !important;
+ top:14px !important;
+ right:14px !important;
  bottom:auto !important;
  left:auto !important;
+ width:154px !important;
+ height:24px !important;
+ padding:2px 6px !important;
+ background:#111722f5 !important;
+ border:1.5px solid #5a4832aa !important;
+ border-radius:5px !important;
+ box-shadow:0 4px 14px rgba(0,0,0,0.6) !important;
  z-index:5 !important;
  display:flex !important;
  align-items:center !important;
- gap:4px !important;
- background:#121822f5 !important;
- border:1.5px solid #5a4832aa !important;
- border-radius:6px !important;
- padding:4px 8px !important;
- box-shadow:0 6px 18px rgba(0,0,0,0.6) !important;
+ justify-content:space-between !important;
+ box-sizing:border-box !important;
+}
+.map-tools button{
+ width:20px !important;
+ height:18px !important;
+ min-width:20px !important;
+ padding:0 !important;
+ margin:0 !important;
+ font-size:11px !important;
+ font-weight:800 !important;
+ line-height:1 !important;
+ display:grid !important;
+ place-items:center !important;
+ background:#1c2430 !important;
+ border:1px solid #4a3c2c88 !important;
+ border-radius:3px !important;
+ color:#ffd166 !important;
+ cursor:pointer !important;
+}
+.map-tools button:hover{
+ background:#2a3648 !important;
+ border-color:#ffd166 !important;
+ color:#fff !important;
+}
+.map-tools #zoom-level{
+ font-size:8.5px !important;
+ font-weight:700 !important;
+ color:#ffd166 !important;
+ letter-spacing:0.5px !important;
+ text-align:center !important;
 }
 .map-tools #go-home, #go-home{
  display:none !important;
 }
 #focus-view{
  position:absolute !important;
- top:18px !important;
- right:132px !important;
+ top:14px !important;
+ right:174px !important;
+ height:24px !important;
+ padding:2px 8px !important;
+ font-size:9.5px !important;
+ font-weight:700 !important;
+ background:#111722f5 !important;
+ border:1.5px solid #5a4832aa !important;
+ border-radius:5px !important;
+ color:#e2e8f0 !important;
+ box-shadow:0 4px 14px rgba(0,0,0,0.6) !important;
  z-index:5 !important;
+ display:flex !important;
+ align-items:center !important;
+ gap:4px !important;
+ white-space:nowrap !important;
+ cursor:pointer !important;
+}
+#focus-view:hover{
+ background:#2a3648 !important;
+ border-color:#ffd166 !important;
+ color:#fff !important;
 }
 .atlas{
- top:58px !important;
+ position:absolute !important;
+ top:44px !important;
+ right:14px !important;
+ width:154px !important;
+ padding:7px !important;
+ background:#111722f5 !important;
+ border:1.5px solid #5a4832aa !important;
+ border-radius:6px !important;
+ box-shadow:0 8px 24px rgba(0,0,0,0.65) !important;
+ z-index:4 !important;
+ box-sizing:border-box !important;
+}
+.atlas-heading{
+ display:flex !important;
+ justify-content:space-between !important;
+ font-size:9px !important;
+ color:#cbd5e1 !important;
+ letter-spacing:0.6px !important;
+ margin-bottom:5px !important;
+}
+.atlas-heading #coordinates{
+ color:#ffd166 !important;
+ font-weight:700 !important;
+}
+.atlas canvas{
+ width:138px !important;
+ height:138px !important;
+ display:block !important;
+ border-radius:3px !important;
+}
+.atlas-caption{
+ font-size:8px !important;
+ color:#94a3b8 !important;
+ text-align:center !important;
+ margin-top:5px !important;
 }
 
 /* --- In-game Bottom-Right Activity Feed (활동기록 인게임 우하단 배치) --- */
