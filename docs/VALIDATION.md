@@ -44,3 +44,9 @@ node tests/browser_smoke.cjs
 - `node tests/client_navigation.cjs`, `node tests/field_art.cjs`, `node tests/combat_effects.cjs`, 수정 JS 문법 및 문서 링크 검사 통과.
 - `node tests/render_performance.cjs`: 이 클라우드 Chromium에서 아지트/숲/모바일 크기 화면의 draw 중앙값 0.4–0.5ms, 프레임 중앙값 약 16.7ms. 실제 모바일 기기 성능 보장은 아닙니다.
 - 개인 저장은 로컬 백업 후 새 필드를 추가하고 재고·시설·강화·진행·쿨다운·기존 몬스터 HP/타이머의 보존과 재로딩을 확인했습니다. 개인 데이터 및 테스트 스크린샷은 커밋하지 않습니다.
+
+## 신규 접속 회귀 검증
+
+`node tests/new_adventurer_browser.cjs`에서 수정 전 신규 종족 선택 직후 동일한 `reading 'name'` 오류를 재현했습니다. 수정 후 HTTP/Socket.IO × 인간/뱀파이어 조합, 데스크톱/모바일 화면, 기본 장비 표시, 이동, `common` 장비가 담긴 기존 계정 불러오기와 재고 보존을 확인했습니다. 구버전·알 수 없는 등급 응답도 가방/HUD에서 오류 없이 표시됩니다. 임시 서버·저장·테스트 계정만 사용합니다.
+
+`python -m unittest discover -s tests -v`: 51개 통과. 기본 장비 등급, 멱등 정규화, 월드/접속 프로필 재시작과 계정 로딩 보존 회귀 포함. `node tests/client_navigation.cjs`, `node --check public/app.js`, 문서 링크 검사도 통과했습니다.

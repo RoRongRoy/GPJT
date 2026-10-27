@@ -330,10 +330,14 @@ function itemUseReason(id){
  return '';
 }
 function gearItem(id){return state?.world.gear?.find(g=>g.id===id);}
-function itemName(id){const g=gearItem(id);return g?`[${state.rarities[g.rarity].name}] ${g.name}`:state.items[id];}
+function gearRarity(g){
+ const id=g?.rarity==='common'?'normal':g?.rarity;
+ return state?.rarities?.[id]||{name:id==='normal'?'일반':'미확인',color:'#c6c9c5'};
+}
+function itemName(id){const g=gearItem(id);return g?`[${gearRarity(g).name}] ${g.name}`:state.items[id];}
 function itemIcon(id){return gearItem(id)?.slot||id;}
 function makeEquippedSlotCard(slot,mode='equip'){
- const g=gearItem(state.world.equipment?.[slot]),rarity=g?state.rarities?.[g.rarity]:null;
+ const g=gearItem(state.world.equipment?.[slot]),rarity=g?gearRarity(g):null;
  const card=document.createElement('div');card.className='equip-slot-card';
  if(rarity)card.style.borderColor=rarity.color;
  const head=document.createElement('div');head.className='equip-slot-head';
@@ -374,7 +378,7 @@ function renderEquippedViews(){
  $('survival-equipped').replaceChildren(makeEquippedSlotCard('weapon','survival'),makeEquippedSlotCard('armor','survival'));
  $('equip-gear-empty').hidden=gear.length>0;
  $('equip-gear-list').replaceChildren(...gear.map(g=>{
-  const rarity=state.rarities?.[g.rarity],equipped=w.equipment?.[g.slot]===g.id;
+  const rarity=gearRarity(g),equipped=w.equipment?.[g.slot]===g.id;
   const currentPow=gearItem(w.equipment?.[g.slot])?.power||0,diff=g.power-currentPow;
   const row=document.createElement('div');row.className='equip-gear-row';
   if(equipped&&rarity)row.style.borderColor=rarity.color;
@@ -413,11 +417,11 @@ function renderInventory(){
  }
  for(const id of ids){const {button,count}=itemSlots.get(id),g=gearItem(id),amount=state.world.inventory[id];
   count.textContent=g?(state.world.equipment[g.slot]===id?'착용':'장비'):amount;
-  button.style.color=g?state.rarities[g.rarity].color:'';button.style.borderColor=g?state.rarities[g.rarity].color:'';
+  button.style.color=g?gearRarity(g).color:'';button.style.borderColor=g?gearRarity(g).color:'';
   button.setAttribute('aria-label',g?itemName(id)+' '+count.textContent:itemName(id)+' '+amount+'개');button.setAttribute('aria-pressed',String(id===selectedItem));}
  $('equipped-summary').textContent=['weapon','armor'].map(slot=>{const g=gearItem(state.world.equipment?.[slot]);return (slot==='weapon'?'무기':'방어구')+' · '+(g?itemName(g.id):'미착용');}).join(' / ');
  $('bag-count').textContent=Object.values(state.world.inventory).filter(n=>n>0).length+'종 · 장비 '+gear.length+'개 · 용량 '+bagUsed()+'/'+bagCapacity();$('inventory-empty').hidden=ids.length>0;
- const g=gearItem(selectedItem),rarity=g?state.rarities[g.rarity]:null,equipped=g&&state.world.equipment[g.slot]===g.id;
+ const g=gearItem(selectedItem),rarity=g?gearRarity(g):null,equipped=g&&state.world.equipment[g.slot]===g.id;
  const info=g?[rarity.name+' '+(g.slot==='weapon'?'무기':'방어구'),'몬스터에게서 획득한 장비. 종족·레벨 제한 없이 착용할 수 있습니다.',(g.slot==='weapon'?'공격력 +':'받는 피해 −')+g.power+' · 현재 부위 대비 '+(g.power-(gearItem(state.world.equipment[g.slot])?.power||0)>=0?'+':'')+(g.power-(gearItem(state.world.equipment[g.slot])?.power||0))]:itemInfo[selectedItem];$('item-art').hidden=!info;if(info)$('item-art').src='/icons/'+itemIcon(selectedItem)+'.svg';
  $('item-category').textContent=info?.[0]||'';$('item-name').textContent=selectedItem?itemName(selectedItem):'비어 있는 가방';
  $('item-description').textContent=info?.[1]||'채집하거나 제작해 아이템을 획득하세요.';$('item-effect').textContent=info?.[2]||'';
@@ -531,7 +535,7 @@ function renderLootBox(){
   $('loot-subtitle').textContent=`획득할 전리품을 체크하거나 [모두 루팅 · F]를 누르세요`;
   const rows=[];
   for(const g of (drop.gear||[])){
-   const rarity=state.rarities[g.rarity],row=document.createElement('li');row.className='loot-row';
+   const rarity=gearRarity(g),row=document.createElement('li');row.className='loot-row';
    const left=document.createElement('label');left.className='loot-check';
    const cb=document.createElement('input');cb.type='checkbox';cb.checked=lootChecks.has(g.id);
    cb.onchange=()=>{if(cb.checked)lootChecks.add(g.id);else lootChecks.delete(g.id);$('loot-selected').disabled=lootChecks.size===0||isBagFull();};

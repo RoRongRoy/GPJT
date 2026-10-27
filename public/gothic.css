@@ -56,7 +56,7 @@ button:focus-visible,a:focus-visible,canvas:focus-visible{outline-color:#d8b99a}
 .intro-art{position:absolute;inset:0;z-index:2;background:#10141e;pointer-events:none}
 .intro-art img{width:100%;height:100%;display:block;object-fit:cover;object-position:50% 46%;filter:brightness(.73)}
 .intro-art::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#080d1833,transparent 40%,#0a0d1866),linear-gradient(0deg,#0b101be6,transparent 65%)}
-.canvas-wrap:has(#welcome:not([hidden])) .field-top,.canvas-wrap:has(#welcome:not([hidden])) .field-vitals,.canvas-wrap:has(#welcome:not([hidden])) .atlas,.canvas-wrap:has(#welcome:not([hidden])) .map-tools,.canvas-wrap:has(#welcome:not([hidden])) .touch-pad{visibility:hidden}
+.canvas-wrap:has(#welcome:not([hidden])) .field-top,.canvas-wrap:has(#welcome:not([hidden])) .field-vitals,.canvas-wrap:has(#welcome:not([hidden])) .atlas,.canvas-wrap:has(#welcome:not([hidden])) .map-tools,.canvas-wrap:has(#welcome:not([hidden])) .touch-pad,.canvas-wrap:has(#welcome:not([hidden])) #interaction,.canvas-wrap:has(#welcome:not([hidden])) .skill-bar{visibility:hidden}
 #welcome{width:610px;max-width:93%;max-height:calc(100% - 26px);overflow:auto;padding:25px 28px 20px;background:linear-gradient(145deg,#151821c9,#17141fe8);border:1px solid #b6946d88;border-radius:3px;box-shadow:0 0 0 4px #0b101633,0 25px 80px #0009;backdrop-filter:blur(7px);scrollbar-width:thin;scrollbar-color:#755665 transparent}
 #welcome>.eyebrow{font-size:8px;letter-spacing:3px;color:#c4a98f}.welcome-mark{font:40px Georgia,'Times New Roman',serif;color:#e1c6a3;letter-spacing:7px;margin:9px 0;text-shadow:0 2px 18px #b0525c33}
 .welcome-mark::after{width:120px;margin:10px auto;background:linear-gradient(90deg,transparent,#ad7d70,transparent)}

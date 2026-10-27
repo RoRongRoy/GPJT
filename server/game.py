@@ -37,11 +37,16 @@ def ensure_starter_gear(w):
     equip = w.setdefault('equipment', {'weapon': None, 'armor': None})
     species = w['player'].get('species', 'human')
     changed = False
+    # Earlier starter sets used 'common'; the shared rarity catalog uses 'normal'.
+    for item in gear:
+        if item.get('rarity') == 'common':
+            item['rarity'] = 'normal'
+            changed = True
     if not any(g.get('slot') == 'weapon' for g in gear):
         wep = {
             'id': 'gear:starter-weapon',
             'slot': 'weapon',
-            'rarity': 'common',
+            'rarity': 'normal',
             'tier': 0,
             'power': 1,
             'name': '녹슨 기본 단검' if species == 'human' else '무딘 혈족 손톱',
@@ -54,7 +59,7 @@ def ensure_starter_gear(w):
         arm = {
             'id': 'gear:starter-armor',
             'slot': 'armor',
-            'rarity': 'common',
+            'rarity': 'normal',
             'tier': 0,
             'power': 1,
             'name': '해진 기본 조끼' if species == 'human' else '빛바랜 밤의 외투',
