@@ -5,7 +5,7 @@ let draws=[];const images=[];
 class Image {constructor(){images.push(this);this.complete=false;this.naturalWidth=0;} }
 const ctx=new Proxy({}, {get:(_,key)=>key==='drawImage'?(...args)=>draws.push(args):()=>{}});
 const sandbox={Image,ctx};vm.createContext(sandbox);
-for(const file of ['gothic','sprite-manifest','sprites'])vm.runInContext(fs.readFileSync(`public/${file}.js`,'utf8'),sandbox);
+for(const file of ['gothic','sprite-manifest','hero','sprites'])vm.runInContext(fs.readFileSync(`public/${file}.js`,'utf8'),sandbox);
 const {art,manifest}=vm.runInContext('({art:new FieldArt(ctx),manifest:FIELD_SPRITES})',sandbox);
 assert.equal(images.length,13);
 assert.equal(art.sprite('human',0,0,87),false);
@@ -22,7 +22,7 @@ for(const [x,y,row] of [[1,0,0],[0,1,1],[-1,0,2],[0,-1,3]]){
 art.pose('idle',0,0,0);art.pose('idle',1,0,300);
 assert.equal(art.pose('idle',1,0,800).frame,0,'Idle must stop walking');
 assert.equal(art.pose('idle',2,0,900,true).frame,0,'Pause must stop walking');
-art.character(100,200,1,'vampire',true,300,{pose:{row:3,frame:2}});
+art.character(100,200,1,'vampire',true,300,{npc:true,pose:{row:3,frame:2}});
 assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest.vampire.frames[14]).slice(0,4));
 art.images.pine.complete=false;art.images.pine.naturalWidth=0;art.images.pine.onerror();
 assert.deepEqual(Array.from(art.failed),['pine']);assert.equal(art.sprite('pine',0,0,200),false);
@@ -42,5 +42,12 @@ assert.ok(art.rasters.get('refuge:0').height<=640);
 console.log('Runtime sprite cache passed: repeated zooms reuse one bounded raster.');
 
 sandbox.document=undefined;art.rasters.clear();
-for(const [sp,g,k] of [['human','male','human-male'],['human','female','human'],['vampire','male','vampire'],['vampire','female','vampire-female']]){draws=[];art.character(100,200,1,sp,true,300,{pose:{row:0,frame:1},gender:g});assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest[k].frames[1]).slice(0,4),sp+' '+g+' must use its own sheet');}
+// Players use the articulated hero renderer: no sprite sheet blits, and the legs really move with the gait phase.
+for(const [sp,g,job] of [['human','male','warrior'],['human','female','ranged'],['vampire','male','warrior'],['vampire','female','ranged']])for(const row of [0,1,2,3]){
+  draws=[];assert.doesNotThrow(()=>art.character(100,200,1,sp,true,300,{gender:g,job,sprint:row%2===0,pose:{row,frame:0,phase:1.3,amp:1}}));
+  assert.equal(draws.length,0,'players must not be blitted from a picture sheet');
+}
+const feet=(phase)=>{const pts=[];const c2=new Proxy({}, {get:(_,k)=>k==='ellipse'?()=>{}:k==='moveTo'||k==='lineTo'?(x,y)=>pts.push([Math.round(x*10),Math.round(y*10)]):()=>{}, set:()=>true});const a2=vm.runInContext('(c)=>new FieldArt(c)',sandbox)(c2);a2.character(0,0,1,'human',true,0,{gender:'male',job:'warrior',pose:{row:0,frame:0,phase,amp:1}});return JSON.stringify(pts);};
+assert.notEqual(feet(0),feet(Math.PI/2),'limb positions must change through the walk cycle');
+assert.equal(art.actorKey('human',{gender:'male'}),'human-male');assert.equal(art.actorKey('vampire',{gender:'female'}),'vampire-female');
 console.log('Gender sprite sheets passed.');

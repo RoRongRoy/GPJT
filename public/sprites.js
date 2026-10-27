@@ -68,20 +68,24 @@ class FieldArt extends GothicArt {
  facility(x,y,scale,id){if(!this.prop(id,x,y,scale))super.facility(x,y,scale,id);}
  // Walk cycle advances with distance travelled (feet never slide) and direction is smoothed, so diagonal jitter cannot flip the facing.
  pose(id,x,y,now,paused=false,sprint=false){
-  let a=this.actors.get(id);if(!a){a={x,y,row:0,until:0,dist:0,vx:0,vy:0};this.actors.set(id,a);}
+  let a=this.actors.get(id);if(!a){a={x,y,row:0,until:0,dist:0,vx:0,vy:0,phase:0,amp:0};this.actors.set(id,a);}
   const dx=x-a.x,dy=y-a.y,step=Math.hypot(dx,dy);
   if(step>.0003){
    a.vx=a.vx*.5+dx*.5;a.vy=a.vy*.5+dy*.5;if(Math.hypot(a.vx,a.vy)<1e-9){a.vx=dx;a.vy=dy;}
    const right=a.vx-a.vy>=0,front=a.vx+a.vy>=0;
    a.row=front?(right?0:1):(right?3:2);a.until=now+260;
-   if(!paused)a.dist+=Math.min(step,1.5);
+   if(!paused){a.dist+=Math.min(step,1.5);a.phase+=Math.min(step,1.5)/(sprint?4.2:3)*Math.PI*2;}
   }
-  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(a.dist/(sprint?.9:.85))%4:0};
+  a.x=x;a.y=y;const moving=!paused&&now<a.until;a.amp+=((moving?1:0)-a.amp)*(moving?.28:.16);if(a.amp<.01)a.amp=0;
+  if(!moving)return {row:a.row,frame:0,blend:0,phase:a.phase,amp:a.amp};
+  // Continuous cycle phase: the next painted frame is cross-faded in so motion is fluid instead of stepping.
+  const phase=a.dist/(sprint?.9:.85);return {row:a.row,frame:Math.floor(phase)%4,blend:phase-Math.floor(phase),phase:a.phase,amp:a.amp};
  }
  // Base sheets: human = female, vampire = male. The opposite gender uses its own sheet.
  actorKey(species,options){const g=options.gender;if(options.npc||!g)return species;const female=g==='female';return species==='human'?(female?'human':'human-male'):(female?'vampire-female':'vampire');}
  character(x,y,scale,species,moving,now,options={}){
   if(options.mounted)return super.character(x,y,scale,species,moving,now,options);
+  if(!options.enemy&&!options.npc&&typeof HeroArt!=='undefined'){this.shadow(x,y,15,scale);HeroArt.draw(this,x,y,scale,species,now,options);return;}
   const key=options.enemy?(options.variant?'brute':'ghoul'):this.actorKey(species,options);
   const pose=options.pose||{row:0,frame:0};
   // Human/ghoul sheets repeat the back-right view: mirror it for back-left.
@@ -90,6 +94,7 @@ class FieldArt extends GothicArt {
   const row=repeated?2:pose.row,h=(key==='brute'?89:key==='ghoul'?78:87)*scale;
   this.shadow(x,y,options.enemy?18:15,scale);
   if(!this.sprite(key,x,y,h,row*4+pose.frame,mirror))return super.character(x,y,scale,species,moving,now,options);
+   if(pose.blend>.04&&!options.enemy){const c=this.c;c.save();c.globalAlpha=Math.min(1,pose.blend);this.sprite(key,x,y,h,row*4+(pose.frame+1)%4,mirror);c.restore();}
   if(!options.enemy&&!options.npc){
    const dir=(pose.row===0||pose.row===3)?1:-1,vamp=species==='vampire',ranged=options.job==='ranged',female=options.gender==='female';
    this.frame(x,y,scale,()=>{

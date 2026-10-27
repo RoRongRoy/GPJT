@@ -90,7 +90,7 @@ class HttpTests(unittest.TestCase):
                 status, body = self.request('/art/gameplay/'+name+'.png')
                 self.assertEqual(status, 200)
                 self.assertTrue(body.startswith(b'\x89PNG\r\n\x1a\n'))
-        for name in ('sprite-manifest', 'sprites'):
+        for name in ('sprite-manifest', 'hero', 'sprites'):
             self.assertEqual(self.request('/'+name+'.js')[0], 200)
         self.assertEqual(self.request('/art/gameplay/unknown.png')[0], 404)
         self.assertEqual(self.request('/gothic.js')[0], 200)
