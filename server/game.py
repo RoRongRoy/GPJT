@@ -384,12 +384,10 @@ def act(w, command, rng=random.random):
             w['milestones'].append(milestone)
 
 
-def tick(w, dt):
-    if w['paused'] or not w['player']['chosen']:
+def _tick_actor(w, prof, dt):
+    p = prof['player']
+    if not p.get('chosen'):
         return
-    dt = min(1.0, max(0.0, dt))
-    w['elapsed'] += dt
-    p = w['player']
     keys = ('food', 'water') if p['species'] == 'human' else ('blood', 'stability')
     for key in keys:
         p[key] = max(0, p[key] - dt * .035)
@@ -397,11 +395,28 @@ def tick(w, dt):
         p['hp'] = max(1, p['hp'] - dt * .2)
     if p['infection'] > 0:
         p['infection'] = min(100, p['infection'] + dt * .025)
-    if w['dispatch'] and w['elapsed'] >= w['dispatch']['ends']:
+    if prof.get('dispatch') and w['elapsed'] >= prof['dispatch']['ends']:
         for key, value in {'wood': 5, 'metal': 3, 'scroll': 5, 'blood': 3, 'crop': 3}.items():
-            w['inventory'][key] += value
-        w['dispatch'] = None
+            prof['inventory'][key] += value
+        prof['dispatch'] = None
         note(w, '파견 복귀 · 자원을 창고에 보관했습니다.')
+
+
+def _profile_armor(prof):
+    item_id = prof.get('equipment', {}).get('armor')
+    item = next((g for g in prof.get('gear', []) if g['id'] == item_id), None)
+    return item['power'] if item else 0
+
+
+def tick(w, dt, extra_profiles=None):
+    all_profiles = [w, *(extra_profiles or [])]
+    chosen_profiles = [prof for prof in all_profiles if prof['player'].get('chosen')]
+    if w['paused'] or not chosen_profiles:
+        return
+    dt = min(1.0, max(0.0, dt))
+    w['elapsed'] += dt
+    for prof in chosen_profiles:
+        _tick_actor(w, prof, dt)
     for index, npc in enumerate(w['npcs']):
         patrol(npc, {'x': npc['home_x'], 'y': npc['home_y']}, w['elapsed'], index+3, 1.8, dt)
     for e in w['enemies']:
@@ -410,6 +425,8 @@ def tick(w, dt):
             if w['elapsed'] >= e['respawn']:
                 e.update(hp=e['max_hp'], x=home['x'], y=home['y'], returning=False)
             continue
+        target_prof = min(chosen_profiles, key=lambda prof: dist(e, prof['player']))
+        p = target_prof['player']
         d = dist(e, p)
         protected = dist(p, w['base']) <= BASE_USE_RADIUS
         if dist(e, home) > 10:
@@ -429,12 +446,15 @@ def tick(w, dt):
             move_toward(e, p, dt*.8)
         if d <= 1.3 and w['elapsed'] >= e['attack']:
             e['attack'] = w['elapsed'] + 2.5
-            p['hp'] = max(0, p['hp'] - max(1, e['damage'] - equipment_power(w, 'armor') - (p.get('combat_level', 1) - 1) // 2))
+            armor = _profile_armor(target_prof)
+            p['hp'] = max(0, p['hp'] - max(1, e['damage'] - armor - (p.get('combat_level', 1) - 1) // 2))
             p['infection'] = min(100, p['infection'] + 5)
             note(w, f"{e['name']} Lv.{e['level']}의 공격 · 치료제를 준비하세요.")
-    if p['hp'] <= 0 or p['infection'] >= 100:
-        p.update(x=float(w['base']['x']), y=float(w['base']['y']+1), hp=65., infection=0., mounted=False)
-        note(w, '감염/전투 불능 · 치료소에서 복구 (감염체 시체는 후속 구현)')
+    for prof in chosen_profiles:
+        p = prof['player']
+        if p['hp'] <= 0 or p['infection'] >= 100:
+            p.update(x=float(w['base']['x']), y=float(w['base']['y']+1), hp=65., infection=0., mounted=False)
+            note(w, '감염/전투 불능 · 치료소에서 복구 (감염체 시체는 후속 구현)')
 
 
 def move_toward(actor, target, step):

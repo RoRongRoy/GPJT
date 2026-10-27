@@ -1,4 +1,4 @@
-"""Private single-player development server. See docs/DEPLOYMENT.md before exposing it."""
+"""Server-authoritative multiplayer development server with Socket.IO support."""
 import argparse
 import copy
 import json
@@ -10,33 +10,148 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
-from .game import act, tick, RuleError, POIS, ITEMS, RECIPES, COMBAT, live_pois, RARITIES
+from .game import act, tick, new_world, RuleError, POIS, ITEMS, RECIPES, COMBAT, live_pois, RARITIES
+from .socketio_server import SocketIOHub
 from .storage import Store
 from .worldmap import WORLD_MAP
 
 ROOT = Path(__file__).resolve().parent.parent
+PROFILE_KEYS = ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch')
 
 
 class Runtime:
     def __init__(self, path):
         self.store = Store(path)
         self.world = self.store.load()
+        self.peers = self.store.load_peers()
         self.lock = threading.Lock()
         self.session = None
         self.last_seen = 0
         self.last_command = 0
+        self.sessions = {}
+        self.next_player_index = 1
+
+    def _new_peer_profile(self, index):
+        fresh = new_world()
+        offsets = [(0, 1), (1, 1), (-1, 1), (1, 0), (-1, 0), (0, 2), (2, 1), (-2, 1)]
+        ox, oy = offsets[(index - 1) % len(offsets)]
+        fresh['player']['x'] = float(self.world['base']['x'] + ox)
+        fresh['player']['y'] = float(self.world['base']['y'] + oy)
+        return {k: copy.deepcopy(fresh[k]) for k in PROFILE_KEYS}
 
     def authorize(self, token):
         now = time.monotonic()
-        if self.session != token and now - self.last_seen < 4:
-            raise RuleError('다른 브라우저가 플레이 중입니다. 이 프로토타입은 1인 전용입니다.')
-        self.session, self.last_seen = token, now
+        if self.session is None:
+            self.session = token
+        if token not in self.sessions:
+            idx = self.next_player_index
+            self.next_player_index += 1
+            self.sessions[token] = {'last_seen': now, 'last_command': 0.0, 'index': idx}
+        else:
+            self.sessions[token]['last_seen'] = now
+        if token != self.session and token not in self.peers:
+            profile = self._new_peer_profile(self.sessions[token]['index'])
+            self.peers[token] = profile
+            self.store.save_peer(token, profile)
+        self.last_seen = now
 
-    def snapshot(self):
-        return {'world': self.world, 'pois': live_pois(self.world), 'items': ITEMS, 'map': WORLD_MAP, 'recipes': RECIPES, 'combat': COMBAT, 'rarities': RARITIES}
+    def _profile_for(self, token):
+        if not token or token == self.session:
+            return self.world
+        return self.peers.get(token, self.world)
+
+    def active_peer_profiles(self):
+        now = time.monotonic()
+        return [
+            self.peers[tok]
+            for tok, info in self.sessions.items()
+            if tok != self.session and tok in self.peers and now - info['last_seen'] < 30
+        ]
+
+    def execute_action(self, token, command, expected_revision=None):
+        with self.lock:
+            try:
+                self.authorize(token)
+                now = time.monotonic()
+                sess_info = self.sessions[token]
+                last_cmd = self.last_command if token == self.session else sess_info['last_command']
+                if last_cmd > 0 and now - last_cmd < .06:
+                    return 429, {'error': '입력이 너무 빠릅니다.'}
+                if expected_revision is not None and expected_revision != self.world['revision']:
+                    return 409, {'error': '상태가 변경됐습니다. 새 상태에서 다시 시도하세요.'}
+                candidate = copy.deepcopy(self.world)
+                is_peer = (token != self.session)
+                if is_peer:
+                    peer_prof = copy.deepcopy(self.peers[token])
+                    for k in PROFILE_KEYS:
+                        candidate[k] = peer_prof[k]
+                act(candidate, command)
+                candidate['revision'] += 1
+                if is_peer:
+                    updated_peer = {k: candidate[k] for k in PROFILE_KEYS}
+                    for k in PROFILE_KEYS:
+                        candidate[k] = self.world[k]
+                    self.store.save(candidate)
+                    self.store.save_peer(token, updated_peer)
+                    self.world = candidate
+                    self.peers[token] = updated_peer
+                else:
+                    self.store.save(candidate)
+                    self.world = candidate
+                    self.last_command = now
+                sess_info['last_command'] = now
+                return 200, self.snapshot(token)
+            except RuleError as e:
+                return 400, {'error': str(e)}
+
+    def snapshot(self, token=None):
+        now = time.monotonic()
+        active_token = token or self.session
+        if active_token and active_token != self.session and active_token in self.peers:
+            world_view = dict(self.world)
+            for k in PROFILE_KEYS:
+                world_view[k] = self.peers[active_token][k]
+        else:
+            world_view = self.world
+        others = []
+        online_count = 0
+        for tok, info in self.sessions.items():
+            if now - info['last_seen'] >= 30:
+                continue
+            online_count += 1
+            if tok == active_token:
+                continue
+            prof = self._profile_for(tok)
+            p = prof['player']
+            others.append({
+                'id': tok[:8],
+                'name': f"생존자 #{info['index']}",
+                'x': p['x'],
+                'y': p['y'],
+                'species': p['species'],
+                'chosen': p['chosen'],
+                'hp': p['hp'],
+                'combat_level': p.get('combat_level', 1),
+                'mounted': p.get('mounted', False),
+                'unlocks': p.get('unlocks', {'human': 0, 'vampire': 0}),
+            })
+        return {
+            'world': world_view,
+            'others': others,
+            'online_count': max(1, online_count),
+            'pois': live_pois(self.world),
+            'items': ITEMS,
+            'map': WORLD_MAP,
+            'recipes': RECIPES,
+            'combat': COMBAT,
+            'rarities': RARITIES,
+        }
 
 
-def make_handler(runtime, access_key):
+def make_handler(runtime, access_key, sio=None):
+    hub = sio or SocketIOHub(runtime, access_key)
+    runtime.sio = hub
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass  # Never log access credentials or action bodies.
@@ -49,7 +164,7 @@ def make_handler(runtime, access_key):
             self.send_header('Cache-Control', 'no-store')
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Referrer-Policy', 'no-referrer')
-            self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'")
+            self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; frame-ancestors 'none'")
             self.end_headers()
             self.wfile.write(body)
 
@@ -66,26 +181,36 @@ def make_handler(runtime, access_key):
 
         def do_GET(self):
             path = urlparse(self.path).path
+            if path in ('/socket.io/socket.io.js', '/socket.io.js'):
+                self.send(200, (ROOT/'public'/'socket.io.js').read_bytes(), 'text/javascript; charset=utf-8')
+                return
+            if path.startswith('/socket.io/'):
+                if self.headers.get('Upgrade', '').lower() == 'websocket':
+                    hub.handle_websocket(self)
+                else:
+                    hub.handle_http_polling(self, 'GET')
+                return
             if path == '/api/state':
                 if not self.allowed():
                     return
+                session_id = self.headers['X-Session-ID']
                 with runtime.lock:
                     try:
-                        runtime.authorize(self.headers['X-Session-ID'])
-                        self.send(200, runtime.snapshot())
+                        runtime.authorize(session_id)
+                        self.send(200, runtime.snapshot(session_id))
                     except RuleError as e:
                         self.send(409, {'error': str(e)})
                 return
-            files = {'/': ('index.html','text/html; charset=utf-8'),
-                     '/app.js': ('app.js','text/javascript; charset=utf-8'),
-                     '/world.js': ('world.js','text/javascript; charset=utf-8'),
-                     '/gothic.js': ('gothic.js','text/javascript; charset=utf-8'),
-                     '/gothic.css': ('gothic.css','text/css; charset=utf-8'),
-                     '/art/nightfall-city.png': ('art/nightfall-city.png','image/png'),
-                     '/art/human-warden.png': ('art/human-warden.png','image/png'),
-                     '/art/vampire-scholar.png': ('art/vampire-scholar.png','image/png'),
-                     '/style.css': ('style.css','text/css; charset=utf-8')}
-            for name in ('sprite-manifest', 'sprites', 'combat'):
+            files = {'/': ('index.html', 'text/html; charset=utf-8'),
+                     '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
+                     '/world.js': ('world.js', 'text/javascript; charset=utf-8'),
+                     '/gothic.js': ('gothic.js', 'text/javascript; charset=utf-8'),
+                     '/gothic.css': ('gothic.css', 'text/css; charset=utf-8'),
+                     '/art/nightfall-city.png': ('art/nightfall-city.png', 'image/png'),
+                     '/art/human-warden.png': ('art/human-warden.png', 'image/png'),
+                     '/art/vampire-scholar.png': ('art/vampire-scholar.png', 'image/png'),
+                     '/style.css': ('style.css', 'text/css; charset=utf-8')}
+            for name in ('sprite-manifest', 'sprites', 'combat', 'socket.io'):
                 files['/'+name+'.js'] = (name+'.js', 'text/javascript; charset=utf-8')
             for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'vampire', 'ghoul', 'brute', 'props', 'earth', 'stone'):
                 files['/art/gameplay/'+name+'.png'] = ('art/gameplay/'+name+'.png', 'image/png')
@@ -98,7 +223,11 @@ def make_handler(runtime, access_key):
             self.send(200, (ROOT/'public'/name).read_bytes(), mime)
 
         def do_POST(self):
-            if urlparse(self.path).path != '/api/action':
+            path = urlparse(self.path).path
+            if path.startswith('/socket.io/'):
+                hub.handle_http_polling(self, 'POST')
+                return
+            if path != '/api/action':
                 self.send(404, {'error': 'Not found'})
                 return
             if not self.allowed():
@@ -113,24 +242,15 @@ def make_handler(runtime, access_key):
             except (ValueError, UnicodeError):
                 self.send(400, {'error': '잘못된 요청'})
                 return
-            with runtime.lock:
-                try:
-                    runtime.authorize(self.headers['X-Session-ID'])
-                    if time.monotonic() - runtime.last_command < .06:
-                        self.send(429, {'error': '입력이 너무 빠릅니다.'})
-                        return
-                    if body.get('revision') != runtime.world['revision']:
-                        self.send(409, {'error': '상태가 변경됐습니다. 새 상태에서 다시 시도하세요.'})
-                        return
-                    candidate = copy.deepcopy(runtime.world)
-                    act(candidate, body['command'])
-                    candidate['revision'] += 1
-                    runtime.store.save(candidate)
-                    runtime.world = candidate
-                    runtime.last_command = time.monotonic()
-                    self.send(200, runtime.snapshot())
-                except RuleError as e:
-                    self.send(400, {'error': str(e)})
+            session_id = self.headers['X-Session-ID']
+            status, payload = runtime.execute_action(
+                session_id,
+                body['command'],
+                expected_revision=body.get('revision'),
+            )
+            self.send(status, payload)
+            if status == 200:
+                hub.broadcast_state()
     return Handler
 
 
@@ -157,26 +277,38 @@ def main():
     if len(key) < 24:
         raise SystemExit('BLOODFALL_ACCESS_KEY must contain at least 24 characters.')
     runtime = Runtime(args.data)
-    httpd = ThreadingHTTPServer((args.host, args.port), make_handler(runtime, key))
+    hub = SocketIOHub(runtime, key)
+    httpd = ThreadingHTTPServer((args.host, args.port), make_handler(runtime, key, hub))
     httpd.daemon_threads = True
     stop = threading.Event()
 
     def loop():
         previous = time.monotonic()
         saved = previous
+        last_broadcast = previous
         while not stop.wait(.1):
             now = time.monotonic()
+            should_broadcast = False
             with runtime.lock:
-                if now - runtime.last_seen < 1.2:
-                    tick(runtime.world, now - previous)
+                active_sio = hub.active_sessions()
+                for sid_tok in active_sio:
+                    runtime.authorize(sid_tok)
+                if now - runtime.last_seen < 2.5 or active_sio:
+                    tick(runtime.world, now - previous, extra_profiles=runtime.active_peer_profiles())
+                    should_broadcast = bool(active_sio) and (now - last_broadcast >= .2)
                 if now - saved >= 2:
                     runtime.store.save(runtime.world)
+                    for peer_tok, peer_prof in runtime.peers.items():
+                        runtime.store.save_peer(peer_tok, peer_prof)
                     saved = now
+            if should_broadcast:
+                hub.broadcast_state()
+                last_broadcast = now
             previous = now
     worker = threading.Thread(target=loop, daemon=True)
     worker.start()
-    print(f'BLOODFALL prototype — http://127.0.0.1:{args.port}/#key={key}', flush=True)
-    print('Private single-player prototype. Ctrl+C saves and stops. Do not publish this key.', flush=True)
+    print(f'BLOODFALL multiplayer — http://127.0.0.1:{args.port}/#key={key}', flush=True)
+    print('Socket.IO server-authoritative multiplayer active. Ctrl+C saves and stops.', flush=True)
     if args.open_browser:
         webbrowser.open(f'http://127.0.0.1:{args.port}/#key={key}')
     try:
@@ -189,6 +321,8 @@ def main():
         worker.join()
         with runtime.lock:
             runtime.store.save(runtime.world)
+            for peer_tok, peer_prof in runtime.peers.items():
+                runtime.store.save_peer(peer_tok, peer_prof)
             runtime.store.close()
 
 

@@ -13,6 +13,7 @@ class Store:
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA synchronous=FULL')
         self.db.execute('CREATE TABLE IF NOT EXISTS world (id INTEGER PRIMARY KEY, value TEXT NOT NULL)')
+        self.db.execute('CREATE TABLE IF NOT EXISTS peers (session TEXT PRIMARY KEY, value TEXT NOT NULL)')
         self.db.commit()
 
     def load(self):
@@ -53,6 +54,15 @@ class Store:
         with self.db:
             self.db.execute('INSERT INTO world VALUES(1,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value',
                             (json.dumps(world, ensure_ascii=False),))
+
+    def load_peers(self):
+        rows = self.db.execute('SELECT session, value FROM peers').fetchall()
+        return {session: json.loads(val) for session, val in rows}
+
+    def save_peer(self, session, profile):
+        with self.db:
+            self.db.execute('INSERT INTO peers VALUES(?,?) ON CONFLICT(session) DO UPDATE SET value=excluded.value',
+                            (session, json.dumps(profile, ensure_ascii=False)))
 
     def close(self):
         self.db.close()

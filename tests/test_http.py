@@ -36,13 +36,48 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request('/api/state', key='wrong')[0], 401)
         self.assertEqual(self.request('/')[0], 200)
         self.assertEqual(self.request('/world.js')[0], 200)
+        self.assertEqual(self.request('/socket.io/socket.io.js')[0], 200)
         self.assertEqual(self.request('/../data/access.key')[0], 404)
         status, body = self.request('/api/state')
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(body)['map']['size'], 128)
         self.assertEqual(json.loads(body)['map']['base_radius'], 7)
         self.assertEqual(json.loads(body)['recipes']['soup']['facility'], 'kitchen')
-        self.assertEqual(self.request('/api/state', session='second-test-session')[0], 409)
+        status2, body2 = self.request('/api/state', session='second-test-session')
+        self.assertEqual(status2, 200)
+        data2 = json.loads(body2)
+        self.assertEqual(data2['online_count'], 2)
+        self.assertEqual(len(data2['others']), 1)
+
+    def test_socketio_multiplayer_handshake_and_server_managed_actions(self):
+        # Connect Player 1 and Player 2 via Socket.IO (Engine.IO v4 polling transport)
+        s1_status, s1_raw = self.request('/socket.io/?EIO=4&transport=polling', session='player-one-session')
+        self.assertEqual(s1_status, 200)
+        s1_packets = s1_raw.decode('utf-8').split('\x1e')
+        self.assertTrue(s1_packets[0].startswith('0{'))
+        sid1 = json.loads(s1_packets[0][1:])['sid']
+
+        s2_status, s2_raw = self.request('/socket.io/?EIO=4&transport=polling', session='player-two-session')
+        self.assertEqual(s2_status, 200)
+        sid2 = json.loads(s2_raw.decode('utf-8').split('\x1e')[0][1:])['sid']
+
+        # Send Socket.IO action event from Player 2 to choose vampire
+        sio_packet = '421' + json.dumps(['action', {'command': {'action': 'choose', 'species': 'vampire'}}])
+        post_req = urllib.request.Request(
+            f'{self.url}/socket.io/?EIO=4&transport=polling&sid={sid2}',
+            data=sio_packet.encode('utf-8'),
+            headers={'X-Access-Key': self.key, 'X-Session-ID': 'player-two-session', 'Content-Type': 'text/plain;charset=UTF-8'},
+        )
+        with urllib.request.urlopen(post_req) as r:
+            self.assertEqual(r.status, 200)
+
+        # Poll Player 2 ack and verify server-managed species is vampire while Player 1 remains unchosen human
+        _, poll2_raw = self.request(f'/socket.io/?EIO=4&transport=polling&sid={sid2}', session='player-two-session')
+        self.assertIn('vampire', poll2_raw.decode('utf-8'))
+        _, state1_raw = self.request('/api/state', session='player-one-session')
+        state1 = json.loads(state1_raw)
+        self.assertEqual(state1['world']['player']['species'], 'human')
+        self.assertTrue(any(o['species'] == 'vampire' and o['chosen'] for o in state1['others']))
 
     def test_original_art_assets_are_served_without_opening_directory_access(self):
         for name in ['nightfall-city', 'human-warden', 'vampire-scholar']:

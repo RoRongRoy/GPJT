@@ -43,11 +43,34 @@ function bagCapacity(w=state?.world){return w?160+(w.base.facilities.storage||0)
 function bagUsed(w=state?.world){return w?Object.values(w.inventory).reduce((a,b)=>a+b,0)+(w.gear?.length||0)*4:0;}
 function isBagFull(w=state?.world){return !w||bagUsed(w)>=bagCapacity(w)||(w.gear?.length||0)>=20;}
 function toast(message) { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600); }
+let socket=null;
+function updateConnectionBadge(){
+ $('connection').classList.remove('status-error');
+ const count=state?.online_count||1;
+ $('connection').textContent=socket?.connected?`● Socket.IO 멀티플레이 (${count}명 접속) · 서버 상태 관리`:`● 서버 연결 (${count}명 접속) · 자동 저장`;
+}
+if(typeof io==='function'){
+ socket=io({auth:{key,session},query:{key,session}});
+ socket.on('connect',()=>{connected=true;updateConnectionBadge();});
+ socket.on('state',data=>{connected=true;accept(data);updateConnectionBadge();});
+ socket.on('connect_error',err=>{
+  if(!connected){$('connection').textContent=err.message||'서버 연결 오류';$('connection').classList.add('status-error');}
+ });
+}
 async function api(path, body) {
+ if(socket?.connected){
+  return await new Promise((resolve,reject)=>{
+   const ev=path==='/api/action'?'action':'state';
+   socket.emit(ev,body||{},res=>{
+    if(res?.ok){connected=true;updateConnectionBadge();resolve(res.state);}
+    else{const error=new Error(res?.error||'서버 오류');error.status=res?.status||400;reject(error);}
+   });
+  });
+ }
  const response = await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','X-Access-Key':key,'X-Session-ID':session},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(5000)});
  const data = await response.json();
  if(!response.ok) { const error=new Error(data.error || '서버 오류'); error.status=response.status; throw error; }
- connected=true; $('connection').classList.remove('status-error'); $('connection').textContent='● 서버 연결 · 자동 저장'; return data;
+ connected=true; updateConnectionBadge(); return data;
 }
 function schedulePending(){
  clearTimeout(pendingTimer);
@@ -594,5 +617,5 @@ function updateGuide(){
  }
  $('location-hint').textContent=autoHunt?'● 자동사냥 중'+(isBagFull(w)?' (가방 가득 참·루팅 제외)':' (자동 루팅 ON)')+' · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):Math.hypot(p.x-w.base.x,p.y-w.base.y)<=state.map.base_radius?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
 }
-async function poll(){if(polling||busy||document.hidden)return;polling=true;try{accept(await api('/api/state'));}catch(e){connected=false;clearMovement();if(state)updateContext();$('connection').textContent=e.message;$('connection').classList.add('status-error');if(!state){$('objective').textContent='서버 접속 링크를 확인하세요';$('objective-detail').textContent=e.message;}}finally{polling=false;}}
+async function poll(){if(polling||busy||document.hidden||socket?.connected)return;polling=true;try{accept(await api('/api/state'));}catch(e){connected=false;clearMovement();if(state)updateContext();$('connection').textContent=e.message;$('connection').classList.add('status-error');if(!state){$('objective').textContent='서버 접속 링크를 확인하세요';$('objective-detail').textContent=e.message;}}finally{polling=false;}}
 setInterval(poll,400);function frame(){if(!document.hidden)draw();requestAnimationFrame(frame);}frame();poll();
