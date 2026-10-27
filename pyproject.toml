@@ -5,15 +5,20 @@ description = "Server-authoritative multiplayer quarter-view survival and housin
 requires-python = ">=3.11"
 dependencies = []
 
+[project.scripts]
+start = "server.main:main"
+
 [tool.poetry]
 name = "bloodfall-prototype"
 version = "0.8.0"
 description = "Server-authoritative multiplayer quarter-view survival and housing web prototype"
-package-mode = false
 packages = [{include = "server"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11"
+
+[tool.poetry.scripts]
+start = "server.main:main"
 
 [tool.ruff]
 line-length = 120
