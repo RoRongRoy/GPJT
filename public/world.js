@@ -75,14 +75,57 @@ class WorldView {
   const paintPlayer=(sx,sy)=>{
    const sprinting=Boolean(effects.sprinting);
    const normal=art.pose('player',this.player.x,this.player.y,now,w.paused,sprinting),pose=this.combat?this.combat.pose(normal,now):normal;
-   const body=this.combat?.body(now)||{x:0,y:0,tilt:0};
-   if(sprinting&&moving&&!w.paused){
-    c.save();c.strokeStyle=p.species==='vampire'?'#ff6b8b66':'#f5d99666';c.lineWidth=1.6*scale;
-    const pulse=(now%260)/260;
-    c.beginPath();c.ellipse(sx,sy+2*scale,(14+pulse*9)*scale,(6+pulse*4)*scale,0,0,Math.PI*2);c.stroke();c.restore();
+   const actor=art.actors.get('player'),activeMove=(moving||now<(actor?.until||0))&&!w.paused;
+   const dirSign=(pose.row===0||pose.row===3)?1:-1,dirY=(pose.row<=1)?1:-1;
+   const stride=now/(sprinting?55:88);
+   let walkX=0,walkY=0,walkTilt=0,sxScale=1,syScale=1;
+   if(activeMove&&!p.mounted&&!this.combat){
+    walkY=-Math.abs(Math.sin(stride))*(sprinting?9.0:5.2);
+    walkX=(sprinting?dirSign*3.2:0)+Math.cos(stride)*(sprinting?2.8:2.0);
+    walkTilt=dirSign*(sprinting?.14:.045)+Math.sin(stride)*(sprinting?.095:.055);
+    sxScale=1+Math.cos(stride*2)*(sprinting?.055:.032);
+    syScale=1-Math.cos(stride*2)*(sprinting?.068:.038);
    }
-   c.save();c.translate(sx+body.x*scale,sy+body.y*scale);c.rotate(body.tilt);
-   art.character(0,0,scale,p.species,moving&&!w.paused,now,{mounted:p.mounted,tier:p.unlocks[p.species],pose});c.restore();
+   const body=this.combat?.body(now)||{x:walkX,y:walkY,tilt:walkTilt};
+   if(activeMove){
+    c.save();
+    // Footstep dust puffs & sprint shockwave / speed lines
+    for(let i=0;i<(sprinting?4:2);i++){
+     const phase=((now/(sprinting?180:260))+i*.33)%1;
+     const dx=-dirSign*(8+phase*(sprinting?26:14))*scale,dy=-dirY*(2+phase*7)*scale+3*scale;
+     c.fillStyle=p.species==='vampire'?(sprinting?'#e35d7a55':'#b8889438'):(sprinting?'#e6d7b855':'#b8b49e38');
+     c.beginPath();c.ellipse(sx+dx,sy+dy,(4.5-phase*2.5)*scale,(2.4-phase*1.2)*scale,0,0,Math.PI*2);c.fill();
+    }
+    if(sprinting){
+     c.strokeStyle=p.species==='vampire'?'#ff6b8b77':'#f5d99677';c.lineWidth=1.6*scale;
+     const pulse=(now%240)/240;
+     c.beginPath();c.ellipse(sx,sy+2*scale,(14+pulse*11)*scale,(6+pulse*4.5)*scale,0,0,Math.PI*2);c.stroke();
+     // Sprint wind streaks
+     c.strokeStyle=p.species==='vampire'?'#ff8da655':'#fff0c255';c.lineWidth=1.3*scale;
+     for(let i=0;i<3;i++){
+      const wy=sy-(22+i*22)*scale+Math.sin(now/60+i)*3*scale,wx=sx-dirSign*(12+i*5)*scale;
+      c.beginPath();c.moveTo(wx,wy);c.lineTo(wx-dirSign*(18+((now/8+i*7)%14))*scale,wy+dirY*3*scale);c.stroke();
+     }
+     // Sprint ghost afterimage
+     if(!p.mounted){
+      c.save();c.globalAlpha=.24;
+      c.translate(sx-dirSign*9*scale,sy-dirY*3*scale+walkY*.6*scale);c.rotate(walkTilt*.8);
+      art.character(0,0,scale,p.species,true,now,{mounted:false,tier:p.unlocks[p.species],sprint:true,pose});
+      c.restore();
+     }
+    }
+    // Animated alternating stride boots under coat during walk/sprint
+    if(!p.mounted){
+     const swing=Math.sin(stride)*(sprinting?8.5:5.2);
+     const liftL=Math.max(0,-Math.cos(stride))*(sprinting?5.5:3.2),liftR=Math.max(0,Math.cos(stride))*(sprinting?5.5:3.2);
+     c.fillStyle='#141822ee';
+     c.beginPath();c.ellipse(sx+(-5+swing)*scale,sy+(1-liftL)*scale,4.2*scale,2.3*scale,swing*.04,0,Math.PI*2);c.fill();
+     c.beginPath();c.ellipse(sx+(5-swing)*scale,sy+(1-liftR)*scale,4.2*scale,2.3*scale,-swing*.04,0,Math.PI*2);c.fill();
+    }
+    c.restore();
+   }
+   c.save();c.translate(sx+body.x*scale,sy+body.y*scale);c.rotate(body.tilt);c.scale(sxScale,syScale);
+   art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose});c.restore();
   };
   const poly=(points,color)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle=color;c.fill();};
   const tile=(x,y,color)=>{const [sx,sy]=project(x,y);poly([[sx,sy-th],[sx+tw+.6,sy],[sx,sy+th+.5],[sx-tw-.6,sy]],color);};
@@ -175,8 +218,8 @@ class WorldView {
      const [hx,hy]=project(e.home_x??e.x,e.home_y??e.y);art.prop('storage',hx+26*scale,hy+8*scale,scale*.7);
      const isVamp=['vampire','ferryman'].includes(e.id);
      c.strokeStyle=isVamp?'#c87b9244':'#b5c89c44';c.lineWidth=1;c.setLineDash([2,5]);c.beginPath();c.ellipse(hx,hy,36*scale,18*scale,0,0,Math.PI*2);c.stroke();c.setLineDash([]);
-     const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused);
-     art.character(sx,sy,scale,isVamp?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
+     const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused),npcBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin(now/95))*3.5*scale:0;
+     art.character(sx,sy+npcBob,scale,isVamp?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
     }
     const focus=e.id===selected||near<=3.5;
     if(focus){c.strokeStyle='#e9d29a';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy,28*scale,14*scale,0,0,Math.PI*2);c.stroke();}
@@ -187,17 +230,18 @@ class WorldView {
    }
    if(e.type==='enemy'){
     const pose=art.pose('enemy:'+e.id,e.x,e.y,now,w.paused),high=(e.level||1)>=8,boss=(e.level||1)>=12;
+    const eBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin(now/88+e.id))*4*scale:0;
     if(high){c.strokeStyle=boss?'#ff525288':'#d68c7766';c.lineWidth=boss?2:1.3;c.beginPath();c.ellipse(sx,sy+2*scale,(boss?24:19)*scale,(boss?11:9)*scale,0,0,Math.PI*2);c.stroke();}
-    art.character(sx,sy,scale*(boss?1.15:high?1.06:1),'human',pose.frame!==0,now,{enemy:true,variant:high,pose});
+    art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),'human',pose.frame!==0,now,{enemy:true,variant:high,pose});
     c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);c.fillStyle=boss?'#ff5c5c':high?'#d9734e':'#ad5866';c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
     const tierTag=boss?'[최상위] ':high?'[고렙] ':(e.level||1)>=4?'[중렙] ':'[저렙] ';
     labels.push([`${tierTag}${e.name||'감염체'} Lv.${e.level||1}`,sx,sy-111*scale,boss?'#ff7b7b':(e.level||1)>(p.combat_level||1)+2?'#ff9c88':'#e4c9c1']);
     this.points.push({x:sx,y:sy-23*scale,id:'enemy:'+e.id,left:sx-29*scale,right:sx+29*scale,top:sy-95*scale,bottom:sy+10*scale});
    }
    if(e.type==='peer'){
-    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused);
+    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=pose.frame!==0&&!w.paused&&!e.mounted?-Math.abs(Math.sin(now/85))*4.5*scale:0;
     c.strokeStyle='#6bc5e8aa';c.lineWidth=1.4;c.beginPath();c.ellipse(sx,sy+2*scale,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
-    art.character(sx,sy,scale,e.species,pose.frame!==0,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose});
+    art.character(sx,sy+pBob,scale,e.species,pose.frame!==0,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose});
     c.fillStyle='#151c29';c.fillRect(sx-16*scale,sy-96*scale,32*scale,4*scale);
     c.fillStyle='#5bc0eb';c.fillRect(sx-16*scale,sy-96*scale,32*scale*Math.min(1,Math.max(0,e.hp||0)/100),4*scale);
     labels.push([`${e.name||'생존자'} · Lv.${e.combat_level||1}`,sx,sy-108*scale,'#9ee4ff']);

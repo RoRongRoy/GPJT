@@ -27,7 +27,11 @@ assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest.vampire.frames[14])
 art.images.pine.complete=false;art.images.pine.naturalWidth=0;art.images.pine.onerror();
 assert.deepEqual(Array.from(art.failed),['pine']);assert.equal(art.sprite('pine',0,0,200),false);
 assert.doesNotThrow(()=>art.tree(0,0,1,.8),'Failed assets must retain a drawable fallback');
-console.log('Field art passed: 11 PNG dimensions, atlas bounds, directional movement/idle/pause, frame sampling and loading/error fallback.');
+for(const tier of [0,1,2])for(const sprint of [false,true]){
+ assert.doesNotThrow(()=>art.character(100,200,1,'vampire',true,350,{mounted:true,tier,sprint,pose:{row:0,frame:2}}));
+ assert.doesNotThrow(()=>art.character(100,200,1,'human',true,350,{mounted:false,tier,sprint,pose:{row:1,frame:1}}));
+}
+console.log('Field art passed: 11 PNG dimensions, atlas bounds, directional movement/idle/pause, vampire bat tiers, frame sampling and loading/error fallback.');
 
 // Repeated zooms must reuse bounded raster frames instead of re-sampling PNGs.
 let samples=0;
