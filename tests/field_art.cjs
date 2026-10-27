@@ -17,7 +17,7 @@ for(const [key,value] of Object.entries(manifest)){
 }
 assert.equal(art.loaded,13);
 for(const [x,y,row] of [[1,0,0],[0,1,1],[-1,0,2],[0,-1,3]]){
- art.pose('test',0,0,0);const pose=art.pose('test',x,y,300);assert.equal(pose.row,row);assert.equal(pose.frame,3,'Walk frame follows distance travelled');art.actors.delete('test');
+ art.pose('test',0,0,0);const pose=art.pose('test',x,y,300);assert.equal(pose.row,row);assert.equal(pose.frame,1,'Walk frame follows distance travelled');art.actors.delete('test');
 }
 art.pose('idle',0,0,0);art.pose('idle',1,0,300);
 assert.equal(art.pose('idle',1,0,800).frame,0,'Idle must stop walking');

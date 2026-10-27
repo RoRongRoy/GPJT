@@ -76,7 +76,7 @@ class FieldArt extends GothicArt {
    a.row=front?(right?0:1):(right?3:2);a.until=now+260;
    if(!paused)a.dist+=Math.min(step,1.5);
   }
-  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(a.dist/(sprint?.4:.3))%4:0};
+  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(a.dist/(sprint?.9:.85))%4:0};
  }
  // Base sheets: human = female, vampire = male. The opposite gender uses its own sheet.
  actorKey(species,options){const g=options.gender;if(options.npc||!g)return species;const female=g==='female';return species==='human'?(female?'human':'human-male'):(female?'vampire-female':'vampire');}

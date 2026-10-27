@@ -78,7 +78,7 @@ class WorldView {
    const actor=art.actors.get('player'),activeMove=(moving||now<(actor?.until||0))&&!w.paused;
    const dirSign=(pose.row===0||pose.row===3)?1:-1,dirY=(pose.row<=1)?1:-1;
    // Foot-phase follows distance walked; the painted frames carry the stride, so only a light bounce and run lean are added.
-    const stridePhase=(actor?.dist||0)/(sprinting?.4:.3)*Math.PI/2;
+    const stridePhase=(actor?.dist||0)/(sprinting?.9:.85)*Math.PI/2;
     let walkY=0,walkTilt=0;const sxScale=1,syScale=1,walkX=0;
     if(actor)actor.lean=(actor.lean||0)+(((activeMove&&!p.mounted&&!this.combat)?(sprinting?dirSign*.06:0):0)-(actor.lean||0))*.18;
     if(activeMove&&!p.mounted&&!this.combat){
@@ -199,7 +199,7 @@ class WorldView {
      const [hx,hy]=project(e.home_x??e.x,e.home_y??e.y);art.prop('storage',hx+26*scale,hy+8*scale,scale*.7);
      const isVamp=['vampire','ferryman'].includes(e.id);
      c.strokeStyle=isVamp?'#c87b9244':'#b5c89c44';c.lineWidth=1;c.setLineDash([2,5]);c.beginPath();c.ellipse(hx,hy,36*scale,18*scale,0,0,Math.PI*2);c.stroke();c.setLineDash([]);
-     const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused),npcBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin((art.actors.get('npc:'+e.id)?.dist||0)/.3*Math.PI/2))*1.6*scale:0;
+     const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused),npcBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin((art.actors.get('npc:'+e.id)?.dist||0)/.85*Math.PI/2))*1.6*scale:0;
      art.character(sx,sy+npcBob,scale,isVamp?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
     }
     const focus=e.id===selected||near<=3.5;
@@ -211,7 +211,7 @@ class WorldView {
    }
    if(e.type==='enemy'){
     const pose=art.pose('enemy:'+e.id,e.x,e.y,now,w.paused),high=(e.level||1)>=8,boss=(e.level||1)>=12;
-    const eBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin((art.actors.get('enemy:'+e.id)?.dist||0)/.3*Math.PI/2))*1.8*scale:0;
+    const eBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin((art.actors.get('enemy:'+e.id)?.dist||0)/.85*Math.PI/2))*1.8*scale:0;
     if(high){c.strokeStyle=boss?'#ff525288':'#d68c7766';c.lineWidth=boss?2:1.3;c.beginPath();c.ellipse(sx,sy+2*scale,(boss?24:19)*scale,(boss?11:9)*scale,0,0,Math.PI*2);c.stroke();}
     art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),'human',pose.frame!==0,now,{enemy:true,variant:high,pose});
     c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);c.fillStyle=boss?'#ff5c5c':high?'#d9734e':'#ad5866';c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
@@ -220,7 +220,7 @@ class WorldView {
     this.points.push({x:sx,y:sy-23*scale,id:'enemy:'+e.id,left:sx-29*scale,right:sx+29*scale,top:sy-95*scale,bottom:sy+10*scale});
    }
    if(e.type==='peer'){
-    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=pose.frame!==0&&!w.paused&&!e.mounted?-Math.abs(Math.sin((art.actors.get('peer:'+e.id)?.dist||0)/.3*Math.PI/2))*1.6*scale:0;
+    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=pose.frame!==0&&!w.paused&&!e.mounted?-Math.abs(Math.sin((art.actors.get('peer:'+e.id)?.dist||0)/.85*Math.PI/2))*1.6*scale:0;
     c.strokeStyle='#6bc5e8aa';c.lineWidth=1.4;c.beginPath();c.ellipse(sx,sy+2*scale,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
     art.character(sx,sy+pBob,scale,e.species,pose.frame!==0,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose,gender:e.gender||'male',job:e.job||'warrior'});
     c.fillStyle='#151c29';c.fillRect(sx-16*scale,sy-96*scale,32*scale,4*scale);
