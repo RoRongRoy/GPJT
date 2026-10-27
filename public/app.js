@@ -994,3 +994,20 @@ async function poll(){
  }finally{polling=false;}
 }
 setInterval(poll,450);function frame(){if(!document.hidden)draw();requestAnimationFrame(frame);}frame();poll();
+
+
+function makeDraggableScroll(el){
+ if(!el)return;
+ let isDown=false,startY=0,scrollTop=0;
+ el.addEventListener('mousedown',e=>{
+  if(['BUTTON','INPUT','A','SELECT'].includes(e.target.tagName)||e.target.closest('button,input,a,select,kbd'))return;
+  isDown=true;startY=e.pageY-el.offsetTop;scrollTop=el.scrollTop;
+ });
+ window.addEventListener('mouseup',()=>{isDown=false;});
+ el.addEventListener('mousemove',e=>{
+  if(!isDown)return;
+  e.preventDefault();
+  el.scrollTop=scrollTop-(e.pageY-el.offsetTop-startY)*1.25;
+ });
+}
+document.querySelectorAll('.menu-body,#loot-list,#activity-messages').forEach(makeDraggableScroll);
