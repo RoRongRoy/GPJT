@@ -149,6 +149,7 @@ function updateWelcomeCustomizer(){
  const gText=genderName(selectedGender),hCls=classInfo('human',selectedJob),vCls=classInfo('vampire',selectedJob);
  document.querySelectorAll('[data-select-gender]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.selectGender===selectedGender)));
  document.querySelectorAll('[data-select-job]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.selectJob===selectedJob)));
+  document.querySelectorAll('.portrait-pair img').forEach(i=>i.classList.toggle('selected-gender',i.dataset.gender===selectedGender));
  if($('welcome-human-title'))$('welcome-human-title').textContent=`인간 · ${gText} ${hCls.name} (${hCls.weapon_type})`;
  if($('welcome-human-sub'))$('welcome-human-sub').textContent=`HUMAN · [${hCls.style}] ${hCls.weapon_type} 사용 · 사거리 ${hCls.attack_range}`;
  if($('welcome-human-trait'))$('welcome-human-trait').textContent=`기본 무기: ${hCls.starter_weapon} · MP 전술 스킬`;
@@ -179,7 +180,7 @@ function update() {
  $('intro-art').hidden=p.chosen&&!welcomeForced;
  document.body.dataset.species=p.chosen?p.species:'unchosen';
  const portrait=$('survivor-art');
- if(portrait.dataset.portraitSpecies!==p.species){portrait.dataset.portraitSpecies=p.species;portrait.src=p.species==='human'?'/art/human-warden.png':'/art/vampire-scholar.png';portrait.alt=p.species==='human'?'인간 생존자 초상':'뱀파이어 초상';}
+ const portraitKey=p.species+':'+(p.gender||'male');if(portrait.dataset.portraitSpecies!==portraitKey){portrait.dataset.portraitSpecies=portraitKey;const fem=p.gender==='female';portrait.src=p.species==='human'?(fem?'/art/human-warden.png':'/art/human-male-warden.png'):(fem?'/art/vampire-female-scholar.png':'/art/vampire-scholar.png');portrait.alt=(p.species==='human'?'인간 ':'뱀파이어 ')+(fem?'여성':'남성')+' 초상';}
  $('welcome').hidden=p.chosen&&!welcomeForced; $('welcome-close-btn').hidden=!p.chosen; $('interaction').hidden=!p.chosen; if(w.paused){if(autoHunt)setAutoHunt(false,true);clearMovement();} updateGuide();
  const region=view.region(state,p.x,p.y);$('region-name').textContent=region.name;$('region-description').textContent=region.subtitle+(region.levels?` · 권장 Lv.${region.levels.join('–')}${(p.combat_level||1)<region.levels[0]?' · 위험 지역':''}`:'');
  $('coordinates').textContent=`${Math.floor(p.x).toString().padStart(2,'0')} / ${Math.floor(p.y).toString().padStart(2,'0')}`;

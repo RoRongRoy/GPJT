@@ -311,10 +311,12 @@ def make_handler(runtime, access_key, sio=None):
                      '/art/nightfall-city.png': ('art/nightfall-city.png', 'image/png'),
                      '/art/human-warden.png': ('art/human-warden.png', 'image/png'),
                      '/art/vampire-scholar.png': ('art/vampire-scholar.png', 'image/png'),
+                     '/art/human-male-warden.png': ('art/human-male-warden.png', 'image/png'),
+                     '/art/vampire-female-scholar.png': ('art/vampire-female-scholar.png', 'image/png'),
                      '/style.css': ('style.css', 'text/css; charset=utf-8')}
             for name in ('sprite-manifest', 'sprites', 'combat', 'socket.io'):
                 files['/'+name+'.js'] = (name+'.js', 'text/javascript; charset=utf-8')
-            for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'vampire', 'ghoul', 'brute', 'props', 'earth', 'stone'):
+            for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'human-male', 'vampire', 'vampire-female', 'ghoul', 'brute', 'props', 'earth', 'stone'):
                 files['/art/gameplay/'+name+'.png'] = ('art/gameplay/'+name+'.png', 'image/png')
             for item in (*ITEMS, 'weapon', 'armor'):
                 files['/icons/'+item+'.svg'] = ('icons/'+item+'.svg', 'image/svg+xml')

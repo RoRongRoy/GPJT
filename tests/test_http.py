@@ -80,7 +80,7 @@ class HttpTests(unittest.TestCase):
         self.assertTrue(any(o['species'] == 'vampire' and o['chosen'] for o in state1['others']))
 
     def test_original_art_assets_are_served_without_opening_directory_access(self):
-        for name in ['nightfall-city', 'human-warden', 'vampire-scholar']:
+        for name in ['nightfall-city', 'human-warden', 'vampire-scholar', 'human-male-warden', 'vampire-female-scholar']:
             with self.subTest(name=name):
                 status, body = self.request('/art/'+name+'.png')
                 self.assertEqual(status, 200)

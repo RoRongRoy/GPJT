@@ -74,12 +74,14 @@ class FieldArt extends GothicArt {
   }
   a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(now/(sprint?92:145))%4:0};
  }
+ // Base sheets: human = female, vampire = male. The opposite gender uses its own sheet.
+ actorKey(species,options){const g=options.gender;if(options.npc||!g)return species;const female=g==='female';return species==='human'?(female?'human':'human-male'):(female?'vampire-female':'vampire');}
  character(x,y,scale,species,moving,now,options={}){
   if(options.mounted)return super.character(x,y,scale,species,moving,now,options);
-  const key=options.enemy?(options.variant?'brute':'ghoul'):species;
+  const key=options.enemy?(options.variant?'brute':'ghoul'):this.actorKey(species,options);
   const pose=options.pose||{row:0,frame:0};
   // Human/ghoul sheets repeat the back-right view: mirror it for back-left.
-  const repeated=['human','ghoul'].includes(key)&&pose.row>=2;
+  const repeated=['human','human-male','ghoul'].includes(key)&&pose.row>=2;
   const mirror=repeated&&pose.row===2;
   const row=repeated?2:pose.row,h=(key==='brute'?89:key==='ghoul'?78:87)*scale;
   this.shadow(x,y,options.enemy?18:15,scale);
