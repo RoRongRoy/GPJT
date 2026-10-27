@@ -110,7 +110,7 @@ class WorldView {
      if(!p.mounted){
       c.save();c.globalAlpha=.24;
       c.translate(sx-dirSign*9*scale,sy-dirY*3*scale+walkY*.6*scale);c.rotate(walkTilt*.8);
-      art.character(0,0,scale,p.species,true,now,{mounted:false,tier:p.unlocks[p.species],sprint:true,pose});
+      art.character(0,0,scale,p.species,true,now,{mounted:false,tier:p.unlocks[p.species],sprint:true,pose,gender:p.gender||'male',job:p.job||'warrior'});
       c.restore();
      }
     }
@@ -125,7 +125,7 @@ class WorldView {
     c.restore();
    }
    c.save();c.translate(sx+body.x*scale,sy+body.y*scale);c.rotate(body.tilt);c.scale(sxScale,syScale);
-   art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose});c.restore();
+   art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose,gender:p.gender||'male',job:p.job||'warrior'});c.restore();
   };
   const poly=(points,color)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle=color;c.fill();};
   const tile=(x,y,color)=>{const [sx,sy]=project(x,y);poly([[sx,sy-th],[sx+tw+.6,sy],[sx,sy+th+.5],[sx-tw-.6,sy]],color);};
@@ -241,7 +241,7 @@ class WorldView {
    if(e.type==='peer'){
     const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=pose.frame!==0&&!w.paused&&!e.mounted?-Math.abs(Math.sin(now/85))*4.5*scale:0;
     c.strokeStyle='#6bc5e8aa';c.lineWidth=1.4;c.beginPath();c.ellipse(sx,sy+2*scale,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
-    art.character(sx,sy+pBob,scale,e.species,pose.frame!==0,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose});
+    art.character(sx,sy+pBob,scale,e.species,pose.frame!==0,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose,gender:e.gender||'male',job:e.job||'warrior'});
     c.fillStyle='#151c29';c.fillRect(sx-16*scale,sy-96*scale,32*scale,4*scale);
     c.fillStyle='#5bc0eb';c.fillRect(sx-16*scale,sy-96*scale,32*scale*Math.min(1,Math.max(0,e.hp||0)/100),4*scale);
     labels.push([`${e.name||'생존자'} · Lv.${e.combat_level||1}`,sx,sy-108*scale,'#9ee4ff']);

@@ -121,7 +121,33 @@ async function command(action, fields={}) {
   lastCommandAt=performance.now();busy=false;schedulePending();
  }
 }
-let welcomeForced=false,activityLogKey='';
+let welcomeForced=false,activityLogKey='',selectedGender='male',selectedJob='warrior';
+const CLASS_CATALOG={
+ human:{
+  warrior:{name:'전사',style:'근거리',weapon_type:'검',attack_range:2.1,skill_range_bonus:0,starter_weapon:'녹슨 기본 단검',desc:'도검을 다루는 근접 전투 전문가. 근거리 참격과 강타로 전선을 돌파합니다.'},
+  ranged:{name:'거너',style:'원거리',weapon_type:'총기',attack_range:4.2,skill_range_bonus:1.2,starter_weapon:'구형 제식 권총',desc:'총기를 사용하는 원거리 화력 전문가. 사거리 4.2의 사격과 탄막 기술로 적을 제압합니다.'},
+ },
+ vampire:{
+  warrior:{name:'전사',style:'근거리',weapon_type:'클로',attack_range:2.1,skill_range_bonus:0,starter_weapon:'무딘 혈족 클로',desc:'양손에 날카로운 클로를 장착한 근거리 혈투사. 적을 찢고 피를 흡수합니다.'},
+  ranged:{name:'혈법사',style:'원거리',weapon_type:'지팡이',attack_range:4.2,skill_range_bonus:1.2,starter_weapon:'고목 혈마법 지팡이',desc:'지팡이로 원거리 혈마법을 구사하는 혈법사. 사거리 4.2의 혈탄과 광역 비전을 시전합니다.'},
+ },
+};
+function classInfo(species='human',job='warrior'){return (state?.classes?.[species]?.[job])||CLASS_CATALOG[species]?.[job]||CLASS_CATALOG.human.warrior;}
+function genderName(gender='male'){return gender==='female'?'여성':'남성';}
+function updateWelcomeCustomizer(){
+ const gText=genderName(selectedGender),hCls=classInfo('human',selectedJob),vCls=classInfo('vampire',selectedJob);
+ document.querySelectorAll('[data-select-gender]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.selectGender===selectedGender)));
+ document.querySelectorAll('[data-select-job]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.selectJob===selectedJob)));
+ if($('welcome-human-title'))$('welcome-human-title').textContent=`인간 · ${gText} ${hCls.name} (${hCls.weapon_type})`;
+ if($('welcome-human-sub'))$('welcome-human-sub').textContent=`HUMAN · [${hCls.style}] ${hCls.weapon_type} 사용 · 사거리 ${hCls.attack_range}`;
+ if($('welcome-human-trait'))$('welcome-human-trait').textContent=`기본 무기: ${hCls.starter_weapon} · MP 전술 스킬`;
+ if($('welcome-vampire-title'))$('welcome-vampire-title').textContent=`뱀파이어 · ${gText} ${vCls.name} (${vCls.weapon_type})`;
+ if($('welcome-vampire-sub'))$('welcome-vampire-sub').textContent=`VAMPIRE · [${vCls.style}] ${vCls.weapon_type} 사용 · 사거리 ${vCls.attack_range}`;
+ if($('welcome-vampire-trait'))$('welcome-vampire-trait').textContent=`기본 무기: ${vCls.starter_weapon} · 흡혈 및 혈족 비전`;
+}
+document.querySelectorAll('[data-select-gender]').forEach(b=>b.onclick=()=>{selectedGender=b.dataset.selectGender;updateWelcomeCustomizer();});
+document.querySelectorAll('[data-select-job]').forEach(b=>b.onclick=()=>{selectedJob=b.dataset.selectJob;updateWelcomeCustomizer();});
+updateWelcomeCustomizer();
 function accept(data) { if(!state || data.world.revision >= state.world.revision) { if(state && data.world.player.hp<state.world.player.hp)hurtUntil=performance.now()+350; state=data; update(); } }
 function span(className,text) { const n=document.createElement('span'); n.className=className; n.textContent=text; return n; }
 function update() {
@@ -135,11 +161,12 @@ function update() {
  $('welcome').hidden=p.chosen&&!welcomeForced; $('welcome-close-btn').hidden=!p.chosen; $('interaction').hidden=!p.chosen; if(w.paused){if(autoHunt)setAutoHunt(false,true);clearMovement();} updateGuide();
  const region=view.region(state,p.x,p.y);$('region-name').textContent=region.name;$('region-description').textContent=region.subtitle+(region.levels?` · 권장 Lv.${region.levels.join('–')}${(p.combat_level||1)<region.levels[0]?' · 위험 지역':''}`:'');
  $('coordinates').textContent=`${Math.floor(p.x).toString().padStart(2,'0')} / ${Math.floor(p.y).toString().padStart(2,'0')}`;
- $('species').textContent=!p.chosen?'새로운 생존자':p.species==='human'?'인간 · 생존자':'뱀파이어 · 혈족';
+ const cls=classInfo(p.species,p.job||'warrior'),gName=genderName(p.gender||'male');
+ $('species').textContent=!p.chosen?'새로운 생존자':`${p.species==='human'?'인간':'뱀파이어'} · ${gName} ${cls.name} (${cls.style}·${cls.weapon_type})`;
  $('pause-overlay').hidden=!w.paused;
  $('pause').textContent=w.paused?'계속하기':'일시정지';
 
- $('level').textContent=`Lv.${p.combat_level||1} · EXP ${p.xp||0}/${(p.combat_level||1)>=50?'MAX':(p.combat_level||1)*40} · 공격력 +${((p.combat_level||1)-1)*3} · 방어력 +${Math.floor(((p.combat_level||1)-1)/2)} · 무기강화 +${p.level}`;
+ $('level').textContent=`Lv.${p.combat_level||1} · EXP ${p.xp||0}/${(p.combat_level||1)>=50?'MAX':(p.combat_level||1)*40} · 공격 사거리 ${cls.attack_range} · 공격력 +${((p.combat_level||1)-1)*3} · 방어력 +${Math.floor(((p.combat_level||1)-1)/2)} · 무기강화 +${p.level}`;
  $('day').textContent=`DAY ${String(1+Math.floor(w.elapsed/600)).padStart(2,'0')}`;
  $('time').textContent=`활동 ${Math.floor(w.elapsed/60)}분 ${Math.floor(w.elapsed%60)}초`;
  $('base-pos').textContent=`${w.base.x} / ${w.base.y}`;
@@ -248,7 +275,7 @@ $('pause').onclick=()=>manualAction('pause');
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action));
 document.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>manualAction('consume',{item:b.dataset.item}));
 $('craft-submit').onclick=()=>manualAction('craft',{recipe:selectedRecipe});
-document.querySelectorAll('button[data-species]').forEach(b=>b.onclick=()=>{welcomeForced=false;manualAction('choose',{species:b.dataset.species});});
+document.querySelectorAll('button[data-species]').forEach(b=>b.onclick=()=>{welcomeForced=false;manualAction('choose',{species:b.dataset.species,gender:selectedGender,job:selectedJob});});
 async function submitAccountAction(action,fields,msgId){
  const msgEl=$(msgId);
  if(msgEl)msgEl.textContent='서버 처리 중...';
@@ -265,14 +292,14 @@ async function submitAccountAction(action,fields,msgId){
   toast(e.message||'오류가 발생했습니다.');
  }
 }
-$('new-start-btn').onclick=()=>{closePanel(false);closeLootBox();welcomeForced=true;update();};
+$('new-start-btn').onclick=()=>{closePanel(false);closeLootBox();welcomeForced=true;updateWelcomeCustomizer();update();};
 $('welcome-close-btn').onclick=()=>{welcomeForced=false;update();};
 $('welcome-load-btn').onclick=()=>submitAccountAction('account_load',{username:$('welcome-account-id').value,password:$('welcome-account-pw').value},'welcome-account-msg');
 for(const id of ['welcome-account-id','welcome-account-pw'])$(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('welcome-load-btn').click();}});
 $('account-save-btn').onclick=()=>submitAccountAction('account_save',{username:$('account-save-id').value,password:$('account-save-pw').value},'account-save-msg');
 $('account-load-btn').onclick=()=>submitAccountAction('account_load',{username:$('account-load-id').value,password:$('account-load-pw').value},'account-load-msg');
-$('account-new-human').onclick=()=>{welcomeForced=false;closePanel();manualAction('choose',{species:'human'});toast('신규 인간 모험자로 새로운 여정을 시작합니다.');};
-$('account-new-vampire').onclick=()=>{welcomeForced=false;closePanel();manualAction('choose',{species:'vampire'});toast('신규 뱀파이어 모험자로 새로운 여정을 시작합니다.');};
+$('account-new-human').onclick=()=>{welcomeForced=false;closePanel();manualAction('choose',{species:'human',gender:selectedGender,job:selectedJob});toast('신규 인간 모험자로 새로운 여정을 시작합니다.');};
+$('account-new-vampire').onclick=()=>{welcomeForced=false;closePanel();manualAction('choose',{species:'vampire',gender:selectedGender,job:selectedJob});toast('신규 뱀파이어 모험자로 새로운 여정을 시작합니다.');};
 $('account-new-welcome').onclick=()=>{closePanel();welcomeForced=true;manualAction('new_adventurer',{});update();};
 function canUseCamp(){
  if(!state||!connected||!state.world.player.chosen)return false;
@@ -464,30 +491,68 @@ function renderInventory(){
 }
 $('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){const g=gearItem(selectedItem);if(g)manualAction(state.world.equipment[g.slot]===g.id?'unequip':'equip',{item:g.id,slot:g.slot});else manualAction('consume',{item:selectedItem});}};
 const SKILL_IDS=['sweep','recover','strike','ranged','purify','ultimate'];
+function skillNameFor(spec,species,job){
+ if(!spec)return '';
+ const isVamp=species==='vampire',isRanged=job==='ranged';
+ if(isRanged)return (isVamp?spec.vampire_ranged_name:spec.human_ranged_name)||(isVamp?spec.vampire_name:spec.name);
+ return isVamp?spec.vampire_name:spec.name;
+}
+function skillDescFor(spec,species,job){
+ if(!spec)return '';
+ const isVamp=species==='vampire',isRanged=job==='ranged';
+ if(isRanged)return (isVamp?spec.vampire_ranged_desc:spec.human_ranged_desc)||(isVamp?spec.vampire_desc:spec.desc)||'';
+ return (isVamp?spec.vampire_desc:spec.desc)||'';
+}
 function skillStatus(id){
  const w=state.world,p=w.player,spec=state.combat?.[id];
  if(!spec)return {reason:'서버 연결 중'};
- const isVamp=p.species==='vampire',meter=isVamp?'blood':'food',cost=spec.cost||0;
+ const isVamp=p.species==='vampire',job=p.job||'warrior',cls=classInfo(p.species,job),meter=isVamp?'blood':'food',cost=spec.cost||0;
  const mpCost=spec.mp_cost??cost,hpCost=spec.hp_cost??6;
  const unlockLevel=spec.unlock_level||1,unlocked=(p.combat_level||1)>=unlockLevel;
  const isHeal=Boolean(spec.heal);
+ const effRange=isHeal?0:spec.range+(cls.skill_range_bonus||0);
  const remaining=Math.max(0,(w.cooldowns['skill:'+id]||0)-w.elapsed,!isHeal?(w.cooldowns.attack||0)-w.elapsed:0);
- const reason=!connected?'연결 중':w.paused?'일시정지':!unlocked?`Lv.${unlockLevel} 해금`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='purify'&&p.hp>=100&&(p.infection||0)<=0?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<=spec.range)?'적에게 접근':'';
- return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,isHeal};
+ const reason=!connected?'연결 중':w.paused?'일시정지':!unlocked?`Lv.${unlockLevel} 해금`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='purify'&&p.hp>=100&&(p.infection||0)<=0?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
+ return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,isHeal,effRange};
 }
 function renderSkillsMenu(){
  if(!state||!$('skills-list'))return;
- const w=state.world,p=w.player,isVamp=p.species==='vampire',lvl=p.combat_level||1;
+ const w=state.world,p=w.player,isVamp=p.species==='vampire',job=p.job||'warrior',gender=p.gender||'male',lvl=p.combat_level||1;
+ const cls=classInfo(p.species,job),gName=genderName(gender);
  const wepPow=gearItem(w.equipment?.weapon)?.power||0,lvlAtk=(lvl-1)*3,enhMult=1+(p.level||0)*.02;
  const unlockedCount=SKILL_IDS.filter(id=>lvl>=(state.combat?.[id]?.unlock_level||1)).length;
  const nextSkillId=SKILL_IDS.find(id=>lvl<(state.combat?.[id]?.unlock_level||1));
  const nextSpec=nextSkillId?state.combat?.[nextSkillId]:null;
- $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어 (혈족 비전 · HP 소모 & 흡혈)':'☀ 인간 (슬레이어 전술 · MP 소모)'} · 전투 Lv.${lvl} · 해금된 스킬 ${unlockedCount}/${SKILL_IDS.length}개`+(nextSpec?` · 다음 해금: Lv.${nextSpec.unlock_level} [${isVamp?nextSpec.vampire_name:nextSpec.name}]`:' · 모든 종족 스킬 마스터 완료!');
+ $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어':'☀ 인간'} · ${gName} [${cls.style}] ${cls.name} (${cls.weapon_type} 사용 · 기본 사거리 ${cls.attack_range}) · 전투 Lv.${lvl} · 해금 스킬 ${unlockedCount}/${SKILL_IDS.length}개`+(nextSpec?` · 다음 해금: Lv.${nextSpec.unlock_level} [${skillNameFor(nextSpec,p.species,job)}]`:' · 전 스킬 마스터 완료!');
+ if($('class-switcher')){
+  const gBar=document.createElement('div');gBar.className='gender-bar';
+  gBar.append(span('custom-label',`현재 성별: ${gName} (${gender==='female'?'♀':'♂'})`));
+  const gBtns=document.createElement('div');gBtns.className='gender-bar-btns';
+  for(const [gid,gLabel] of [['male','♂ 남성'],['female','♀ 여성']]){
+   const gb=document.createElement('button');gb.type='button';gb.className=gender===gid?'accent':'';
+   gb.textContent=gLabel+(gender===gid?' (현재)':'');gb.disabled=!connected||w.paused||gender===gid;
+   gb.onclick=()=>manualAction('change_class',{gender:gid,job});
+   gBtns.append(gb);
+  }
+  gBar.append(gBtns);
+  const jobCards=['warrior','ranged'].map(jid=>{
+   const cInfo=classInfo(p.species,jid),active=job===jid;
+   const card=document.createElement('div');card.className='class-card'+(active?' active':'');
+   const title=document.createElement('strong');title.textContent=`${jid==='warrior'?'⚔':'⌖'} [${cInfo.style}] ${cInfo.name} (${cInfo.weapon_type})`;
+   const desc=document.createElement('small');desc.textContent=`${cInfo.desc} (기본 사거리 ${cInfo.attack_range})`;
+   const btn=document.createElement('button');btn.type='button';btn.className=active?'':'accent';
+   btn.textContent=active?'✓ 현재 선택된 직업':`${cInfo.name}(${cInfo.weapon_type})로 전직`;
+   btn.disabled=!connected||w.paused||active;
+   btn.onclick=()=>manualAction('change_class',{gender,job:jid});
+   card.append(title,desc,btn);return card;
+  });
+  $('class-switcher').replaceChildren(gBar,...jobCards);
+ }
  $('skills-list').replaceChildren(...SKILL_IDS.map(id=>{
-  const {reason,spec,mpCost,hpCost,cost,unlocked,unlockLevel,isHeal}=skillStatus(id);
+  const {reason,spec,mpCost,hpCost,cost,unlocked,unlockLevel,isHeal,effRange}=skillStatus(id);
   if(!spec)return document.createElement('div');
-  const name=isVamp?spec.vampire_name:spec.name,altName=isVamp?spec.name:spec.vampire_name;
-  const desc=isVamp?(spec.vampire_desc||''):(spec.desc||'');
+  const name=skillNameFor(spec,p.species,job),altName=skillNameFor(spec,isVamp?'human':'vampire',job);
+  const desc=skillDescFor(spec,p.species,job);
   const totalDmg=spec.damage?Math.round((spec.damage+wepPow+lvlAtk)*enhMult):0;
   const costText=isVamp?`HP ${hpCost} · 혈액 ${cost}`:`MP ${mpCost} · 포만 ${cost}`;
   const card=document.createElement('div');card.className='skill-card '+(unlocked?'unlocked':'locked');
@@ -499,7 +564,7 @@ function renderSkillsMenu(){
   const badge=span('skill-badge'+(unlocked?'':' locked'),unlocked?`✓ Lv.${unlockLevel} 해금됨`:`🔒 Lv.${unlockLevel} 달성 시 해금`);
   head.append(title,badge);
   const sub=document.createElement('small');
-  const effectText=isHeal?`회복 +${spec.heal}`+(spec.cleanse?` · 감염 −${spec.cleanse} 정화`:''):`${spec.aoe?'광역':'단일'} 피해 ${totalDmg} (기본 ${spec.damage}) · 사거리 ${spec.range}`+(isVamp?' · 흡혈 회복':'');
+  const effectText=isHeal?`회복 +${spec.heal}`+(spec.cleanse?` · 감염 −${spec.cleanse} 정화`:''):`${spec.aoe?'광역':'단일'} 피해 ${totalDmg} (기본 ${spec.damage}) · 사거리 ${effRange.toFixed(1)}`+(isVamp?' · 흡혈 회복':'');
   sub.textContent=`${effectText} · 쿨타임 ${spec.cooldown}초 · 소모: ${costText}`;
   const descEl=document.createElement('small');descEl.textContent=(desc?desc+' ':'')+`(타 종족 전환 시: ${altName})`;
   txt.append(head,sub,descEl);left.append(glyph,txt);
@@ -512,17 +577,17 @@ function renderSkillsMenu(){
 }
 function updateSkills(){
  if(!state)return;$('skill-bar').hidden=!state.world.player.chosen;
- const isVamp=state.world.player.species==='vampire';
+ const p=state.world.player,isVamp=p.species==='vampire',job=p.job||'warrior';
  for(const id of SKILL_IDS){
   const el=$('skill-'+id);if(!el)continue;
-  const {reason,spec,mpCost,hpCost,unlocked,unlockLevel}=skillStatus(id);if(!spec)continue;
-  const name=isVamp?spec.vampire_name:spec.name;
+  const {reason,spec,mpCost,hpCost,unlocked,unlockLevel,effRange}=skillStatus(id);if(!spec)continue;
+  const name=skillNameFor(spec,p.species,job);
   const costText=isVamp?`HP ${hpCost} 소모`:`MP ${mpCost}`;
   $('skill-'+id+'-name').textContent=name;
   $('skill-'+id+'-status').textContent=!unlocked?`🔒 Lv.${unlockLevel} 해금`:reason||(spec.damage?`피해 ${spec.damage}${isVamp?'+흡혈':''}`:`회복 +${spec.heal}`)+' · '+costText;
   if(!unlocked)el.classList.add('skill-locked');else el.classList.remove('skill-locked');
   el.disabled=Boolean(reason);
-  el.title=name+(!unlocked?` · 전투 Lv.${unlockLevel} 달성 시 해금`:' · '+(spec.damage?`사거리 ${spec.range} 피해 ${spec.damage}`:`체력 +${spec.heal}`)+' · 재사용 '+spec.cooldown+'초 · '+costText);
+  el.title=name+(!unlocked?` · 전투 Lv.${unlockLevel} 달성 시 해금`:' · '+(spec.damage?`사거리 ${effRange.toFixed(1)} 피해 ${spec.damage}`:`체력 +${spec.heal}`)+' · 재사용 '+spec.cooldown+'초 · '+costText);
  }
  renderSkillsMenu();
 }
@@ -800,7 +865,8 @@ function stepMovement(){
   if(target.id?.startsWith('drop:')){if(!drop){target=null;return;}target.x=drop.x;target.y=drop.y;}
   const mult=p.mounted?(m.mount_base+p.unlocks[p.species]*m.mount_tier)*(sprinting?1.25:1):(sprinting?(m.sprint_mult||1.65):1);
   const distance=Math.hypot(target.x-p.x,target.y-p.y),step=m.step*mult;
-  const arriveDist=target.id?(inspectOnArrive||target.id.startsWith('drop:')?2.2:1.5):step*.8;
+  const enemyStop=(p.job||'warrior')==='ranged'?3.4:1.5;
+  const arriveDist=target.id?(inspectOnArrive||target.id.startsWith('drop:')?2.2:target.id.startsWith('enemy:')?enemyStop:1.5):step*.8;
   if(distance<=arriveDist){
    const id=target.id;if(!autoHunt||!id?.startsWith('enemy:'))target=null;
    if(id?.startsWith('enemy:')){

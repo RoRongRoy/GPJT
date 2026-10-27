@@ -83,7 +83,40 @@ class FieldArt extends GothicArt {
   const mirror=repeated&&pose.row===2;
   const row=repeated?2:pose.row,h=(key==='brute'?89:key==='ghoul'?78:87)*scale;
   this.shadow(x,y,options.enemy?18:15,scale);
-  if(!this.sprite(key,x,y,h,row*4+pose.frame,mirror))super.character(x,y,scale,species,moving,now,options);
+  if(!this.sprite(key,x,y,h,row*4+pose.frame,mirror))return super.character(x,y,scale,species,moving,now,options);
+  if(!options.enemy&&!options.npc){
+   const dir=(pose.row===0||pose.row===3)?1:-1,vamp=species==='vampire',ranged=options.job==='ranged',female=options.gender==='female';
+   this.frame(x,y,scale,()=>{
+    if(female){
+     this.oval(-dir*3,-68,3.2,2.2,vamp?'#ff4d6d':'#ffd166');
+     this.line([[-dir*4,-65],[-dir*9,-52]],vamp?'#4a1535':'#5e3b28',2.5);
+    }
+    const hx=dir*13,hy=-31;
+    if(!vamp&&ranged){
+     // Human Gunner firearm barrel & laser sight
+     this.line([[hx-dir*3,hy+2],[hx+dir*11,hy-2]],'#4b5663',3.4);
+     this.line([[hx+dir*2,hy],[hx+dir*16,hy-3]],'#b8c7d6',2.1);
+     this.glow(hx+dir*16,hy-3,9,'#7ce8ff55');
+    }else if(vamp&&!ranged){
+     // Vampire Warrior dual crimson claws
+     for(const [cx,cy,s] of [[hx,hy,dir],[-hx*.75,hy+2,-dir]]){
+      this.line([[cx,cy],[cx+s*7,cy+5]],'#ff2e55',1.8);
+      this.line([[cx,cy+2],[cx+s*8,cy+8]],'#ff7597',1.5);
+      this.line([[cx,cy+4],[cx+s*6,cy+10]],'#d91e41',1.4);
+     }
+    }else if(vamp&&ranged){
+     // Vampire Blood Mage crimson staff & blood orb
+     this.line([[hx-dir*2,hy+18],[hx+dir*5,hy-26]],'#4a2533',2.6);
+     this.oval(hx+dir*5,hy-28,4.5,5.5,'#ff1e4d');
+     this.oval(hx+dir*5,hy-28,2.2,2.8,'#ffd1dc');
+     this.glow(hx+dir*5,hy-28,16,'#ff2e5566');
+    }else{
+     // Human Warrior blade gleam
+     this.line([[hx,hy],[hx+dir*10,hy-15]],'#d8dce3',2.4);
+     this.line([[hx-dir*2,hy+1],[hx+dir*3,hy-2]],'#d4b27c',2.2);
+    }
+   });
+  }
  }
  ground(state,projection){
   if(!this.ready('earth')||!this.ready('stone')||typeof DOMMatrix==='undefined')return false;

@@ -4,7 +4,7 @@ class CombatEffects {
   this.kind=kind;this.start=now;
   this.isHeal=kind==='recover'||kind==='purify';
   this.duration=this.isHeal?800:kind==='ultimate'?760:kind==='sweep'?650:(kind==='strike'||kind==='ranged')?520:420;
-  this.origin={x:after.player.x,y:after.player.y};this.vampire=after.player.species==='vampire';
+  this.origin={x:after.player.x,y:after.player.y};this.vampire=after.player.species==='vampire';this.job=after.player.job||'warrior';
   this.hits=after.enemies.flatMap(e=>{const old=before.enemies.find(n=>n.id===e.id);return old&&old.hp>e.hp?[{id:e.id,x:e.x,y:e.y,damage:Math.ceil(old.hp-e.hp),killed:e.hp<=0&&Boolean(after.inventory)}]:[];});
   const newGear=(after.gear||[]).filter(g=>!(before.gear||[]).some(o=>o.id===g.id));
   const gradeNames={normal:'일반',advanced:'고급',rare:'희귀',epic:'영웅',legendary:'전설'};
@@ -36,13 +36,25 @@ class CombatEffects {
     c.beginPath();c.ellipse(0,28,20+t*(this.kind==='purify'?42:30),9+t*(this.kind==='purify'?19:14),0,0,Math.PI*2);c.stroke();
     if(this.kind==='purify'){c.beginPath();c.ellipse(0,28,12+t*26,5+t*11,0,0,Math.PI*2);c.stroke();}
     if(!this.reduced)for(let i=0;i<(this.kind==='purify'?10:7);i++){const px=Math.sin(i*2.4)*25,py=15-t*58+i%3*8;c.fillStyle=color;c.fillRect(px-1,py-4,2,8);c.fillRect(px-4,py-1,8,2);}
-   }else if(this.kind==='ranged'){
+   }else if(this.kind==='ranged'||(this.job==='ranged'&&(this.kind==='attack'||this.kind==='strike'))){
     const phase=Math.max(0,Math.min(1,t/.65));
     c.rotate(this.angle);c.globalAlpha=1-t*.8;
-    c.strokeStyle=this.vampire?'#ff3355':'#d8f3ff';c.lineWidth=3.5;
-    c.beginPath();c.moveTo(12,0);c.lineTo(24+phase*115,0);c.stroke();
-    c.strokeStyle='#ffffff';c.lineWidth=1.5;
-    c.beginPath();c.moveTo(18+phase*40,0);c.lineTo(28+phase*115,0);c.stroke();
+    if(this.vampire){
+     // Blood Mage staff spell circle & crimson blood bolt
+     c.strokeStyle='#ff2e55';c.lineWidth=2.2;
+     c.beginPath();c.arc(14,0,8+phase*5,0,Math.PI*2);c.stroke();
+     c.strokeStyle='#ff3355';c.lineWidth=this.kind==='attack'?3.2:4.5;
+     c.beginPath();c.moveTo(12,0);c.lineTo(24+phase*118,0);c.stroke();
+     c.strokeStyle='#ffd1dc';c.lineWidth=1.6;
+     c.beginPath();c.moveTo(18+phase*40,0);c.lineTo(28+phase*118,0);c.stroke();
+    }else{
+     // Human Gunner muzzle flash & high-velocity bullet tracer
+     c.fillStyle='#ffe89e';c.beginPath();c.arc(15,0,6*(1-phase*.6),0,Math.PI*2);c.fill();
+     c.strokeStyle='#7ce8ff';c.lineWidth=this.kind==='attack'?3:4.2;
+     c.beginPath();c.moveTo(12,0);c.lineTo(26+phase*120,0);c.stroke();
+     c.strokeStyle='#ffffff';c.lineWidth=1.5;
+     c.beginPath();c.moveTo(20+phase*42,0);c.lineTo(30+phase*120,0);c.stroke();
+    }
    }else{
     const sweep=this.kind==='sweep'||this.kind==='ultimate',ult=this.kind==='ultimate',strike=this.kind==='strike';
     const phase=Math.max(0,Math.min(1,(t-.18)/.55));
@@ -51,7 +63,7 @@ class CombatEffects {
      const end=-1.8+phase*(ult?Math.PI*3:sweep?Math.PI*2:strike?2.6:3.3);
      const radius=ult?104:sweep?72:strike?62:48;
      for(let i=0;i<(ult?4:3);i++){c.globalAlpha=(1-t)*(.62-i*.13);c.strokeStyle=color;c.lineWidth=(ult?10:8)-i*2;c.beginPath();c.arc(0,0,radius-i*6,end-(sweep?2.5:1.3),end);c.stroke();}
-     if(strike){
+     if(strike||(this.vampire&&this.job==='warrior')){
       c.globalAlpha=(1-t)*.75;c.strokeStyle=this.vampire?'#ff2e55':'#fff2b2';c.lineWidth=3.2;
       c.beginPath();c.moveTo(22,-22);c.lineTo(66,22);c.moveTo(22,22);c.lineTo(66,-22);c.stroke();
      }

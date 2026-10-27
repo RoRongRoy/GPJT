@@ -85,7 +85,7 @@ class GothicArt {
    this.block(-8,-3,9,5,35,'#7d6a52');this.line([[-14,-34],[-2,-28],[-2,-7]],'#b19b72',1);this.block(12,0,10,5,25,'#82745d');
   }
  });}
- character(x,y,scale,species,moving,now,{enemy=false,npc=false,mounted=false,tier=0,sprint=false,pose=null}={}){this.frame(x,y,scale,()=>{
+ character(x,y,scale,species,moving,now,{enemy=false,npc=false,mounted=false,tier=0,sprint=false,pose=null,gender='male',job='warrior'}={}){this.frame(x,y,scale,()=>{
   const c=this.c,freq=sprint?52:82,stride=moving&&!mounted?Math.sin(now/freq)*(sprint?6.2:3.8):0,bounce=moving&&!mounted?Math.abs(Math.cos(now/freq))*(sprint?4.5:2.2):0,vampire=species==='vampire';
   this.oval(4,2,17,7,'#06080dc0');
   if(enemy){
@@ -223,22 +223,53 @@ class GothicArt {
    this.line([[-1,-44+vibe],[5,-43+vibe]],'#7ce8ff',2);
    return;
   }
-  const lean=moving?(sprint?3.5:1.5):0;
-  this.line([[-5,-12-bounce],[-7-stride*.7,-1+Math.max(0,stride)]],'#1b202b',6);
-  this.line([[5,-12-bounce],[7+stride*.7,-1+Math.max(0,-stride)]],'#151d29',6);
-  this.poly([[-9+lean,-39-bounce],[8+lean,-39-bounce],[14-stride*.3,-5-bounce],[4,-9-bounce],[-2,-3-bounce],[-14-stride*.3,-8-bounce]],vampire?'#3d2637':'#313a43','#95948977');
-  if(vampire)this.poly([[5+lean,-38-bounce],[15,-28-bounce],[22+Math.abs(stride)*(sprint?1.4:.8),-4-bounce],[10,-9-bounce],[5,-17-bounce]],'#792c45','#a4556266');
+  const lean=moving?(sprint?3.5:1.5):0,female=gender==='female',ranged=job==='ranged';
+  this.line([[-5,-12-bounce],[-7-stride*.7,-1+Math.max(0,stride)]],'#1b202b',female?5:6);
+  this.line([[5,-12-bounce],[7+stride*.7,-1+Math.max(0,-stride)]],'#151d29',female?5:6);
+  this.poly([[-9+lean,-39-bounce],[8+lean,-39-bounce],[14-stride*.3,-5-bounce],[4,-9-bounce],[-2,-3-bounce],[-14-stride*.3,-8-bounce]],vampire?(ranged?'#451d38':'#3d2637'):(ranged?'#293a47':'#313a43'),'#95948977');
+  if(vampire)this.poly([[5+lean,-38-bounce],[15,-28-bounce],[22+Math.abs(stride)*(sprint?1.4:.8),-4-bounce],[10,-9-bounce],[5,-17-bounce]],ranged?'#961e4b':'#792c45','#a4556266');
   this.poly([[-10+lean,-38-bounce],[lean,-32-bounce],[9+lean,-38-bounce],[4,-24-bounce],[-4,-24-bounce]],vampire?'#8b697b':'#7d8079');
-  this.line([[-10+lean,-34-bounce],[-14+stride*.8,-18-bounce-stride*.4]],vampire?'#423241':'#3a4248',6);
+  this.line([[-10+lean,-34-bounce],[-14+stride*.8,-18-bounce-stride*.4]],vampire?'#423241':'#3a4248',female?5:6);
   this.line([[9+lean,-34-bounce],[15-stride*.8,-20-bounce+stride*.4]],'#35333d',5);
   this.oval(-14+stride*.8,-17-bounce-stride*.4,3,4,'#bbb3a2');
   this.oval(15-stride*.8,-19-bounce+stride*.4,3,4,'#c0b9ac');
-  this.oval(lean,-46-bounce,6,8,vampire?'#d0c9c4':'#bbae98');
-  this.poly([[-7+lean,-47-bounce],[-7+lean,-53-bounce],[-2+lean,-57-bounce],[6+lean,-53-bounce],[8+lean,-45-bounce],[4+lean,-47-bounce],[1+lean,-52-bounce],[-4+lean,-49-bounce]],'#141b25');
+  this.oval(lean,-46-bounce,female?5.6:6,female?7.6:8,vampire?'#d0c9c4':'#bbae98');
+  this.poly([[-7+lean,-47-bounce],[-7+lean,-53-bounce],[-2+lean,-57-bounce],[6+lean,-53-bounce],[8+lean,-45-bounce],[4+lean,-47-bounce],[1+lean,-52-bounce],[-4+lean,-49-bounce]],vampire?(female?'#2b1224':'#141b25'):(female?'#3b2a22':'#141b25'));
+  if(female){
+   const hairWave=moving?Math.sin(now/70)*2.5:0;
+   this.poly([[-6+lean,-46-bounce],[-12+lean-hairWave,-31-bounce],[-7+lean-hairWave*.6,-27-bounce],[-3+lean,-41-bounce]],vampire?'#38152d':'#4a3328');
+   this.oval(lean+4,-53-bounce,2.2,1.6,vampire?'#ff4d6d':'#ffd166');
+  }
   if(vampire){this.line([[-4+lean,-45-bounce],[-1+lean,-45-bounce]],'#c8848c',1);this.line([[2+lean,-45-bounce],[4+lean,-45-bounce]],'#c8848c',1);}
   else {this.line([[-7+lean,-32-bounce],[9,-18-bounce]],'#aa9578',2);this.block(-12,-21-bounce,4,2,9,'#5a5148');}
   this.line([[-8+lean*.5,-21-bounce],[9+lean*.5,-21-bounce]],'#8f8674',1.5);
-  if(!npc){this.line([[14-stride*.8,-22-bounce+stride*.4],[22-stride*.5,-3-bounce]],'#b9b7a8',2);this.line([[13-stride*.8,-20-bounce+stride*.4],[18-stride*.8,-22-bounce+stride*.4]],'#c6af82',2);}
+  if(!npc){
+   const hx=14-stride*.8,hy=-20-bounce+stride*.4,lx=-14+stride*.8,ly=-17-bounce-stride*.4;
+   if(!vampire&&ranged){
+    // Human Gunner: tactical rifle / firearm
+    this.line([[hx-2,hy],[hx+13,hy-3]],'#4b5663',3.2);
+    this.line([[hx+3,hy-1],[hx+17,hy-4]],'#9fb1c1',2);
+    this.line([[hx,hy],[hx-2,hy+6]],'#5c4635',2.4);
+    this.glow(hx+17,hy-4,8,'#7ce8ff44');
+   }else if(vampire&&!ranged){
+    // Vampire Warrior: dual crimson blood-claws on both hands
+    for(const [cx,cy,dir] of [[hx,hy,1],[lx,ly,-1]]){
+     this.line([[cx,cy],[cx+dir*8,cy+5]],'#ff2e55',1.8);
+     this.line([[cx,cy+1.5],[cx+dir*9,cy+8]],'#ff6b8b',1.6);
+     this.line([[cx,cy+3],[cx+dir*7,cy+10]],'#d91e41',1.5);
+    }
+   }else if(vampire&&ranged){
+    // Vampire Blood Mage: crimson blood-staff with floating orb
+    this.line([[hx-1,hy+14],[hx+7,hy-24]],'#4a2533',2.6);
+    this.oval(hx+7,hy-26,4.5,5.5,'#ff1e4d');
+    this.oval(hx+7,hy-26,2.2,2.8,'#ffd1dc');
+    this.glow(hx+7,hy-26,18,'#ff2e5566');
+   }else{
+    // Human Warrior: slayer blade
+    this.line([[hx,hy-2],[22-stride*.5,-3-bounce]],'#b9b7a8',2.4);
+    this.line([[hx-1,hy],[18-stride*.8,-22-bounce+stride*.4]],'#c6af82',2.2);
+   }
+  }
   else {this.oval(14,-15-bounce,3,4,'#d9b778');this.glow(14,-15-bounce,20,'#e0ae6922');}
  });}
  sky(width,height,now){

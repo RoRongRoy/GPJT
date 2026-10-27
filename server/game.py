@@ -16,41 +16,109 @@ ITEMS = {'wood': '목재', 'water': '식수', 'crop': '작물', 'herb': '약초'
          'metal': '부품', 'scroll': '강화 주문서', 'soup': '채소 수프', 'elixir': '안정화 혈액', 'medicine': '치료제'}
 
 
+GENDERS = {
+    'male': {'name': '남성', 'symbol': '♂'},
+    'female': {'name': '여성', 'symbol': '♀'},
+}
+
+CLASSES = {
+    'human': {
+        'warrior': {
+            'name': '전사',
+            'title': '슬레이어 전사',
+            'style': '근거리',
+            'weapon_type': '검',
+            'attack_range': 2.1,
+            'skill_range_bonus': 0.0,
+            'starter_weapon': '녹슨 기본 단검',
+            'starter_armor': '해진 기본 조끼',
+            'desc': '도검을 다루는 근접 전투 전문가. 근거리 참격과 강타로 전선을 돌파합니다.',
+        },
+        'ranged': {
+            'name': '거너',
+            'title': '슬레이어 거너',
+            'style': '원거리',
+            'weapon_type': '총기',
+            'attack_range': 4.2,
+            'skill_range_bonus': 1.2,
+            'starter_weapon': '구형 제식 권총',
+            'starter_armor': '해진 전술 조끼',
+            'desc': '총기를 사용하는 원거리 화력 전문가. 사거리 4.2의 사격과 탄막 기술로 적을 제압합니다.',
+        },
+    },
+    'vampire': {
+        'warrior': {
+            'name': '전사',
+            'title': '혈투사 (클로)',
+            'style': '근거리',
+            'weapon_type': '클로',
+            'attack_range': 2.1,
+            'skill_range_bonus': 0.0,
+            'starter_weapon': '무딘 혈족 클로',
+            'starter_armor': '빛바랜 밤의 외투',
+            'desc': '양손에 날카로운 클로를 장착한 근거리 혈투사. 적을 갈기갈기 찢고 피를 흡수합니다.',
+        },
+        'ranged': {
+            'name': '혈법사',
+            'title': '블러드 메이지',
+            'style': '원거리',
+            'weapon_type': '지팡이',
+            'attack_range': 4.2,
+            'skill_range_bonus': 1.2,
+            'starter_weapon': '고목 혈마법 지팡이',
+            'starter_armor': '빛바랜 혈마도 로브',
+            'desc': '지팡이로 원거리 혈마법을 구사하는 혈법사. 사거리 4.2의 혈탄과 광역 비전으로 적을 초토화합니다.',
+        },
+    },
+}
+
 COMBAT = {
     'attack': {'name': '기본 공격', 'cooldown': .6, 'range': 2.1, 'damage': 24},
     'sweep': {
-        'name': '회전 베기', 'vampire_name': '혈월 베기',
-        'desc': '반경 2.7 내 주변의 모든 적을 베어냅니다.', 'vampire_desc': '반경 2.7 내 적을 핏빛 초승달 참격으로 베고 흡혈합니다.',
+        'name': '회전 베기', 'vampire_name': '혈월 발톱',
+        'human_ranged_name': '산탄 난사', 'vampire_ranged_name': '혈화 폭발',
+        'desc': '반경 2.7 내 주변의 모든 적을 베어냅니다.', 'vampire_desc': '반경 2.7 내 적을 핏빛 클로 참격으로 베고 흡혈합니다.',
+        'human_ranged_desc': '반경 3.9 내 주변 적에게 산탄 탄막을 퍼붓습니다.', 'vampire_ranged_desc': '지팡이로 반경 3.9 내 적에게 핏빛 마력 폭발을 일으켜 흡혈합니다.',
         'key': 'Q', 'glyph': '✦', 'unlock_level': 1, 'aoe': True,
         'cooldown': 5, 'range': 2.7, 'damage': 32, 'cost': 6, 'mp_cost': 12, 'hp_cost': 8,
     },
     'recover': {
         'name': '숨 고르기', 'vampire_name': '혈액 재생',
+        'human_ranged_name': '전술 응급처치', 'vampire_ranged_name': '혈류 순환',
         'desc': '호흡을 가다듬어 체력을 즉시 18 회복합니다.', 'vampire_desc': '체내 혈액을 순환시켜 체력을 즉시 18 재생합니다.',
+        'human_ranged_desc': '전술 키트로 호흡을 정돈해 체력을 즉시 18 회복합니다.', 'vampire_ranged_desc': '지팡이의 마력으로 혈류를 순환시켜 체력을 즉시 18 재생합니다.',
         'key': 'R', 'glyph': '✚', 'unlock_level': 1,
         'cooldown': 10, 'heal': 18, 'cost': 8, 'mp_cost': 15, 'hp_cost': 6,
     },
     'strike': {
-        'name': '크로스 스트라이크', 'vampire_name': '블러드 팽',
-        'desc': '단일 대상에게 십자 강타를 가해 높은 피해를 줍니다.', 'vampire_desc': '단일 적의 급소를 혈아로 꿰뚫어 큰 피해와 강화 흡혈을 얻습니다.',
+        'name': '크로스 스트라이크', 'vampire_name': '블러드 클로',
+        'human_ranged_name': '대구경 관통탄', 'vampire_ranged_name': '혈류 낙인',
+        'desc': '단일 대상에게 십자 강타를 가해 높은 피해를 줍니다.', 'vampire_desc': '단일 적의 급소를 양손 클로로 꿰뚫어 큰 피해와 강화 흡혈을 얻습니다.',
+        'human_ranged_desc': '대구경 총탄으로 단일 대상을 정밀 타격해 높은 피해를 줍니다.', 'vampire_ranged_desc': '지팡이로 고농축 혈류 마탄을 꽂아 큰 피해와 강화 흡혈을 얻습니다.',
         'key': '1', 'glyph': '⚔', 'unlock_level': 3, 'aoe': False,
         'cooldown': 6, 'range': 2.6, 'damage': 52, 'cost': 5, 'mp_cost': 14, 'hp_cost': 7, 'leech_mult': .24,
     },
     'ranged': {
-        'name': '은탄 사격', 'vampire_name': '블러드 스피어',
-        'desc': '사거리 4.6의 원거리 적을 정밀 저격합니다.', 'vampire_desc': '사거리 4.6의 적에게 응축된 피의 창을 투척해 관통합니다.',
+        'name': '은탄 사격', 'vampire_name': '혈기 투척',
+        'human_ranged_name': '정밀 저격', 'vampire_ranged_name': '블러드 스피어',
+        'desc': '사거리 4.6의 원거리 적을 정밀 타격합니다.', 'vampire_desc': '클로에서 뿜어낸 핏빛 칼날을 투척해 원거리 적을 베어냅니다.',
+        'human_ranged_desc': '사거리 5.8의 원거리 적을 저격총으로 정밀 저격합니다.', 'vampire_ranged_desc': '지팡이에서 사거리 5.8의 거대한 피의 창을 소환해 관통합니다.',
         'key': '2', 'glyph': '⌖', 'unlock_level': 5, 'aoe': False,
         'cooldown': 7, 'range': 4.6, 'damage': 44, 'cost': 6, 'mp_cost': 16, 'hp_cost': 9,
     },
     'purify': {
-        'name': '성광 정화', 'vampire_name': '블러드 미스트',
-        'desc': '체력 +28 회복 및 감염도 −35 정화, 수분 +10을 회복합니다.', 'vampire_desc': '피의 안개로 체력 +28 재생, 감염도 −35 정화, 안정도 +15를 회복합니다.',
+        'name': '성광 정화', 'vampire_name': '피의 갑주',
+        'human_ranged_name': '전술 정화탄', 'vampire_ranged_name': '블러드 미스트',
+        'desc': '체력 +28 회복 및 감염도 −35 정화, 수분 +10을 회복합니다.', 'vampire_desc': '피의 갑주로 체력 +28 재생, 감염도 −35 정화, 안정도 +15를 회복합니다.',
+        'human_ranged_desc': '정화 캡슐을 분사해 체력 +28 회복, 감염도 −35 정화, 수분 +10을 회복합니다.', 'vampire_ranged_desc': '지팡이로 피의 안개를 펼쳐 체력 +28 재생, 감염도 −35 정화, 안정도 +15를 회복합니다.',
         'key': '3', 'glyph': '✧', 'unlock_level': 8,
         'cooldown': 14, 'heal': 28, 'cleanse': 35, 'cost': 8, 'mp_cost': 20, 'hp_cost': 8,
     },
     'ultimate': {
-        'name': '블레이드 스톰', 'vampire_name': '크림슨 노바',
-        'desc': '반경 3.8 내 모든 적을 폭풍 참격으로 초토화합니다.', 'vampire_desc': '반경 3.8 내 모든 적에게 진홍빛 혈폭풍을 터뜨려 대량 흡혈합니다.',
+        'name': '블레이드 스톰', 'vampire_name': '혈조 난무',
+        'human_ranged_name': '전탄 탄막 폭격', 'vampire_ranged_name': '크림슨 노바',
+        'desc': '반경 3.8 내 모든 적을 폭풍 참격으로 초토화합니다.', 'vampire_desc': '반경 3.8 내 모든 적을 광폭한 클로 난무로 갈기갈기 찢어 대량 흡혈합니다.',
+        'human_ranged_desc': '반경 5.0 내 모든 적에게 중화기 전탄 폭격을 퍼부어 초토화합니다.', 'vampire_ranged_desc': '지팡이로 반경 5.0 내 모든 적에게 진홍빛 혈마법 초신성을 터뜨려 대량 흡혈합니다.',
         'key': '4', 'glyph': '✹', 'unlock_level': 12, 'aoe': True,
         'cooldown': 16, 'range': 3.8, 'damage': 78, 'cost': 10, 'mp_cost': 28, 'hp_cost': 14, 'leech_mult': .24,
     },
@@ -69,7 +137,10 @@ POI_CONTENTS = {
 def ensure_starter_gear(w):
     gear = w.setdefault('gear', [])
     equip = w.setdefault('equipment', {'weapon': None, 'armor': None})
-    species = w['player'].get('species', 'human')
+    p = w['player']
+    species = p.get('species', 'human')
+    job = p.get('job', 'warrior')
+    cls = CLASSES.get(species, CLASSES['human']).get(job, CLASSES['human']['warrior'])
     changed = False
     # Earlier starter sets used 'common'; the shared rarity catalog uses 'normal'.
     for item in gear:
@@ -83,7 +154,7 @@ def ensure_starter_gear(w):
             'rarity': 'normal',
             'tier': 0,
             'power': 1,
-            'name': '녹슨 기본 단검' if species == 'human' else '무딘 혈족 손톱',
+            'name': cls['starter_weapon'],
         }
         gear.append(wep)
         if not equip.get('weapon'):
@@ -96,13 +167,25 @@ def ensure_starter_gear(w):
             'rarity': 'normal',
             'tier': 0,
             'power': 1,
-            'name': '해진 기본 조끼' if species == 'human' else '빛바랜 밤의 외투',
+            'name': cls['starter_armor'],
         }
         gear.append(arm)
         if not equip.get('armor'):
             equip['armor'] = arm['id']
         changed = True
     return changed
+
+
+def sync_starter_gear_names(w):
+    p = w['player']
+    species = p.get('species', 'human')
+    job = p.get('job', 'warrior')
+    cls = CLASSES.get(species, CLASSES['human']).get(job, CLASSES['human']['warrior'])
+    for item in w.get('gear', []):
+        if item.get('id') == 'gear:starter-weapon':
+            item['name'] = cls['starter_weapon']
+        elif item.get('id') == 'gear:starter-armor':
+            item['name'] = cls['starter_armor']
 
 
 def bag_capacity(w):
@@ -167,7 +250,8 @@ class RuleError(ValueError):
 
 def new_world():
     return {'version': 1, 'layout_version': LAYOUT_VERSION, 'revision': 0, 'elapsed': 0.0, 'paused': False,
-            'player': {'x': float(START_BASE[0]), 'y': float(START_BASE[1]+1), 'species': 'human', 'origin': 'human', 'chosen': False,
+            'player': {'x': float(START_BASE[0]), 'y': float(START_BASE[1]+1), 'species': 'human', 'origin': 'human',
+                       'gender': 'male', 'job': 'warrior', 'chosen': False,
                        'hp': 100.0, 'mp': 100.0, 'food': 90.0, 'water': 90.0, 'blood': 90.0, 'stability': 90.0,
                        'infection': 0.0, 'combat_level': 1, 'xp': 0, 'level': 0, 'pity': 0, 'mounted': False,
                        'unlocks': {'human': 0, 'vampire': 0}},
@@ -224,6 +308,10 @@ def act(w, command, rng=random.random):
     require(not w['paused'], '일시정지를 해제하세요.')
     if action == 'choose':
         require(command.get('species') in ('human', 'vampire'), '종족 오류')
+        gender = command.get('gender', p.get('gender', 'male') or 'male')
+        job = command.get('job', p.get('job', 'warrior') or 'warrior')
+        require(gender in GENDERS, '성별 선택 오류')
+        require(job in ('warrior', 'ranged'), '직업 선택 오류')
         if p.get('chosen'):
             fresh = new_world()
             for k in ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch', 'log'):
@@ -232,11 +320,31 @@ def act(w, command, rng=random.random):
             p['x'] = float(w['base']['x'])
             p['y'] = float(w['base']['y'] + 1)
         p['species'] = p['origin'] = command['species']
+        p['gender'] = gender
+        p['job'] = job
         p['chosen'] = True
         ensure_starter_gear(w)
-        note(w, '인간으로 시작합니다. (기본 장비 착용 · MP 활성)' if p['species'] == 'human' else '뱀파이어로 시작합니다. (기본 장비 착용 · 흡혈/체력재생 활성)')
+        sync_starter_gear_names(w)
+        cls = CLASSES[p['species']][job]
+        g_name = GENDERS[gender]['name']
+        sp_name = '인간' if p['species'] == 'human' else '뱀파이어'
+        trait = 'MP 활성' if p['species'] == 'human' else '흡혈/체력재생 활성'
+        note(w, f"{sp_name} {g_name} · [{cls['style']}] {cls['name']}({cls['weapon_type']})로 시작합니다. ({cls['starter_weapon']} 착용 · {trait})")
         return
     require(p['chosen'], '먼저 시작 종족을 선택하세요.')
+    if action == 'change_class':
+        gender = command.get('gender', p.get('gender', 'male'))
+        job = command.get('job', p.get('job', 'warrior'))
+        require(gender in GENDERS, '성별 선택 오류')
+        require(job in ('warrior', 'ranged'), '직업 선택 오류')
+        p['gender'] = gender
+        p['job'] = job
+        sync_starter_gear_names(w)
+        cls = CLASSES[p['species']][job]
+        g_name = GENDERS[gender]['name']
+        sp_name = '인간' if p['species'] == 'human' else '뱀파이어'
+        note(w, f"{sp_name} {g_name} · [{cls['style']}] {cls['name']}({cls['weapon_type']} 사용)로 직업을 변경했습니다.")
+        return
     if action == 'move':
         dx, dy = command.get('dx'), command.get('dy')
         sprint = bool(command.get('sprint'))
@@ -432,7 +540,10 @@ def act(w, command, rng=random.random):
             if spec.get('cleanse'):
                 p['infection'] = max(0.0, p.get('infection', 0.0) - spec['cleanse'])
         else:
-            enemies = [e for e in w['enemies'] if e['hp'] > 0 and dist(p, e) <= spec['range']]
+            job = p.get('job', 'warrior')
+            cls = CLASSES.get(p['species'], CLASSES['human']).get(job, CLASSES['human']['warrior'])
+            eff_range = cls['attack_range'] if action == 'attack' else spec['range'] + cls.get('skill_range_bonus', 0.0)
+            enemies = [e for e in w['enemies'] if e['hp'] > 0 and dist(p, e) <= eff_range]
             require(enemies or skill == 'attack', '가까운 공격 대상이 없습니다.')
             if action == 'skill':
                 cooldown(w, 'skill:' + skill, spec['cooldown'])
@@ -473,6 +584,7 @@ def act(w, command, rng=random.random):
         spend(w, {'herb': 2, 'water': 1})
         p['species'] = 'vampire' if p['species'] == 'human' else 'human'
         p['mounted'] = False
+        sync_starter_gear_names(w)
         note(w, '종족 변환/복귀 완료 · 아지트와 연구 유지 (프로토타입 의식)')
     elif action == 'research':
         at_base(w)

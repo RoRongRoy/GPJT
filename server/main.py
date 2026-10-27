@@ -16,7 +16,7 @@ if __name__ == '__main__' and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     __package__ = 'server'
 
-from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, live_pois, RARITIES
+from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, CLASSES, GENDERS, live_pois, RARITIES
 from .socketio_server import SocketIOHub
 from .storage import Store
 from .worldmap import WORLD_MAP
@@ -120,6 +120,8 @@ class Runtime:
             candidate['player']['chosen'] = True
             candidate['player']['account'] = username
             candidate['player'].setdefault('mp', 100.0)
+            candidate['player'].setdefault('gender', 'male')
+            candidate['player'].setdefault('job', 'warrior')
             ensure_starter_gear(candidate)
             candidate['cooldowns'] = {
                 ck: cv for ck, cv in candidate.get('cooldowns', {}).items() if cv <= candidate['elapsed'] + 60
@@ -133,7 +135,12 @@ class Runtime:
                 candidate[k] = copy.deepcopy(fresh[k])
             species = command.get('species')
             if species in ('human', 'vampire'):
-                act(candidate, {'action': 'choose', 'species': species})
+                act(candidate, {
+                    'action': 'choose',
+                    'species': species,
+                    'gender': command.get('gender', 'male'),
+                    'job': command.get('job', 'warrior'),
+                })
             candidate['log'] = ['신규 모험자로 새로운 여정을 시작합니다. 언제든 계정을 생성해 저장할 수 있습니다.'] + candidate['log'][:7]
             return True
         return False
@@ -209,6 +216,8 @@ class Runtime:
                 'x': p['x'],
                 'y': p['y'],
                 'species': p['species'],
+                'gender': p.get('gender', 'male'),
+                'job': p.get('job', 'warrior'),
                 'chosen': p['chosen'],
                 'hp': p['hp'],
                 'combat_level': p.get('combat_level', 1),
@@ -224,6 +233,8 @@ class Runtime:
             'map': WORLD_MAP,
             'recipes': RECIPES,
             'combat': COMBAT,
+            'classes': CLASSES,
+            'genders': GENDERS,
             'rarities': RARITIES,
         }
 
