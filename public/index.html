@@ -55,8 +55,87 @@
     <ul id="loot-list" class="loot-list"></ul>
     <div class="loot-actions"><button id="loot-selected" class="accent">선택 파밍</button><button id="loot-all">전체 획득 <kbd>F</kbd></button></div>
    </div>
-   <div id="interaction"><div><span class="eyebrow">NEARBY</span><span id="nearby-label">주변을 탐색하세요</span></div><button id="interact" title="오브젝트(폐차장·숲·샘 등) 내용물 확인 및 선택 파밍 (E)"><kbd>E</kbd> 🔍 파밍</button><button id="loot-btn" class="loot-action-btn" title="몬스터 필드 드랍 전리품 루팅 (F)"><span id="loot-btn-label">📦 루팅</span> <kbd>F</kbd></button><button id="sprint-toggle" type="button" class="sprint-button" aria-pressed="false" title="달리기 켜기/끄기 (Shift 유지 또는 클릭)"><span id="sprint-label">🏃 달리기 OFF</span> <kbd>Shift</kbd></button><button id="mount-toggle" data-action="mount" class="mount-button" title="다크에덴 탈것 탑승/변신 (M)">🦇 탑승 <kbd>M</kbd></button><button data-action="attack" class="attack-button" title="가까운 감염체 공격 (Space)">⚔ 공격 <kbd>Space</kbd></button><button id="auto-hunt" class="auto-hunt-button" aria-pressed="false" title="자동사냥 켜기/끄기 (G)"><span id="auto-hunt-label">자동사냥 OFF</span> <kbd>G</kbd></button></div>
-   <div id="skill-bar" class="skill-bar" aria-label="전투 스킬" hidden><button id="skill-sweep" data-skill="sweep"><kbd>Q</kbd><span class="skill-glyph">✦</span><strong id="skill-sweep-name">회전 베기</strong><small id="skill-sweep-status"></small></button><button id="skill-recover" data-skill="recover"><kbd>R</kbd><span class="skill-glyph">✚</span><strong id="skill-recover-name">숨 고르기</strong><small id="skill-recover-status"></small></button><button id="skill-strike" data-skill="strike"><kbd>1</kbd><span class="skill-glyph">⚔</span><strong id="skill-strike-name">크로스 스트라이크</strong><small id="skill-strike-status"></small></button><button id="skill-ranged" data-skill="ranged"><kbd>2</kbd><span class="skill-glyph">⌖</span><strong id="skill-ranged-name">은탄 사격</strong><small id="skill-ranged-status"></small></button><button id="skill-purify" data-skill="purify"><kbd>3</kbd><span class="skill-glyph">✧</span><strong id="skill-purify-name">성광 정화</strong><small id="skill-purify-status"></small></button><button id="skill-ultimate" data-skill="ultimate"><kbd>4</kbd><span class="skill-glyph">✹</span><strong id="skill-ultimate-name">블레이드 스톰</strong><small id="skill-ultimate-status"></small></button></div>
+   <div id="interaction" class="action-cluster" aria-label="필드 액션">
+    <div class="nearby-tracker"><span class="eyebrow">NEARBY</span><span id="nearby-label">주변을 탐색하세요</span></div>
+    <div class="action-grid">
+     <button id="interact" class="action-btn" title="오브젝트(폐차장·숲·샘 등) 내용물 확인 및 선택 파밍 (E)"><kbd>E</kbd><span class="action-glyph">🔍</span><span class="action-text">파밍</span></button>
+     <button id="loot-btn" class="action-btn loot-action-btn" title="몬스터 필드 드랍 전리품 루팅 (F)"><kbd>F</kbd><span class="action-glyph">📦</span><span id="loot-btn-label" class="action-text">루팅</span></button>
+     <button id="sprint-toggle" type="button" class="action-btn sprint-button" aria-pressed="false" title="달리기 켜기/끄기 (Shift 유지 또는 클릭)"><kbd>⇧</kbd><span class="action-glyph">🏃</span><span id="sprint-label" class="action-text">달리기 OFF</span></button>
+     <button id="mount-toggle" data-action="mount" class="action-btn mount-button" title="탈것 탑승/변신 (M)"><kbd>M</kbd><span class="action-glyph">🦇</span><span class="action-text">탑승</span></button>
+     <button data-action="attack" class="action-btn attack-button" title="가까운 감염체 공격 (Space)"><kbd>␣</kbd><span class="action-glyph">⚔</span><span class="action-text">공격</span></button>
+     <button id="auto-hunt" class="action-btn auto-hunt-button" aria-pressed="false" title="자동사냥 켜기/끄기 (G)"><kbd>G</kbd><span class="action-glyph">⚡</span><span id="auto-hunt-label" class="action-text">자동사냥 OFF</span></button>
+    </div>
+   </div>
+   <div id="skill-bar" class="skill-bar lineage-hotbar" aria-label="전투 스킬 핫바" hidden>
+    <div class="hotbar-slots-track">
+     <button id="skill-sweep" class="skill-slot" data-slot="q" data-skill="sweep" draggable="true" title="회전 베기 (Q)">
+      <kbd class="slot-key">Q</kbd>
+      <span class="skill-glyph">✦</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-sweep-name">회전 베기</strong>
+       <small id="skill-sweep-status"></small>
+      </div>
+     </button>
+     <button id="skill-recover" class="skill-slot" data-slot="r" data-skill="recover" draggable="true" title="숨 고르기 (R)">
+      <kbd class="slot-key">R</kbd>
+      <span class="skill-glyph">✚</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-recover-name">숨 고르기</strong>
+       <small id="skill-recover-status"></small>
+      </div>
+     </button>
+     <button id="skill-strike" class="skill-slot" data-slot="1" data-skill="strike" draggable="true" title="크로스 스트라이크 (1)">
+      <kbd class="slot-key">1</kbd>
+      <span class="skill-glyph">⚔</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-strike-name">크로스 스트라이크</strong>
+       <small id="skill-strike-status"></small>
+      </div>
+     </button>
+     <button id="skill-ranged" class="skill-slot" data-slot="2" data-skill="ranged" draggable="true" title="은탄 사격 (2)">
+      <kbd class="slot-key">2</kbd>
+      <span class="skill-glyph">⌖</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-ranged-name">은탄 사격</strong>
+       <small id="skill-ranged-status"></small>
+      </div>
+     </button>
+     <button id="skill-purify" class="skill-slot" data-slot="3" data-skill="purify" draggable="true" title="성광 정화 (3)">
+      <kbd class="slot-key">3</kbd>
+      <span class="skill-glyph">✧</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-purify-name">성광 정화</strong>
+       <small id="skill-purify-status"></small>
+      </div>
+     </button>
+     <button id="skill-ultimate" class="skill-slot" data-slot="4" data-skill="ultimate" draggable="true" title="블레이드 스톰 (4)">
+      <kbd class="slot-key">4</kbd>
+      <span class="skill-glyph">✹</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-ultimate-name">블레이드 스톰</strong>
+       <small id="skill-ultimate-status"></small>
+      </div>
+     </button>
+    </div>
+   </div>
    <div class="touch-pad" aria-label="터치 이동"><button data-direction="up" aria-label="위로 이동">↑</button><button data-direction="left" aria-label="왼쪽 이동">←</button><button data-direction="down" aria-label="아래로 이동">↓</button><button data-direction="right" aria-label="오른쪽 이동">→</button></div>
    <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
   </div>
@@ -143,7 +222,8 @@
    <div id="skills-summary" class="equip-stats-box"></div>
    <h3 class="section-label">성별 및 종족 직업 전환 (근거리 / 원거리)</h3>
    <div id="class-switcher" class="class-switcher"></div>
-   <h3 class="section-label">직업별 고유 스킬 및 스킬북 해금 목록 (Q · R · 1 · 2 · 3 · 4)</h3>
+   <h3 class="section-label">직업별 고유 스킬 및 퀵슬롯 등록 (드래그하여 Q · R · 1 · 2 · 3 · 4 슬롯에 장착)</h3>
+   <p class="panel-note hotbar-hint-note">⚔ <strong>리니지 M 퀵슬롯 등록 안내</strong>: 습득한 스킬을 드래그하여 하단 핫바 슬롯(Q·R·1~4)에 놓거나, 각 스킬 카드의 <code>[슬롯 등록]</code> 버튼을 클릭하여 원하는 단축키 슬롯에 즉시 장착할 수 있습니다.</p>
    <div id="skills-list" class="equip-gear-list"></div>
    <p class="panel-note">기본 스킬(Q·R)은 Lv.1부터 즉시 사용 가능하며, 상위 스킬(1·2·3·4)은 요구 레벨(Lv.3 / 5 / 8 / 12) 달성 후 몬스터에게서 낮은 확률(4%~8.5%)로 드랍되는 <strong>📖 고대 스킬북</strong>을 소모해 해금합니다.</p>
   </section>
