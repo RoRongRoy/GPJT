@@ -11,13 +11,13 @@ class CombatTests(unittest.TestCase):
         self.w = new_world()
         self.w['player'].update(chosen=True, x=20, y=20, hp=60)
         for e in self.w['enemies']:
-            e.update(x=50, y=50)
+            e.update(x=50, y=50, hp=60)
         self.w['enemies'][0].update(x=21, y=20)
         self.w['enemies'][1].update(x=20, y=22.5)
 
     def action(self, **command):
         candidate = copy.deepcopy(self.w)
-        act(candidate, command)
+        act(candidate, command, rng=lambda: .99)
         self.w = candidate
 
     def test_sweep_range_cost_cooldown_and_attack_lock(self):

@@ -3,7 +3,7 @@ import json
 import sqlite3
 from pathlib import Path
 from .game import new_world
-from .worldmap import ENEMY_SPAWNS, new_enemy, LAYOUT_VERSION, expand_coordinate
+from .worldmap import ENEMY_SPAWNS, new_enemy, LAYOUT_VERSION, expand_coordinate, new_npcs
 
 
 class Store:
@@ -33,6 +33,20 @@ class Store:
         # Add expansion encounters without resetting existing enemies or player assets.
         existing = {enemy['id'] for enemy in w['enemies']}
         w['enemies'].extend(new_enemy(i) for i in range(len(ENEMY_SPAWNS)) if i not in existing)
+        if w.get('encounter_version', 0) not in (0, 1):
+            raise RuntimeError('Unsupported encounter version; restore a compatible backup.')
+        if not w.get('encounter_version'):
+            # Preserve HP and timers; new maximums apply when wounded enemies respawn.
+            for enemy in w['enemies']:
+                for key, value in new_enemy(enemy['id']).items():
+                    enemy.setdefault(key, value)
+            w['player'].setdefault('combat_level', 1)
+            w['player'].setdefault('xp', 0)
+            w.setdefault('gear', [])
+            w.setdefault('equipment', {'weapon': None, 'armor': None})
+            w.setdefault('next_gear_id', 1)
+            w.setdefault('npcs', new_npcs())
+            w['encounter_version'] = 1
         return w
 
     def save(self, world):

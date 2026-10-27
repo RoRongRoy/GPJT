@@ -10,7 +10,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
-from .game import act, tick, RuleError, POIS, ITEMS, RECIPES, COMBAT
+from .game import act, tick, RuleError, POIS, ITEMS, RECIPES, COMBAT, live_pois, RARITIES
 from .storage import Store
 from .worldmap import WORLD_MAP
 
@@ -33,7 +33,7 @@ class Runtime:
         self.session, self.last_seen = token, now
 
     def snapshot(self):
-        return {'world': self.world, 'pois': POIS, 'items': ITEMS, 'map': WORLD_MAP, 'recipes': RECIPES, 'combat': COMBAT}
+        return {'world': self.world, 'pois': live_pois(self.world), 'items': ITEMS, 'map': WORLD_MAP, 'recipes': RECIPES, 'combat': COMBAT, 'rarities': RARITIES}
 
 
 def make_handler(runtime, access_key):
@@ -89,7 +89,7 @@ def make_handler(runtime, access_key):
                 files['/'+name+'.js'] = (name+'.js', 'text/javascript; charset=utf-8')
             for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'vampire', 'ghoul', 'brute', 'props', 'earth', 'stone'):
                 files['/art/gameplay/'+name+'.png'] = ('art/gameplay/'+name+'.png', 'image/png')
-            for item in ITEMS:
+            for item in (*ITEMS, 'weapon', 'armor'):
                 files['/icons/'+item+'.svg'] = ('icons/'+item+'.svg', 'image/svg+xml')
             if path not in files:
                 self.send(404, {'error': 'Not found'})

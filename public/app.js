@@ -28,7 +28,7 @@ const panelInfo={
 };
 const panelParents={guide:'journal',quests:'journal',log:'journal',craft:'camp',build:'camp',research:'camp',dispatch:'camp'};
 const recipeDetails={soup:['♨','포만도 +45 · 수분 +15'],elixir:['⚗','혈액량 +40 · 안정도 +45'],medicine:['+','체력 +40 · 감염 −60']};
-const inventoryGroups={all:['wood','water','crop','herb','blood','metal','scroll','soup','elixir','medicine'],materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll']};
+const inventoryGroups={all:['wood','water','crop','herb','blood','metal','scroll','soup','elixir','medicine'],materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll'],equipment:[]};
 const facilityNames = {kitchen:'주방',alchemy:'연금대',medical:'의료실',storage:'저장고'};
 function toast(message) { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600); }
 async function api(path, body) {
@@ -59,6 +59,9 @@ async function command(action, fields={}) {
   const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
   if(action==='move')view.endMove(true);
   accept(result);
+  const drops=(result.world.gear||[]).filter(g=>!(before.gear||[]).some(old=>old.id===g.id));
+  if(drops.length)toast('장비 획득 · '+drops.map(g=>itemName(g.id)).join(' · ')+' · 가방에 보관');
+  else if(result.world.player.combat_level>before.player.combat_level)toast(`전투 레벨 상승 · Lv.${result.world.player.combat_level}`);
   if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':fields.skill);
  }catch(e){
   if(action==='move')view.endMove(false);
@@ -82,13 +85,13 @@ function update() {
  const portrait=$('survivor-art');
  if(portrait.dataset.portraitSpecies!==p.species){portrait.dataset.portraitSpecies=p.species;portrait.src=p.species==='human'?'/art/human-warden.png':'/art/vampire-scholar.png';portrait.alt=p.species==='human'?'인간 생존자 초상':'뱀파이어 초상';}
  $('welcome').hidden=p.chosen; $('interaction').hidden=!p.chosen; if(w.paused)clearMovement(); updateGuide();
- const region=view.region(state,p.x,p.y);$('region-name').textContent=region.name;$('region-description').textContent=region.subtitle;
+ const region=view.region(state,p.x,p.y);$('region-name').textContent=region.name;$('region-description').textContent=region.subtitle+(region.levels?` · 권장 Lv.${region.levels.join('–')}${(p.combat_level||1)<region.levels[0]?' · 위험 지역':''}`:'');
  $('coordinates').textContent=`${Math.floor(p.x).toString().padStart(2,'0')} / ${Math.floor(p.y).toString().padStart(2,'0')}`;
  $('species').textContent=!p.chosen?'새로운 생존자':p.species==='human'?'인간 · 생존자':'뱀파이어 · 혈족';
  $('pause-overlay').hidden=!w.paused;
  $('pause').textContent=w.paused?'계속하기':'일시정지';
 
- $('level').textContent=`WEAPON +${p.level} · 실패 ${p.pity}`;
+ $('level').textContent=`Lv.${p.combat_level||1} · EXP ${p.xp||0}/${p.combat_level>=20?'MAX':(p.combat_level||1)*40} · 무기 강화 +${p.level}`;
  $('day').textContent=`DAY ${String(1+Math.floor(w.elapsed/600)).padStart(2,'0')}`;
  $('time').textContent=`활동 ${Math.floor(w.elapsed/60)}분 ${Math.floor(w.elapsed%60)}초`;
  $('base-pos').textContent=`${w.base.x} / ${w.base.y}`;
@@ -188,7 +191,7 @@ function updateContext(){
  document.querySelectorAll('[data-panel]').forEach(button=>button.disabled=!p.chosen||!connected);
  if(activePanel&&((campPanels.has(activePanel)&&!atCamp)||!connected))closePanel(false);
  $('field-hp').textContent=Math.ceil(p.hp);$('field-health-bar').style.width=`${Math.max(0,Math.min(100,p.hp))}%`;
- $('field-vital').textContent=p.species==='human'?`포만 ${Math.ceil(p.food)} · 수분 ${Math.ceil(p.water)}`:`혈액 ${Math.ceil(p.blood)} · 안정 ${Math.ceil(p.stability)}`;
+ $('field-vital').textContent=`Lv.${p.combat_level||1} · `+(p.species==='human'?`포만 ${Math.ceil(p.food)} · 수분 ${Math.ceil(p.water)}`:`혈액 ${Math.ceil(p.blood)} · 안정 ${Math.ceil(p.stability)}`);
  $('field-infection').hidden=p.infection<1;$('field-infection').textContent=`감염 ${Math.ceil(p.infection)}`;
 }
 const itemSlots=new Map();let selectedItem=null,inventoryLayout='';
@@ -206,6 +209,7 @@ const itemInfo={
 };
 function itemUseReason(id){
  const w=state.world;
+ if(gearItem(id))return !connected?'서버 연결을 기다리세요.':w.paused?'일시정지를 해제하세요.':'';
  if(!id)return '아이템을 선택하세요.';
  if(!['soup','water','blood','elixir','medicine'].includes(id))return '직접 사용할 수 없는 제작·강화 재료입니다.';
  if(!connected)return '서버 연결을 기다리세요.';
@@ -215,16 +219,20 @@ function itemUseReason(id){
  if(['blood','elixir'].includes(id)&&w.player.species!=='vampire')return '뱀파이어만 사용할 수 있습니다.';
  return '';
 }
+function gearItem(id){return state?.world.gear?.find(g=>g.id===id);}
+function itemName(id){const g=gearItem(id);return g?`[${state.rarities[g.rarity].name}] ${g.name}`:state.items[id];}
+function itemIcon(id){return gearItem(id)?.slot||id;}
 function renderInventory(){
  if(!state)return;
- const ids=inventoryGroups[inventoryFilter].filter(id=>state.world.inventory[id]>0);
- if(!inventoryGroups[inventoryFilter].includes(selectedItem))selectedItem=ids[0]||null;
+ const gear=state.world.gear||[],allIds=[...inventoryGroups[inventoryFilter],...(['all','equipment'].includes(inventoryFilter)?gear.map(g=>g.id):[])];
+ const ids=allIds.filter(id=>gearItem(id)||state.world.inventory[id]>0);
+ if(!allIds.includes(selectedItem))selectedItem=ids[0]||null;
  const layout=inventoryFilter+':'+ids.join(',');
  if(layout!==inventoryLayout){
   const slots=ids.map(id=>{
    if(!itemSlots.has(id)){
-    const button=document.createElement('button'),img=document.createElement('img'),name=span('slot-name',state.items[id]),count=span('slot-count','');
-    button.className='item-slot';button.dataset.inventoryItem=id;img.src='/icons/'+id+'.svg';img.alt='';img.width=48;img.height=48;
+    const button=document.createElement('button'),img=document.createElement('img'),name=span('slot-name',itemName(id)),count=span('slot-count','');
+    button.className='item-slot';button.dataset.inventoryItem=id;img.src='/icons/'+itemIcon(id)+'.svg';img.alt='';img.width=48;img.height=48;
     button.append(img,name,count);button.onclick=()=>{selectedItem=id;renderInventory();};itemSlots.set(id,{button,count});
    }
    return itemSlots.get(id).button;
@@ -232,15 +240,21 @@ function renderInventory(){
   for(let i=ids.length;i<20;i++){const empty=document.createElement('span');empty.className='item-slot empty-slot';empty.setAttribute('aria-hidden','true');slots.push(empty);}
   $('inventory').replaceChildren(...slots);inventoryLayout=layout;
  }
- for(const id of ids){const {button,count}=itemSlots.get(id),amount=state.world.inventory[id];count.textContent=amount;button.setAttribute('aria-label',state.items[id]+' '+amount+'개');button.setAttribute('aria-pressed',String(id===selectedItem));}
- $('bag-count').textContent=Object.values(state.world.inventory).filter(n=>n>0).length+'종 보유';$('inventory-empty').hidden=ids.length>0;
- const info=itemInfo[selectedItem];$('item-art').hidden=!info;if(info)$('item-art').src='/icons/'+selectedItem+'.svg';
- $('item-category').textContent=info?.[0]||'';$('item-name').textContent=selectedItem?state.items[selectedItem]:'비어 있는 가방';
+ for(const id of ids){const {button,count}=itemSlots.get(id),g=gearItem(id),amount=state.world.inventory[id];
+  count.textContent=g?(state.world.equipment[g.slot]===id?'착용':'장비'):amount;
+  button.style.color=g?state.rarities[g.rarity].color:'';button.style.borderColor=g?state.rarities[g.rarity].color:'';
+  button.setAttribute('aria-label',g?itemName(id)+' '+count.textContent:itemName(id)+' '+amount+'개');button.setAttribute('aria-pressed',String(id===selectedItem));}
+ $('equipped-summary').textContent=['weapon','armor'].map(slot=>{const g=gearItem(state.world.equipment?.[slot]);return (slot==='weapon'?'무기':'방어구')+' · '+(g?itemName(g.id):'미착용');}).join(' / ');
+ $('bag-count').textContent=Object.values(state.world.inventory).filter(n=>n>0).length+'종 · 장비 '+gear.length+'개';$('inventory-empty').hidden=ids.length>0;
+ const g=gearItem(selectedItem),rarity=g?state.rarities[g.rarity]:null,equipped=g&&state.world.equipment[g.slot]===g.id;
+ const info=g?[rarity.name+' '+(g.slot==='weapon'?'무기':'방어구'),'몬스터에게서 획득한 장비. 종족·레벨 제한 없이 착용할 수 있습니다.',(g.slot==='weapon'?'공격력 +':'받는 피해 −')+g.power+' · 현재 부위 대비 '+(g.power-(gearItem(state.world.equipment[g.slot])?.power||0)>=0?'+':'')+(g.power-(gearItem(state.world.equipment[g.slot])?.power||0))]:itemInfo[selectedItem];$('item-art').hidden=!info;if(info)$('item-art').src='/icons/'+itemIcon(selectedItem)+'.svg';
+ $('item-category').textContent=info?.[0]||'';$('item-name').textContent=selectedItem?itemName(selectedItem):'비어 있는 가방';
  $('item-description').textContent=info?.[1]||'채집하거나 제작해 아이템을 획득하세요.';$('item-effect').textContent=info?.[2]||'';
- $('item-owned').textContent=selectedItem?'보유 수량 · '+(state.world.inventory[selectedItem]||0):'';
- const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent='1개 사용';$('item-use-reason').textContent=reason||'선택한 아이템 1개를 사용합니다.';
+ $('item-category').style.color=rarity?.color||'';
+ $('item-owned').textContent=g?(equipped?'현재 착용 중':'가방에 보관 중'):selectedItem?'보유 수량 · '+(state.world.inventory[selectedItem]||0):'';
+ const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent=g?(equipped?'착용 해제':'착용'):'1개 사용';$('item-use-reason').textContent=reason||(g?'같은 부위의 장비는 교체되며 가방에 보존됩니다.':'선택한 아이템 1개를 사용합니다.');
 }
-$('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem))manualAction('consume',{item:selectedItem});};
+$('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){const g=gearItem(selectedItem);if(g)manualAction(state.world.equipment[g.slot]===g.id?'unequip':'equip',{item:g.id,slot:g.slot});else manualAction('consume',{item:selectedItem});}};
 function skillStatus(id){
  const w=state.world,p=w.player,spec=state.combat?.[id];
  if(!spec)return {reason:'서버 연결 중'};
@@ -333,6 +347,7 @@ function stepMovement(){
  if(target&&!dx&&!dy){
   const p=state.world.player,m=state.map.movement;
   const enemy=target.id?.startsWith('enemy:')?state.world.enemies.find(n=>n.id===Number(target.id.split(':')[1])):null;
+  const npc=state.pois.find(n=>n.id===target.id&&n.kind==='npc');if(npc){target.x=npc.x;target.y=npc.y;}
   if(enemy){if(enemy.hp<=0){target=null;return;}target.x=enemy.x;target.y=enemy.y;}
   const distance=Math.hypot(target.x-p.x,target.y-p.y),step=m.step*(p.mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1);
   if(distance<=(target.id?1.5:step*.8)){

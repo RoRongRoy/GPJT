@@ -15,6 +15,9 @@ REGIONS = [
     {'id': 'works', 'name': '침묵의 공업지대', 'subtitle': '허물어진 공장 사이의 넓은 황무지',
      'x': 94, 'y': 92, 'radius': 50, 'color': '#71616a'},
 ]
+for region, levels in zip(REGIONS, [(1, 3), (4, 6), (8, 10), (12, 14)]):
+    region['levels'] = list(levels)
+
 ROADS = [
     [[9, 28], [24, 33], [40, 26], [56, 34], [73, 27], [89, 34], [115, 25]],
     [[25, 33], [32, 49], [24, 67], [32, 83], [27, 106], [38, 119]],
@@ -74,4 +77,19 @@ ENEMY_SPAWNS = [(42, 12), (56, 39), (25, 55), (59, 63), (87, 39), (112, 58),
 
 def new_enemy(index):
     x, y = ENEMY_SPAWNS[index]
-    return {'id': index, 'x': x, 'y': y, 'hp': 60, 'respawn': 0, 'attack': 0}
+    region = region_at(x, y)
+    level = region['levels'][0] + index % 3
+    hp = 60 + (level-1)*18
+    names = {'outskirts': '배회하는 감염자', 'forest': '숲의 포식자', 'marsh': '늪지 변이체', 'works': '철갑 파괴자'}
+    return {'id': index, 'x': x, 'y': y, 'hp': hp, 'max_hp': hp, 'level': level,
+            'name': names[region['id']], 'region': region['id'], 'damage': 8+(level-1)*2,
+            'xp': 12+level*4, 'respawn': 0, 'attack': 0, 'returning': False}
+
+
+def new_npcs():
+    return [dict(n, home_x=n['x'], home_y=n['y']) for n in POIS if n['kind'] == 'npc']
+
+
+def live_pois(world):
+    moving = {n['id']: n for n in world['npcs']}
+    return [moving.get(n['id'], n) for n in POIS]

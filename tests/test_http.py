@@ -121,6 +121,26 @@ class HttpTests(unittest.TestCase):
     def test_bad_action_shape(self):
         self.assertEqual(self.request('/api/action', {'command': []})[0], 400)
 
+    def test_equipment_is_owned_atomic_and_persisted(self):
+        from server.equipment import roll_equipment
+        w = self.runtime.world
+        w['player']['chosen'] = True
+        item = roll_equipment(w, w['enemies'][0], lambda: .001)
+        self.runtime.store.save(w)
+        payload = {'revision': 0, 'command': {'action': 'equip', 'item': item['id']}}
+        status, _ = self.request('/api/action', payload)
+        self.assertEqual(status, 200)
+        saved = self.runtime.store.load()
+        self.assertEqual(saved['equipment']['weapon'], item['id'])
+        self.runtime.last_command = 0
+        self.assertEqual(self.request('/api/action', payload)[0], 409)
+        self.runtime.last_command = 0
+        invalid = {'revision': 1, 'command': {'action': 'equip', 'item': 'gear:999', 'power': 9999}}
+        self.assertEqual(self.request('/api/action', invalid)[0], 400)
+        self.assertEqual(self.runtime.store.load(), saved)
+        for slot in ('weapon', 'armor'):
+            self.assertEqual(self.request('/icons/'+slot+'.svg')[0], 200)
+
 
 if __name__ == '__main__':
     unittest.main()

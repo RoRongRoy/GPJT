@@ -35,3 +35,12 @@ node tests/browser_smoke.cjs
 ## 검증 범위와 남은 항목
 
 모바일 검사는 Chromium의 뷰포트·터치 에뮬레이션입니다. 실제 휴대전화, Safari/Firefox, 장시간 플레이·성능, 외부 네트워크·HTTPS는 검증하지 않았습니다. 지역의 나무·물가·폐허는 장식이며 충돌·길찾기·자유 건축·멀티플레이는 미구현입니다.
+
+## 0.8.0 검증 (2026-10-27)
+
+- `python -m unittest discover -s tests -v`: 46개 통과. 순찰 범위·추적/복귀·지역별 능력치·5등급 확률 경계·중복 드롭 방지·장비 공격/방어·이동 NPC 의뢰·저장 이전 및 HTTP 소유권/원자성 포함.
+- `node tests/combat_inventory_browser.cjs`: 격리 저장으로 5등급 표시, 착용/해제 저장, NPC 이동, 정적 지형 캐시 유지, 소모품·Q/Space/R·모바일 화면 검증.
+- `node tests/browser_smoke.cjs`: 데스크톱·모바일 실제 HTTP 이동/채집/아지트 제작·종족 전환·원거리 메뉴 제한 통과.
+- `node tests/client_navigation.cjs`, `node tests/field_art.cjs`, `node tests/combat_effects.cjs`, 수정 JS 문법 및 문서 링크 검사 통과.
+- `node tests/render_performance.cjs`: 이 클라우드 Chromium에서 아지트/숲/모바일 크기 화면의 draw 중앙값 0.4–0.5ms, 프레임 중앙값 약 16.7ms. 실제 모바일 기기 성능 보장은 아닙니다.
+- 개인 저장은 로컬 백업 후 새 필드를 추가하고 재고·시설·강화·진행·쿨다운·기존 몬스터 HP/타이머의 보존과 재로딩을 확인했습니다. 개인 데이터 및 테스트 스크린샷은 커밋하지 않습니다.

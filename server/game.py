@@ -2,7 +2,9 @@
 import math
 import random
 
-from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION
+from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois
+
+from .equipment import RARITIES, roll_equipment, equipment_power
 
 RECIPES = {
     'soup': {'cost': {'crop': 2, 'water': 1}, 'facility': 'kitchen', 'name': '채소 수프'},
@@ -21,13 +23,28 @@ COMBAT = {
 }
 
 
-def damage_enemy(w, enemy, damage):
+def damage_enemy(w, enemy, damage, rng=random.random):
+    if enemy['hp'] <= 0:
+        return
     enemy['hp'] = max(0, enemy['hp'] - damage)
     if enemy['hp'] == 0:
         enemy['respawn'] = w['elapsed'] + 45
         w['inventory']['scroll'] += 3
         w['inventory']['metal'] += 2
-        note(w, '감염체 처치 · 주문서 +3 · 부품 +2')
+        p = w['player']
+        p['xp'] += enemy['xp']
+        while p['combat_level'] < 20 and p['xp'] >= p['combat_level']*40:
+            p['xp'] -= p['combat_level']*40
+            p['combat_level'] += 1
+        if p['combat_level'] == 20:
+            p['xp'] = 0
+        note(w, f"{enemy['name']} 처치 · 경험치 +{enemy['xp']} · 주문서 +3 · 부품 +2")
+        if rng() < .2:
+            w['inventory']['medicine'] += 1
+            note(w, '전리품 · 치료제 +1 (가방에 보관)')
+        item = roll_equipment(w, enemy, rng)
+        if item:
+            note(w, f"전리품 · [{RARITIES[item['rarity']]['name']}] {item['name']} (가방 → 장비)")
 
 
 class RuleError(ValueError):
@@ -38,11 +55,13 @@ def new_world():
     return {'version': 1, 'layout_version': LAYOUT_VERSION, 'revision': 0, 'elapsed': 0.0, 'paused': False,
             'player': {'x': float(START_BASE[0]), 'y': float(START_BASE[1]+1), 'species': 'human', 'origin': 'human', 'chosen': False,
                        'hp': 100.0, 'food': 90.0, 'water': 90.0, 'blood': 90.0, 'stability': 90.0,
-                       'infection': 0.0, 'level': 0, 'pity': 0, 'mounted': False,
+                       'infection': 0.0, 'combat_level': 1, 'xp': 0, 'level': 0, 'pity': 0, 'mounted': False,
                        'unlocks': {'human': 0, 'vampire': 0}},
             'base': {'x': START_BASE[0], 'y': START_BASE[1], 'facilities': dict.fromkeys(FACILITIES, 0)},
             'inventory': {'wood': 12, 'water': 12, 'crop': 8, 'herb': 8, 'blood': 8,
                           'metal': 6, 'scroll': 15, 'soup': 2, 'elixir': 2, 'medicine': 1},
+            'gear': [], 'equipment': {'weapon': None, 'armor': None}, 'next_gear_id': 1,
+            'npcs': new_npcs(), 'encounter_version': 1,
             'milestones': [], 'cooldowns': {}, 'dispatch': None, 'quest': {'collected': 0, 'round': 0},
             'enemies': [new_enemy(i) for i in range(len(ENEMY_SPAWNS))],
             'log': ['격리구역에 도착했습니다. 아지트에서 주방과 연금대를 마련하세요.']}
@@ -123,6 +142,16 @@ def act(w, command, rng=random.random):
         w['inventory']['scroll'] += 1
         w['quest']['collected'] += 1
         note(w, f"{ITEMS[node['kind']]} +3 · 주문서 +1")
+    elif action == 'equip':
+        item = next((g for g in w['gear'] if g['id'] == command.get('item')), None)
+        require(item, '보유하지 않은 장비입니다.')
+        w['equipment'][item['slot']] = item['id']
+        note(w, item['name'] + ' 착용')
+    elif action == 'unequip':
+        slot = command.get('slot')
+        require(isinstance(slot, str) and slot in ('weapon', 'armor'), '장비 부위 오류')
+        require(w['equipment'][slot], '착용한 장비가 없습니다.')
+        w['equipment'][slot] = None
     elif action == 'craft':
         at_base(w)
         recipe = RECIPES.get(command.get('recipe'))
@@ -159,7 +188,7 @@ def act(w, command, rng=random.random):
     elif action == 'relocate':
         require(not threat(w), '적이 가까이 있습니다. 안전한 곳에서 이동하세요.')
         x, y = round(p['x']), round(p['y'])
-        require(all(math.hypot(x-n['x'], y-n['y']) >= 2 for n in POIS), '자원·NPC 지점과 겹칩니다.')
+        require(all(math.hypot(x-n['x'], y-n['y']) >= 2 for n in live_pois(w)), '자원·NPC 지점과 겹칩니다.')
         w['base']['x'], w['base']['y'] = x, y
         note(w, '아지트 즉시 이동 · 시설과 보관품 유지')
     elif action == 'enhance':
@@ -196,10 +225,11 @@ def act(w, command, rng=random.random):
             cooldown(w, 'attack', COMBAT['attack']['cooldown'])
             p[meter] -= spec.get('cost', 0)
             targets = enemies if skill == 'sweep' else ([min(enemies, key=lambda e: dist(p, e))] if enemies else [])
+            damage = (spec['damage'] + equipment_power(w, 'weapon') + (p['combat_level']-1)*2) * (1 + p['level'] * .02)
             for enemy in targets:
-                damage_enemy(w, enemy, spec['damage'] * (1 + p['level'] * .02))
+                damage_enemy(w, enemy, damage, rng)
     elif action == 'quest':
-        require(any(n['kind'] == 'npc' and dist(p, n) <= 2.5 for n in POIS), '진영 NPC 가까이 가세요.')
+        require(any(n['kind'] == 'npc' and dist(p, n) <= 2.5 for n in live_pois(w)), '진영 NPC 가까이 가세요.')
         require(w['quest']['collected'] >= 5, '자원 채집을 5회 완료하세요.')
         w['quest']['collected'] -= 5
         w['quest']['round'] += 1
@@ -269,30 +299,50 @@ def tick(w, dt):
             w['inventory'][key] += value
         w['dispatch'] = None
         note(w, '파견 복귀 · 자원을 창고에 보관했습니다.')
+    for index, npc in enumerate(w['npcs']):
+        patrol(npc, {'x': npc['home_x'], 'y': npc['home_y']}, w['elapsed'], index+3, 1.8, dt)
     for e in w['enemies']:
+        home = dict(zip(('x', 'y'), ENEMY_SPAWNS[e['id']]))
         if e['hp'] <= 0:
             if w['elapsed'] >= e['respawn']:
-                e['hp'] = 60
-                e['x'], e['y'] = ENEMY_SPAWNS[e['id']]
+                e.update(hp=e['max_hp'], x=home['x'], y=home['y'], returning=False)
             continue
         d = dist(e, p)
         protected = dist(p, w['base']) <= BASE_USE_RADIUS
-        home = dict(zip(('x', 'y'), ENEMY_SPAWNS[e['id']]))
-        if protected or d >= 4.8:
-            distance = dist(e, home)
-            if distance > .1:
-                step = min(distance, dt * .65)
-                e['x'] += (home['x']-e['x']) / distance * step
-                e['y'] += (home['y']-e['y']) / distance * step
+        if dist(e, home) > 10:
+            e['returning'] = True
+        if e['returning']:
+            move_toward(e, home, dt*.9)
+            if dist(e, home) < .2:
+                e['returning'] = False
             continue
-        if 1 < d < 4.8:
-            e['x'] += (p['x']-e['x']) / d * dt * .65
-            e['y'] += (p['y']-e['y']) / d * dt * .65
+        if protected or d >= 4.8:
+            if dist(e, home) > 3.5:
+                move_toward(e, home, dt*.65)
+            else:
+                patrol(e, home, w['elapsed'], e['id'], 3, dt)
+            continue
+        if d > 1:
+            move_toward(e, p, dt*.8)
         if d <= 1.3 and w['elapsed'] >= e['attack']:
             e['attack'] = w['elapsed'] + 2.5
-            p['hp'] = max(0, p['hp'] - 8)
+            p['hp'] = max(0, p['hp'] - max(1, e['damage'] - equipment_power(w, 'armor')))
             p['infection'] = min(100, p['infection'] + 5)
-            note(w, '감염체에게 물렸습니다. 치료제를 준비하세요.')
+            note(w, f"{e['name']} Lv.{e['level']}의 공격 · 치료제를 준비하세요.")
     if p['hp'] <= 0 or p['infection'] >= 100:
         p.update(x=float(w['base']['x']), y=float(w['base']['y']+1), hp=65., infection=0., mounted=False)
         note(w, '감염/전투 불능 · 치료소에서 복구 (감염체 시체는 후속 구현)')
+
+
+def move_toward(actor, target, step):
+    distance = dist(actor, target)
+    if distance > 0:
+        step = min(distance, step)
+        actor['x'] += (target['x']-actor['x'])/distance*step
+        actor['y'] += (target['y']-actor['y'])/distance*step
+
+
+def patrol(actor, home, elapsed, seed, radius, dt):
+    angle = elapsed*.13 + seed*2.4
+    target = {'x': home['x']+math.cos(angle)*radius, 'y': home['y']+math.sin(angle)*radius}
+    move_toward(actor, target, dt*.65)

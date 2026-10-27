@@ -2,7 +2,7 @@
 class WorldView {
  constructor(canvas, minimap) {
   this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.minimap=minimap;this.art=new FieldArt(this.ctx);
-  this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;
+  this.entityPositions=new Map();this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;
  }
  playCombat(before,after,kind){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0);}
  predictMove(state,{dx,dy}){
@@ -16,12 +16,13 @@ class WorldView {
  prepareScenery(state){
   if(this.mapSource===state.map&&this.poiSource===state.pois)return;
   this.mapSource=state.map;this.poiSource=state.pois;
-  const key=JSON.stringify([state.map,state.pois]);if(key===this.mapKey)return;this.mapKey=key;
+  const landmarks=state.pois.map(n=>({...n,x:n.home_x??n.x,y:n.home_y??n.y}));
+  const key=JSON.stringify([state.map,landmarks]);if(key===this.mapKey)return;this.mapKey=key;
   this.scenery=[];this.ponds=[];
   // Irregular sparse clusters, with real gaps for travel and landmarks.
   for(let gy=3;gy<state.map.size;gy+=3)for(let gx=3;gx<state.map.size;gx+=3){
    const x=gx+(this.noise(gx,gy)-.5)*1.8,y=gy+(this.noise(gy,gx)-.5)*1.8;
-   if(state.pois.some(n=>Math.hypot(x-n.x,y-n.y)<3.8)||this.nearRoad(state.map,x,y))continue;
+   if(landmarks.some(n=>Math.hypot(x-n.x,y-n.y)<3.8)||this.nearRoad(state.map,x,y))continue;
    const region=this.region(state,x,y).id,n=this.noise(gx+47,gy+13);
    const cluster=(Math.sin(x/8)+Math.cos(y/11)+Math.sin((x+y)/17))/3;
    if(region==='marsh'&&n>.82)this.ponds.push({x,y});
@@ -110,7 +111,9 @@ class WorldView {
   }
   const offsets={kitchen:[-4,2],alchemy:[3,-4],medical:[2,4],storage:[5,0]};
   const facilities=Object.entries(w.base.facilities).filter(([,level])=>level).map(([id,level])=>({x:w.base.x+offsets[id][0],y:w.base.y+offsets[id][1],id,level,type:'facility'}));
-  const entities=[...scenery,...state.pois.map(n=>({...n,type:'poi'})),{...w.base,type:'base'},...facilities,...w.enemies.filter(e=>e.hp>0).map(e=>({...e,type:'enemy'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
+  const smooth=(e,key)=>{let v=this.entityPositions.get(key);if(!v||Math.hypot(v.x-e.x,v.y-e.y)>5||w.paused)v={x:e.x,y:e.y};
+   const follow=1-Math.exp(-12*dt);v.x+=(e.x-v.x)*follow;v.y+=(e.y-v.y)*follow;this.entityPositions.set(key,v);return {...e,...v};};
+  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),{...w.base,type:'base'},...facilities,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
   this.points=[];const labels=[];let playerCovered=false;
   const tree=(x,y,seed=0)=>{const [sx,sy]=project(x,y);art.tree(sx,sy,scale,seed);};
   for(const e of entities){
@@ -147,8 +150,9 @@ class WorldView {
      }
     }
     if(e.kind==='npc'){
-     art.prop('storage',sx+26*scale,sy+8*scale,scale*.7);
-     art.character(sx,sy,scale,['vampire','ferryman'].includes(e.id)?'vampire':'human',false,now,{npc:true});
+     const [hx,hy]=project(e.home_x??e.x,e.home_y??e.y);art.prop('storage',hx+26*scale,hy+8*scale,scale*.7);
+     const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused);
+     art.character(sx,sy,scale,['vampire','ferryman'].includes(e.id)?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
     }
     const focus=e.id===selected||near<2.5;
     if(focus){c.strokeStyle='#e9d29a';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy,28*scale,14*scale,0,0,Math.PI*2);c.stroke();}
@@ -158,8 +162,9 @@ class WorldView {
    }
    if(e.type==='enemy'){
     const pose=art.pose('enemy:'+e.id,e.x,e.y,now,w.paused);
-    art.character(sx,sy,scale,'human',pose.frame!==0,now,{enemy:true,variant:Number(String(e.id).replace(/\D/g,''))%3===0,pose});
-    c.fillStyle='#151c29';c.fillRect(sx-16*scale,sy-98*scale,32*scale,4*scale);c.fillStyle='#ad5866';c.fillRect(sx-16*scale,sy-98*scale,32*scale*Math.max(0,e.hp)/60,4*scale);
+    art.character(sx,sy,scale,'human',pose.frame!==0,now,{enemy:true,variant:(e.level||1)>=8,pose});
+    c.fillStyle='#151c29';c.fillRect(sx-16*scale,sy-98*scale,32*scale,4*scale);c.fillStyle='#ad5866';c.fillRect(sx-16*scale,sy-98*scale,32*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
+    labels.push([`${e.name||'감염체'} Lv.${e.level||1}`,sx,sy-111*scale,(e.level||1)>(p.combat_level||1)+2?'#ff9c88':'#e4c9c1']);
     this.points.push({x:sx,y:sy-23*scale,id:'enemy:'+e.id,left:sx-29*scale,right:sx+29*scale,top:sy-95*scale,bottom:sy+10*scale});
    }
    if(e.type==='player'){

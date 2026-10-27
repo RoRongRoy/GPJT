@@ -7,11 +7,14 @@ async function until(check,message){for(let i=0;i<80;i++){if(await check())retur
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'bloodfall-combat-')),save=path.join(tmp,'world.sqlite3'),key=crypto.randomBytes(32).toString('hex');
  execFileSync(process.env.PYTHON||'python',['-c',`import sys;from server.game import new_world;from server.storage import Store
 w=new_world();w['player'].update(chosen=True,x=20,y=20,hp=90);w['inventory']['water']=1;w['base'].update(x=6,y=6)
-for e in w['enemies']:e.update(x=50,y=50)
+for e in w['enemies']:e.update(x=50,y=50,hp=60)
 w['enemies'][0].update(x=21,y=20);w['enemies'][1].update(x=20,y=21.5)
+from server.equipment import roll_equipment
+for value in (.01,.055,.0605,.06105,.061105):
+ values=iter([value,.1]);roll_equipment(w,w['enemies'][0],lambda:next(values))
 s=Store(sys.argv[1]);s.save(w);s.close()`,save],{cwd:root});
  const socket=net.createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
- const url=`http://127.0.0.1:${port}`,server=spawn(process.env.PYTHON||'python',['-m','server.main','--port',String(port),'--data',save],{cwd:root,env:{...process.env,BLOODFALL_ACCESS_KEY:key},stdio:'ignore'});let browser;
+ const url=`http://127.0.0.1:${port}`,server=spawn(process.env.PYTHON||'python',['-c',"from server.worldmap import ENEMY_SPAWNS; ENEMY_SPAWNS[:2]=[(20,20),(20,21)]; from server.main import main; main()",'--port',String(port),'--data',save],{cwd:root,env:{...process.env,BLOODFALL_ACCESS_KEY:key},stdio:'ignore'});let browser;
  try{
   await until(async()=>{try{return (await fetch(url)).ok;}catch{return false;}},'Server did not start');
   browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
@@ -22,7 +25,7 @@ s=Store(sys.argv[1]);s.save(w);s.close()`,save],{cwd:root});
   await page.evaluate(()=>{const old=WorldView.prototype.playCombat;WorldView.prototype.playCombat=function(...args){old.apply(this,args);window.lastCombat={kind:this.combat.kind,hits:this.combat.hits};};});
   const screenshots=process.env.BLOODFALL_SCREENSHOTS;if(screenshots)fs.mkdirSync(screenshots,{recursive:true});
   await page.locator('#menu-bag').click();assert.equal(await page.locator('#menu-title').textContent(),'인벤토리');
-  assert.equal(await page.locator('[data-inventory-item]').count(),10);
+  assert.equal(await page.locator('[data-inventory-item]').count(),15);
   await until(()=>page.locator('[data-inventory-item] img').evaluateAll(imgs=>imgs.every(i=>i.complete&&i.naturalWidth>0)),'Item icons not loaded');
   await page.locator('[data-inventory-item=wood]').click();assert.equal(await page.locator('#item-use').isDisabled(),true);
   await page.locator('[data-filter=supplies]').click();await page.locator('[data-inventory-item=soup]').click();
@@ -37,6 +40,15 @@ s=Store(sys.argv[1]);s.save(w);s.close()`,save],{cwd:root});
   assert.equal(await page.locator('[data-inventory-item=water]').count(),0);
   await page.locator('[data-inventory-item=blood]').click();assert.equal(await page.locator('#item-use').isDisabled(),true);assert.ok((await page.locator('#item-use-reason').textContent()).includes('뱀파이어'));
   await page.locator('[data-filter=growth]').click();assert.equal(await page.locator('[data-inventory-item]').count(),1);assert.equal(await page.locator('#item-name').textContent(),'강화 주문서');
+  await page.locator('[data-filter=equipment]').click();assert.equal(await page.locator('[data-inventory-item]').count(),5);
+  await page.locator('[data-inventory-item="gear:5"]').click();assert.ok((await page.locator('#item-category').textContent()).includes('전설'));
+  if(screenshots)await page.screenshot({path:path.join(screenshots,'equipment-desktop.png')});
+  await page.locator('#item-use').click();await until(async()=>(await read()).world.equipment.weapon==='gear:5','Equip did not persist');
+  await until(()=>page.locator('#item-use').textContent().then(t=>t==='착용 해제'),'Equipped detail stale');
+  await page.locator('#item-use').click();await until(async()=>(await read()).world.equipment.weapon===null,'Unequip failed');
+  await page.evaluate(()=>{window.sceneryBuilds=0;const old=WorldView.prototype.prepareScenery;WorldView.prototype.prepareScenery=function(s){const before=this.scenery;old.call(this,s);if(before!==this.scenery)window.sceneryBuilds++;};});
+  const first=(await read()).world.npcs;await delay(500);const second=(await read()).world.npcs;
+  assert.ok(first.every((n,i)=>Math.hypot(n.x-second[i].x,n.y-second[i].y)>0),'NPC patrol stopped');assert.equal(await page.evaluate(()=>window.sceneryBuilds),0,'NPC motion rebuilt static scenery');
   await page.keyboard.press('Escape');
   const before=(await read()).world;await page.keyboard.press('q');
   await until(()=>page.evaluate(()=>window.lastCombat?.kind==='sweep'),'Q skill not confirmed');
@@ -60,6 +72,9 @@ s=Store(sys.argv[1]);s.save(w);s.close()`,save],{cwd:root});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.locator('#item-use').scrollIntoViewIfNeeded();
   if(screenshots)await page.screenshot({path:path.join(screenshots,'inventory-mobile.png')});
-  assert.deepEqual(errors,[]);console.log('Inventory/combat browser passed: icons, filters, focus, consume, species restriction, Q area hits, Space strike, R cooldown, pause and mobile layout.');
+  await page.locator('[data-filter=equipment]').click();await page.locator('[data-inventory-item="gear:5"]').click();assert.equal(await page.locator('#item-use').isDisabled(),true);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  if(screenshots)await page.screenshot({path:path.join(screenshots,'equipment-mobile.png')});
+  assert.deepEqual(errors,[]);console.log('Inventory/combat browser passed: five rarities, equip/unequip persistence, NPC patrol, scenery cache, icons, filters, focus, consume, species restriction, Q area hits, Space strike, R cooldown, pause and mobile layout.');
  }finally{if(browser)await browser.close();if(server.exitCode===null){server.kill('SIGINT');await new Promise(r=>server.once('exit',r));}fs.rmSync(tmp,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

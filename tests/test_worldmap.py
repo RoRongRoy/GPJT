@@ -71,7 +71,7 @@ class WorldMapTests(unittest.TestCase):
         enemy = world['enemies'][-1]
         enemy.update(hp=0, respawn=0, x=44, y=44)
         tick(world, .2)
-        self.assertEqual(enemy['hp'], 60)
+        self.assertEqual(enemy['hp'], enemy['max_hp'])
         self.assertEqual((enemy['x'], enemy['y']), ENEMY_SPAWNS[-1])
 
     def test_distant_relocation_survives_save_and_species_roundtrip(self):
