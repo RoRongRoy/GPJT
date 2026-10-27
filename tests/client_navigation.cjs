@@ -112,5 +112,9 @@ console.log('Contextual menu checks passed: camp radius, leaving camp, remote ac
  assert.equal(vm.runInContext('state.world.player.x',sandbox),predicted.x);
  vm.runInContext('state.world.player.x=126;state.world.player.y=126;view.predictMove(state,{dx:1,dy:1})',sandbox);
  assert.equal(vm.runInContext('view.prediction.x',sandbox),126,'Prediction must respect map boundaries');
- console.log('Input latency checks passed: throttled input retry, one-step prediction, authoritative reconciliation, delayed response/key release, reversal, rejection and map bounds.');
+ vm.runInContext('state.world.player.x=20;state.world.player.y=20;view.predictMove(state,{dx:1,dy:0,sprint:true})',sandbox);
+ assert.ok(Math.abs((vm.runInContext('view.prediction.x',sandbox)-20)-fixture.map.movement.step*1.65)<1e-8,'Sprint prediction must use sprint multiplier');
+ key('keydown','Shift');assert.equal(vm.runInContext('isSprinting()',sandbox),true);
+ key('keyup','Shift');assert.equal(vm.runInContext('isSprinting()',sandbox),false);
+ console.log('Input latency checks passed: throttled input retry, one-step prediction, authoritative reconciliation, delayed response/key release, reversal, rejection, sprint and map bounds.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

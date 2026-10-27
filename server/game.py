@@ -205,8 +205,9 @@ def act(w, command, rng=random.random):
     require(p['chosen'], '먼저 시작 종족을 선택하세요.')
     if action == 'move':
         dx, dy = command.get('dx'), command.get('dy')
+        sprint = bool(command.get('sprint'))
         require(type(dx) is int and type(dy) is int and dx in (-1, 0, 1) and dy in (-1, 0, 1) and (dx or dy), '이동 입력 오류')
-        cooldown(w, 'move', MOVEMENT['interval'])
+        cooldown(w, 'move', MOVEMENT['interval'] * (.72 if sprint else 1.0))
         speed = MOVEMENT['step']
         if p['mounted']:
             tier = p['unlocks'][p['species']]
@@ -215,8 +216,12 @@ def act(w, command, rng=random.random):
                 note(w, '혈액이 부족해 안전하게 착지했습니다.')
             if p['mounted']:
                 speed *= MOVEMENT['mount_base'] + tier * MOVEMENT['mount_tier']
+                if sprint:
+                    speed *= 1.25
                 if p['species'] == 'vampire':
                     p['blood'] = max(0, p['blood'] - 0.18)
+        elif sprint:
+            speed *= MOVEMENT.get('sprint_mult', 1.65)
         norm = math.hypot(dx, dy)
         p['x'] = max(1, min(SIZE - 2, p['x'] + dx / norm * speed))
         p['y'] = max(1, min(SIZE - 2, p['y'] + dy / norm * speed))

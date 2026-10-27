@@ -5,7 +5,7 @@ const key = sessionStorage.getItem('bloodfall-key') || '';
 // Deliberately per-tab: a second tab must not silently share control of this P0 world.
 const session = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}-${Math.random()}`;
 let state = null, busy = false, connected = false, polling = false, toastTimer, selected = null;
-let target=null, hurtUntil=0, pendingAction=null, pendingTimer=null, lastCommandAt=-Infinity, lastMove= -Infinity, autoHunt=false;
+let target=null, hurtUntil=0, pendingAction=null, pendingTimer=null, lastCommandAt=-Infinity, lastMove= -Infinity, autoHunt=false, sprintToggle=false, shiftHeld=false, pointerDown=false;
 const held=new Set(), touchHeld=new Set();
 const canvas=$('world'), view=new WorldView(canvas,$('minimap'));
 const facilityRows=new Map();
@@ -103,7 +103,7 @@ async function command(action, fields={}) {
   else if(killed.length)toast(result.world.log[0]||'몬스터 처치 · 전리품 획득');
   if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':fields.skill);
  }catch(e){
-  if(action==='move')view.endMove(false);
+  if(action==='move')view.endMove(false,e.status===409);
   if(e.status===409){
    try{
     accept(await api('/api/state'));
@@ -178,20 +178,34 @@ function renderActivityLog(){
   const item=document.createElement('li');item.textContent=message;return item;
  }));
 }
-function draw(){view.draw(state,target,selected,{hurtUntil});}
-function clearMovement(){held.clear();touchHeld.clear();target=null;document.querySelectorAll('[data-direction]').forEach(b=>b.classList.remove('pressed'));}
+function isSprinting(){return Boolean(state?.world.player.chosen&&!state?.world.paused&&connected&&(sprintToggle||shiftHeld));}
+function updateSprintUI(){
+ const active=isSprinting();
+ const btn=$('sprint-toggle'),lbl=$('sprint-label');
+ if(btn){btn.disabled=!state?.world.player.chosen||!connected||state.world.paused;btn.setAttribute('aria-pressed',String(active));}
+ if(lbl)lbl.textContent=active?'🏃 달리기 ON':'🏃 달리기 OFF';
+}
+function setSprint(active,silent=false){
+ const next=Boolean(active&&state?.world.player.chosen&&!state?.world.paused&&connected);
+ sprintToggle=next;updateSprintUI();
+ if(!silent)toast(sprintToggle?'🏃 달리기 ON · 이동 속도가 65% 빨라집니다 (Shift 또는 버튼으로 해제)':'달리기 OFF · 일반 걸음으로 이동합니다');
+}
+function draw(){view.draw(state,target,selected,{hurtUntil,sprinting:isSprinting()});}
+function clearMovement(){held.clear();touchHeld.clear();shiftHeld=false;pointerDown=false;target=null;updateSprintUI();document.querySelectorAll('[data-direction]').forEach(b=>b.classList.remove('pressed'));}
 function navigate(x,y,id=null){
  if(!state?.world.player.chosen||state.world.paused||!connected)return;
  if(autoHunt&&!id?.startsWith('enemy:'))setAutoHunt(false,true);
- closePanel(false);clearMovement();const max=state.map.size-2;
+ closePanel(false);held.clear();touchHeld.clear();document.querySelectorAll('[data-direction]').forEach(b=>b.classList.remove('pressed'));
+ const max=state.map.size-2;
  target={x:Math.max(1,Math.min(max,x)),y:Math.max(1,Math.min(max,y)),id};selected=id;
 }
 function changeZoom(amount){const value=view.setZoom(view.zoom+amount);$('zoom-level').textContent=`${Math.round(value*100)}%`;draw();}
 function toggleFocus(){const active=document.body.classList.toggle('focus-mode');$('focus-view').setAttribute('aria-pressed',String(active));draw();}
-canvas.addEventListener('click',e=>{
+function handleCanvasPoint(e,allowNode=true){
  if(!view.projection||!state)return;
+ if(e.shiftKey&&!shiftHeld){shiftHeld=true;updateSprintUI();}
  const r=canvas.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top,p=state.world.player;
- const node=view.points.map(n=>({...n,d:Math.hypot(n.x-cx,n.y-cy)})).filter(n=>cx>=n.left&&cx<=n.right&&cy>=n.top&&cy<=n.bottom).sort((a,b)=>a.d-b.d)[0];
+ const node=allowNode?view.points.map(n=>({...n,d:Math.hypot(n.x-cx,n.y-cy)})).filter(n=>cx>=n.left&&cx<=n.right&&cy>=n.top&&cy<=n.bottom).sort((a,b)=>a.d-b.d)[0]:null;
  if(node){
   if(node.id==='base'){inspectOnArrive=false;if(canUseCamp()){openPanel('camp');return;}navigate(state.world.base.x,state.world.base.y);}
   else if(node.id.startsWith('enemy:')){inspectOnArrive=false;const enemy=state.world.enemies.find(n=>n.id===Number(node.id.split(':')[1]));if(enemy)navigate(enemy.x,enemy.y,node.id);}
@@ -199,7 +213,13 @@ canvas.addEventListener('click',e=>{
   else{const poi=state.pois.find(n=>n.id===node.id);if(poi){if(poi.kind!=='npc'&&Math.hypot(poi.x-p.x,poi.y-p.y)<=3.5){clearMovement();selected=poi.id;openLootBox({type:'poi',id:poi.id});return;}inspectOnArrive=poi.kind!=='npc';navigate(poi.x,poi.y,poi.id);}}
  }else{inspectOnArrive=false;const point=view.toWorld(cx,cy);if(point.x>=0&&point.y>=0&&point.x<state.map.size&&point.y<state.map.size)navigate(point.x,point.y);}
  canvas.focus({preventScroll:true});stepMovement();
-});
+}
+canvas.addEventListener('click',e=>handleCanvasPoint(e,true));
+canvas.addEventListener('contextmenu',e=>{e.preventDefault();handleCanvasPoint(e,true);});
+canvas.addEventListener('dblclick',e=>{e.preventDefault();if(state?.world.player.chosen&&!state.world.paused){setSprint(true,true);handleCanvasPoint(e,false);}});
+canvas.addEventListener('pointerdown',e=>{if(e.button===0||e.button===2){pointerDown=true;}});
+canvas.addEventListener('pointermove',e=>{if(pointerDown&&(e.buttons&3)){handleCanvasPoint(e,false);}});
+window.addEventListener('pointerup',()=>{pointerDown=false;});
 canvas.addEventListener('wheel',e=>{e.preventDefault();changeZoom(e.deltaY<0?.1:-.1);},{passive:false});
 $('minimap').addEventListener('click',e=>{
  if(!state)return;const r=$('minimap').getBoundingClientRect(),x=(e.clientX-r.left)/r.width*state.map.size,y=(e.clientY-r.top)/r.height*state.map.size;
@@ -211,6 +231,7 @@ function goHome(){if(state){navigate(state.world.base.x,state.world.base.y);step
 $('go-home').onclick=goHome;$('travel-home').onclick=goHome;
 $('interact').onclick=()=>interact();
 $('loot-btn').onclick=()=>quickLoot();
+if($('sprint-toggle'))$('sprint-toggle').onclick=()=>{if(!state?.world.player.chosen||!connected)return;if(state.world.paused){toast('일시정지를 해제하세요.');return;}setSprint(!sprintToggle);stepMovement();};
 function setAutoHunt(active,silent=false){
  const next=Boolean(active&&state?.world.player.chosen&&!state?.world.paused&&connected);
  if(autoHunt===next&&silent)return;
@@ -286,6 +307,7 @@ function updateContext(){
  $('menu-camp').hidden=!atCamp;$('camp-access').hidden=!atCamp;
  document.querySelectorAll('[data-panel]').forEach(button=>button.disabled=(!p.chosen&&button.dataset.panel!=='account')||!connected);
  $('auto-hunt').disabled=!p.chosen||!connected||state.world.paused;
+ updateSprintUI();
  if(!connected&&autoHunt)setAutoHunt(false,true);
  if(activePanel&&((campPanels.has(activePanel)&&!atCamp)||!connected))closePanel(false);
  $('field-hp').textContent=Math.ceil(p.hp);$('field-health-bar').style.width=`${Math.max(0,Math.min(100,p.hp))}%`;
@@ -659,6 +681,8 @@ const moveKeys=['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright'];
 window.addEventListener('keydown',e=>{
  if(e.target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)||e.ctrlKey||e.metaKey||e.altKey)return;
  const k=e.key.toLowerCase();
+ if(k==='shift'){if(!shiftHeld){shiftHeld=true;updateSprintUI();stepMovement();}return;}
+ if(e.shiftKey&&!shiftHeld){shiftHeld=true;updateSprintUI();}
  if(moveKeys.includes(k)){e.preventDefault();closePanel(false);closeLootBox();target=null;held.add(k);stepMovement();}
  if(e.repeat)return;
  if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closeLootBox();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
@@ -672,7 +696,11 @@ window.addEventListener('keydown',e=>{
  if(k==='v')toggleFocus();
  if(k===' '&&(!activePanel||e.target.tagName!=='BUTTON')){e.preventDefault();manualAction('attack');}
 });
-window.addEventListener('keyup',e=>held.delete(e.key.toLowerCase()));
+window.addEventListener('keyup',e=>{
+ const k=e.key.toLowerCase();
+ if(k==='shift'){shiftHeld=false;updateSprintUI();return;}
+ held.delete(k);
+});
 window.addEventListener('blur',()=>{clearMovement();pendingAction=null;clearTimeout(pendingTimer);});
 document.addEventListener('visibilitychange',()=>{clearMovement();pendingAction=null;clearTimeout(pendingTimer);});
 const touchKeys={up:'w',left:'a',down:'s',right:'d'};
@@ -684,7 +712,7 @@ for(const button of document.querySelectorAll('[data-direction]')){
 }
 function stepMovement(){
  if(!state||!connected||busy||pendingAction||state.world.paused||!state.world.player.chosen||document.hidden)return;
- const now=performance.now(),moveGap=state.world.player.mounted?88:140;
+ const now=performance.now(),sprinting=isSprinting(),moveGap=state.world.player.mounted?(sprinting?64:82):(sprinting?68:92);
  if(now-lastMove<moveGap||now-lastCommandAt<75)return;
  let {dx,dy}=screenDirection();
  if(autoHunt&&!dx&&!dy){
@@ -707,7 +735,7 @@ function stepMovement(){
    const chosen=current&&Math.hypot(current.x-p.x,current.y-p.y)<=Math.hypot(nearest.x-p.x,nearest.y-p.y)+3?current:nearest;
    if(p.mounted){
     if(!alive.some(e=>Math.hypot(e.x-p.x,e.y-p.y)<3)){command('mount');return;}
-    dx=Math.sign(p.x-nearest.x)||1;dy=Math.sign(p.y-nearest.y)||1;lastMove=now;command('move',{dx,dy});return;
+    dx=Math.sign(p.x-nearest.x)||1;dy=Math.sign(p.y-nearest.y)||1;lastMove=now;command('move',sprinting?{dx,dy,sprint:true}:{dx,dy});return;
    }
    target={x:chosen.x,y:chosen.y,id:'enemy:'+chosen.id};selected=target.id;
   }
@@ -719,7 +747,8 @@ function stepMovement(){
   const npc=state.pois.find(n=>n.id===target.id&&n.kind==='npc');if(npc){target.x=npc.x;target.y=npc.y;}
   if(enemy){if(enemy.hp<=0){target=null;return;}target.x=enemy.x;target.y=enemy.y;}
   if(target.id?.startsWith('drop:')){if(!drop){target=null;return;}target.x=drop.x;target.y=drop.y;}
-  const distance=Math.hypot(target.x-p.x,target.y-p.y),step=m.step*(p.mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1);
+  const mult=p.mounted?(m.mount_base+p.unlocks[p.species]*m.mount_tier)*(sprinting?1.25:1):(sprinting?(m.sprint_mult||1.65):1);
+  const distance=Math.hypot(target.x-p.x,target.y-p.y),step=m.step*mult;
   const arriveDist=target.id?(inspectOnArrive||target.id.startsWith('drop:')?2.2:1.5):step*.8;
   if(distance<=arriveDist){
    const id=target.id;if(!autoHunt||!id?.startsWith('enemy:'))target=null;
@@ -742,9 +771,9 @@ function stepMovement(){
   dx=Math.abs(target.x-p.x)>step*.42?Math.sign(target.x-p.x):0;
   dy=Math.abs(target.y-p.y)>step*.42?Math.sign(target.y-p.y):0;
  }
- if(dx||dy){lastMove=now;command('move',{dx,dy});}
+ if(dx||dy){lastMove=now;command('move',sprinting?{dx,dy,sprint:true}:{dx,dy});}
 }
-setInterval(stepMovement,35);
+setInterval(stepMovement,20);
 function updateGuide(){
  const w=state.world,p=w.player,m=w.milestones||[],human=p.species==='human',facility=human?'kitchen':'alchemy',meal=human?'soup':'elixir';
  const steps=[

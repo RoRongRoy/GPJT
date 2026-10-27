@@ -65,14 +65,14 @@ class FieldArt extends GothicArt {
  }
  lantern(x,y,scale){if(!this.prop('lantern',x,y,scale))super.lantern(x,y,scale);this.glow(x,y-101*scale,30*scale,'#e8b26924');}
  facility(x,y,scale,id){if(!this.prop(id,x,y,scale))super.facility(x,y,scale,id);}
- pose(id,x,y,now,paused=false){
+ pose(id,x,y,now,paused=false,sprint=false){
   let a=this.actors.get(id);if(!a){a={x,y,row:0,until:0};this.actors.set(id,a);}
   const dx=x-a.x,dy=y-a.y;
   if(Math.hypot(dx,dy)>.0003){
    const right=dx-dy>=0,front=dx+dy>=0;
    a.row=front?(right?0:1):(right?3:2);a.until=now+440;
   }
-  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(now/145)%4:0};
+  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(now/(sprint?92:145))%4:0};
  }
  character(x,y,scale,species,moving,now,options={}){
   if(options.mounted)return super.character(x,y,scale,species,moving,now,options);

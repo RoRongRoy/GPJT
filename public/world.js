@@ -5,14 +5,15 @@ class WorldView {
   this.entityPositions=new Map();this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;
  }
  playCombat(before,after,kind){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0);}
- predictMove(state,{dx,dy}){
+ predictMove(state,{dx,dy,sprint}){
   const p=state.world.player,m=state.map.movement;
   const mounted=p.mounted&&!(p.species==='vampire'&&p.blood<=5);
-  const step=m.step*(mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1),norm=Math.hypot(dx,dy);
+  const mult=mounted?(m.mount_base+p.unlocks[p.species]*m.mount_tier)*(sprint?1.25:1):(sprint?(m.sprint_mult||1.65):1);
+  const step=m.step*mult,norm=Math.hypot(dx,dy);
   if(!norm)return;
   this.prediction={x:Math.max(1,Math.min(state.map.size-2,p.x+dx/norm*step)),y:Math.max(1,Math.min(state.map.size-2,p.y+dy/norm*step))};
  }
- endMove(accepted){this.prediction=null;if(!accepted)this.player=null;}
+ endMove(accepted,soft=false){this.prediction=null;if(!accepted&&!soft)this.player=null;}
  prepareScenery(state){
   if(this.mapSource===state.map&&this.poiSource===state.pois)return;
   this.mapSource=state.map;this.poiSource=state.pois;
@@ -59,12 +60,12 @@ class WorldView {
   c.setTransform(ratio,0,0,ratio,0,0);
   const w=state.world,p=w.player,size=state.map.size,visual=this.prediction||p;
   if(!this.player||Math.hypot(this.player.x-visual.x,this.player.y-visual.y)>5)this.player={x:visual.x,y:visual.y};
-  const moving=Math.hypot(this.player.x-visual.x,this.player.y-visual.y)>.025;
-  const follow=1-Math.exp(-30*dt);
+  const moving=Math.hypot(this.player.x-visual.x,this.player.y-visual.y)>.02;
+  const follow=1-Math.exp(-36*dt);
   this.player.x+=(visual.x-this.player.x)*follow;this.player.y+=(visual.y-this.player.y)*follow;
   if(!this.camera)this.camera={...this.player};
-  this.camera.x+=(this.player.x-this.camera.x)*(1-Math.exp(-16*dt));
-  this.camera.y+=(this.player.y-this.camera.y)*(1-Math.exp(-16*dt));
+  this.camera.x+=(this.player.x-this.camera.x)*(1-Math.exp(-22*dt));
+  this.camera.y+=(this.player.y-this.camera.y)*(1-Math.exp(-22*dt));
   const scale=this.zoom*(width<600?.85:1),tw=34*scale,th=17*scale;
   this.projection={scale,tw,th,width,height,ox:width/2-(this.camera.x-this.camera.y)*tw,oy:height*.52-(this.camera.x+this.camera.y)*th};
   if(this.combat&&!this.combat.active(now))this.combat=null;
@@ -72,8 +73,14 @@ class WorldView {
   this.canvas.dataset.art=art.failed.length?'fallback':art.loaded===Object.keys(FIELD_SPRITES).length?'ready':'loading';
   const project=(x,y,z=0)=>this.project(x,y,z);
   const paintPlayer=(sx,sy)=>{
-   const normal=art.pose('player',this.player.x,this.player.y,now,w.paused),pose=this.combat?this.combat.pose(normal,now):normal;
+   const sprinting=Boolean(effects.sprinting);
+   const normal=art.pose('player',this.player.x,this.player.y,now,w.paused,sprinting),pose=this.combat?this.combat.pose(normal,now):normal;
    const body=this.combat?.body(now)||{x:0,y:0,tilt:0};
+   if(sprinting&&moving&&!w.paused){
+    c.save();c.strokeStyle=p.species==='vampire'?'#ff6b8b66':'#f5d99666';c.lineWidth=1.6*scale;
+    const pulse=(now%260)/260;
+    c.beginPath();c.ellipse(sx,sy+2*scale,(14+pulse*9)*scale,(6+pulse*4)*scale,0,0,Math.PI*2);c.stroke();c.restore();
+   }
    c.save();c.translate(sx+body.x*scale,sy+body.y*scale);c.rotate(body.tilt);
    art.character(0,0,scale,p.species,moving&&!w.paused,now,{mounted:p.mounted,tier:p.unlocks[p.species],pose});c.restore();
   };

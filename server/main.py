@@ -145,7 +145,8 @@ class Runtime:
                 now = time.monotonic()
                 sess_info = self.sessions[token]
                 last_cmd = self.last_command if token == self.session else sess_info['last_command']
-                if last_cmd > 0 and now - last_cmd < .06:
+                min_gap = .042 if isinstance(command, dict) and command.get('action') == 'move' else .06
+                if last_cmd > 0 and now - last_cmd < min_gap:
                     return 429, {'error': '입력이 너무 빠릅니다.'}
                 if expected_revision is not None and expected_revision != self.world['revision']:
                     return 409, {'error': '상태가 변경됐습니다. 새 상태에서 다시 시도하세요.'}

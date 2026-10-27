@@ -179,6 +179,8 @@ main{height:calc(100dvh - 66px)}
 .account-new-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .account-new-buttons .wide{grid-column:1/-1;margin-top:0}
 .account-feedback{font-size:10px;color:#e8cf9b;margin-top:6px!important;min-height:14px}
+#interaction .sprint-button{color:#9ee4ff}
+#interaction .sprint-button[aria-pressed=true]{background:#254958;border-color:#7ad7f0;color:#e8fbff;box-shadow:0 0 10px #5bc0eb33}
 @media(max-width:600px){
  main{height:calc(100dvh - 50px);padding:8px 8px 76px}
  .topbar{height:50px;padding:0 10px}
