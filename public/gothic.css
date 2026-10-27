@@ -1317,3 +1317,92 @@ main{
   width:160px !important;
  }
 }
+
+
+/* --- Top-Left HUD Elevation (상단 HUD 최상단 밀착 배치) --- */
+.field-vitals{
+ position:absolute !important;
+ left:12px !important;
+ top:10px !important;
+ display:flex !important;
+ align-items:center !important;
+ gap:6px !important;
+ z-index:4 !important;
+ max-width:calc(100% - 280px) !important;
+}
+.field-vitals button{
+ padding:4px 8px !important;
+ height:28px !important;
+ font-size:10px !important;
+ border-radius:4px !important;
+}
+#camp-access, .camp-access{
+ position:absolute !important;
+ left:12px !important;
+ top:44px !important;
+ display:flex !important;
+ align-items:center !important;
+ gap:7px !important;
+ padding:3px 9px !important;
+ height:26px !important;
+ font-size:10px !important;
+ background:linear-gradient(135deg,rgba(36,44,58,0.95),rgba(18,24,34,0.98)) !important;
+ border:1.5px solid #6b553cbb !important;
+ border-radius:5px !important;
+ color:#e2e8f0 !important;
+ box-shadow:0 4px 14px rgba(0,0,0,0.6) !important;
+ backdrop-filter:blur(8px) !important;
+ z-index:4 !important;
+ cursor:pointer !important;
+}
+#camp-access:hover, .camp-access:hover{
+ background:linear-gradient(135deg,rgba(50,62,82,0.98),rgba(28,36,50,1)) !important;
+ border-color:#ffd166 !important;
+ color:#fff !important;
+}
+#camp-access>span, .camp-access>span{
+ font-size:14px !important;
+ color:#ffd166 !important;
+ line-height:1 !important;
+}
+#camp-access strong, .camp-access strong{
+ font-size:10.5px !important;
+ font-weight:700 !important;
+ line-height:1 !important;
+ white-space:nowrap !important;
+}
+#camp-access small, .camp-access small{
+ font-size:8px !important;
+ color:#94a3b8 !important;
+ white-space:nowrap !important;
+}
+#camp-access kbd, .camp-access kbd{
+ font-size:7.5px !important;
+ font-weight:800 !important;
+ padding:1px 3px !important;
+ background:#090e15 !important;
+ border:1px solid #475569 !important;
+ border-radius:2px !important;
+ color:#ffd166 !important;
+ line-height:1 !important;
+}
+
+@media(max-width:768px){
+ .field-vitals{
+  left:6px !important;
+  top:6px !important;
+  max-width:calc(100% - 100px) !important;
+  gap:3px !important;
+ }
+ .field-vitals button{
+  padding:2px 5px !important;
+  height:24px !important;
+  font-size:8.5px !important;
+ }
+ #camp-access, .camp-access{
+  left:6px !important;
+  top:34px !important;
+  height:22px !important;
+  padding:2px 6px !important;
+ }
+}
