@@ -184,8 +184,14 @@ def act(w, command, rng=random.random):
         return
     require(not w['paused'], '일시정지를 해제하세요.')
     if action == 'choose':
-        require(not p['chosen'], '초기 종족은 이미 선택했습니다. 변환·복귀를 이용하세요.')
         require(command.get('species') in ('human', 'vampire'), '종족 오류')
+        if p.get('chosen'):
+            fresh = new_world()
+            for k in ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch'):
+                w[k] = fresh[k]
+            p = w['player']
+            p['x'] = float(w['base']['x'])
+            p['y'] = float(w['base']['y'] + 1)
         p['species'] = p['origin'] = command['species']
         p['chosen'] = True
         ensure_starter_gear(w)

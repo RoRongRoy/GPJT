@@ -162,6 +162,7 @@ main{height:calc(100dvh - 66px)}
 .loot-item-desc{display:block;font-size:9px;color:#9eb0a5}
 .loot-action-btn{color:#ffe08a!important;border-color:#d9bb8788!important}
 .account-top-btn{color:#f2dfab;border-color:#d9bb8766}
+.welcome-close{position:absolute;top:12px;right:12px;width:28px;height:28px;font-size:18px}
 #welcome{max-height:calc(100% - 20px);overflow-y:auto}
 .welcome-mode-badge{background:#182d30cc;border:1px solid #8ba07d55;border-radius:6px;padding:7px 10px;margin:0 0 10px;text-align:center}
 .welcome-mode-badge strong{display:block;font-size:12px;color:#f0e3bd}

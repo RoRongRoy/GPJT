@@ -105,7 +105,14 @@ async function command(action, fields={}) {
  }catch(e){
   if(action==='move')view.endMove(false);
   if(e.status===409){
-   try{accept(await api('/api/state'));}catch{connected=false;clearMovement();}
+   try{
+    accept(await api('/api/state'));
+    if(['choose','new_adventurer','account_save','account_load'].includes(action)){
+     const retry=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
+     accept(retry);
+     return;
+    }
+   }catch{connected=false;clearMovement();}
   }else if(!e.status){connected=false;clearMovement();}
   if(action!=='move')toast(e.message);
  }finally{
@@ -113,17 +120,18 @@ async function command(action, fields={}) {
   lastCommandAt=performance.now();busy=false;schedulePending();
  }
 }
+let welcomeForced=false;
 function accept(data) { if(!state || data.world.revision >= state.world.revision) { if(state && data.world.player.hp<state.world.player.hp)hurtUntil=performance.now()+350; state=data; update(); } }
 function span(className,text) { const n=document.createElement('span'); n.className=className; n.textContent=text; return n; }
 function update() {
  if(!state) return;
  const w=state.world,p=w.player;
  updateContext();
- $('intro-art').hidden=p.chosen;
+ $('intro-art').hidden=p.chosen&&!welcomeForced;
  document.body.dataset.species=p.chosen?p.species:'unchosen';
  const portrait=$('survivor-art');
  if(portrait.dataset.portraitSpecies!==p.species){portrait.dataset.portraitSpecies=p.species;portrait.src=p.species==='human'?'/art/human-warden.png':'/art/vampire-scholar.png';portrait.alt=p.species==='human'?'인간 생존자 초상':'뱀파이어 초상';}
- $('welcome').hidden=p.chosen; $('interaction').hidden=!p.chosen; if(w.paused){if(autoHunt)setAutoHunt(false,true);clearMovement();} updateGuide();
+ $('welcome').hidden=p.chosen&&!welcomeForced; $('welcome-close-btn').hidden=!p.chosen; $('interaction').hidden=!p.chosen; if(w.paused){if(autoHunt)setAutoHunt(false,true);clearMovement();} updateGuide();
  const region=view.region(state,p.x,p.y);$('region-name').textContent=region.name;$('region-description').textContent=region.subtitle+(region.levels?` · 권장 Lv.${region.levels.join('–')}${(p.combat_level||1)<region.levels[0]?' · 위험 지역':''}`:'');
  $('coordinates').textContent=`${Math.floor(p.x).toString().padStart(2,'0')} / ${Math.floor(p.y).toString().padStart(2,'0')}`;
  $('species').textContent=!p.chosen?'새로운 생존자':p.species==='human'?'인간 · 생존자':'뱀파이어 · 혈족';
@@ -208,12 +216,13 @@ $('pause').onclick=()=>manualAction('pause');
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action));
 document.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>manualAction('consume',{item:b.dataset.item}));
 $('craft-submit').onclick=()=>manualAction('craft',{recipe:selectedRecipe});
-document.querySelectorAll('button[data-species]').forEach(b=>b.onclick=()=>manualAction('choose',{species:b.dataset.species}));
+document.querySelectorAll('button[data-species]').forEach(b=>b.onclick=()=>{welcomeForced=false;manualAction('choose',{species:b.dataset.species});});
 async function submitAccountAction(action,fields,msgId){
  const msgEl=$(msgId);
  if(msgEl)msgEl.textContent='서버 처리 중...';
  try{
   const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
+  if(action==='account_load')welcomeForced=false;
   accept(result);
   const noteText=result.world.log?.[0]||'처리되었습니다.';
   if(msgEl)msgEl.textContent=noteText;
@@ -224,13 +233,15 @@ async function submitAccountAction(action,fields,msgId){
   toast(e.message||'오류가 발생했습니다.');
  }
 }
+$('new-start-btn').onclick=()=>{closePanel(false);closeLootBox();welcomeForced=true;update();};
+$('welcome-close-btn').onclick=()=>{welcomeForced=false;update();};
 $('welcome-load-btn').onclick=()=>submitAccountAction('account_load',{username:$('welcome-account-id').value,password:$('welcome-account-pw').value},'welcome-account-msg');
 for(const id of ['welcome-account-id','welcome-account-pw'])$(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('welcome-load-btn').click();}});
 $('account-save-btn').onclick=()=>submitAccountAction('account_save',{username:$('account-save-id').value,password:$('account-save-pw').value},'account-save-msg');
 $('account-load-btn').onclick=()=>submitAccountAction('account_load',{username:$('account-load-id').value,password:$('account-load-pw').value},'account-load-msg');
-$('account-new-human').onclick=()=>{closePanel();manualAction('new_adventurer',{species:'human'});toast('신규 인간 모험자로 새로운 여정을 시작합니다.');};
-$('account-new-vampire').onclick=()=>{closePanel();manualAction('new_adventurer',{species:'vampire'});toast('신규 뱀파이어 모험자로 새로운 여정을 시작합니다.');};
-$('account-new-welcome').onclick=()=>{closePanel();manualAction('new_adventurer',{});};
+$('account-new-human').onclick=()=>{welcomeForced=false;closePanel();manualAction('choose',{species:'human'});toast('신규 인간 모험자로 새로운 여정을 시작합니다.');};
+$('account-new-vampire').onclick=()=>{welcomeForced=false;closePanel();manualAction('choose',{species:'vampire'});toast('신규 뱀파이어 모험자로 새로운 여정을 시작합니다.');};
+$('account-new-welcome').onclick=()=>{closePanel();welcomeForced=true;manualAction('new_adventurer',{});update();};
 function canUseCamp(){
  if(!state||!connected||!state.world.player.chosen)return false;
  const {player,base}=state.world;
@@ -245,7 +256,7 @@ function closePanel(restoreFocus=true){
  if(restoreFocus){if(previous?.isConnected&&!previous.hidden&&!previous.disabled)previous.focus({preventScroll:true});else canvas.focus({preventScroll:true});}
 }
 function openPanel(name,opener=null){
- if(!panelInfo[name]||!state?.world.player.chosen||!connected)return false;
+ if(!panelInfo[name]||(!state?.world.player.chosen&&name!=='account')||!connected)return false;
  if(campPanels.has(name)&&!canUseCamp())return false;
  clearMovement();pendingAction=null;clearTimeout(pendingTimer);
  if(!activePanel)panelOpener=opener||document.activeElement;
@@ -263,7 +274,7 @@ function openPanel(name,opener=null){
 function updateContext(){
  const {player:p}=state.world,atCamp=canUseCamp();
  $('menu-camp').hidden=!atCamp;$('camp-access').hidden=!atCamp;
- document.querySelectorAll('[data-panel]').forEach(button=>button.disabled=!p.chosen||!connected);
+ document.querySelectorAll('[data-panel]').forEach(button=>button.disabled=(!p.chosen&&button.dataset.panel!=='account')||!connected);
  $('auto-hunt').disabled=!p.chosen||!connected||state.world.paused;
  if(!connected&&autoHunt)setAutoHunt(false,true);
  if(activePanel&&((campPanels.has(activePanel)&&!atCamp)||!connected))closePanel(false);

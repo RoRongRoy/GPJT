@@ -190,7 +190,7 @@ class HttpTests(unittest.TestCase):
         self.runtime.last_command = 0
         status, body = self.request('/api/action', {
             'revision': 3,
-            'command': {'action': 'new_adventurer', 'species': 'vampire'},
+            'command': {'action': 'choose', 'species': 'vampire'},
         })
         self.assertEqual(status, 200)
         reset_world = json.loads(body)['world']

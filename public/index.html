@@ -4,7 +4,7 @@
 <body>
 <header class="topbar">
  <a class="brand" href="/" aria-label="BLOODFALL 시작 화면"><span class="brand-mark">B<span>/</span>F</span><span>BLOODFALL<small>격리구역 · FIELD JOURNAL</small></span></a>
- <div class="header-right"><span class="live-label"><i></i> SINGLE PLAYER</span><span id="connection" role="status">서버 연결 중</span><button id="account-top-btn" data-panel="account" class="quiet account-top-btn">💾 계정저장</button><button id="pause" class="quiet">일시정지</button></div>
+ <div class="header-right"><span class="live-label"><i></i> SINGLE PLAYER</span><span id="connection" role="status">서버 연결 중</span><button id="new-start-btn" type="button" class="quiet account-top-btn">✨ 신규시작·불러오기</button><button id="account-top-btn" data-panel="account" class="quiet account-top-btn">💾 계정저장</button><button id="pause" class="quiet">일시정지</button></div>
 </header>
 <main>
  <section class="world-panel" aria-label="탐험">
@@ -18,6 +18,7 @@
    <div class="atlas"><div class="atlas-heading"><span>격리구역</span><span id="coordinates">06 / 07</span></div><canvas id="minimap" width="320" height="320" aria-label="전체 지도. 클릭한 위치로 이동합니다." tabindex="0"></canvas><div class="atlas-caption">지도 클릭 → 이동</div></div>
    <div class="map-tools"><button id="zoom-out" class="map-button" aria-label="지도 축소">−</button><span id="zoom-level">100%</span><button id="zoom-in" class="map-button" aria-label="지도 확대">+</button><button id="go-home" class="map-button" title="아지트로 걸어가기">⌂ 아지트로</button></div>
    <div id="welcome">
+    <button id="welcome-close-btn" type="button" class="icon-button welcome-close" aria-label="시작 화면 닫기" hidden>×</button>
     <span class="eyebrow">CHRONICLES OF THE LONG NIGHT</span><div class="welcome-mark">BLOODFALL</div>
     <h2>밤은 끝나지 않았다.</h2><p>무너진 도시, 남겨진 피난처.<br>당신은 무엇으로 살아남겠습니까?</p>
     <div class="welcome-mode-badge"><strong>✨ 신규 모험자로 바로 시작</strong><small>계정 생성 없이 즉시 시작 · 플레이 중 언제든 계정/비번 생성 및 저장 가능</small></div>
