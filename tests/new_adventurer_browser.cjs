@@ -20,7 +20,7 @@ s=Store(sys.argv[1]);s.save(new_world());s.save_account('legacy-player','test-pa
  const url=`http://127.0.0.1:${port}`,server=spawn(process.env.PYTHON||'python',['-m','server.main','--host','127.0.0.1','--port',String(port),'--data',save],{cwd:root,env:{...process.env,BLOODFALL_ACCESS_KEY:key},stdio:'ignore'});let browser;
  try{
   await until(async()=>{try{return (await fetch(url)).ok;}catch{return false;}},'Server did not start');
-  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,headless:true,args:['--no-sandbox']});
   for(const transport of ['http','socket'])for(const species of ['human','vampire']){
    const context=await browser.newContext({viewport:species==='human'?{width:1440,height:1080}:{width:390,height:844}});
    const page=await context.newPage(),errors=[];page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));
@@ -44,10 +44,10 @@ s=Store(sys.argv[1]);s.save(new_world());s.save_account('legacy-player','test-pa
    await page.keyboard.press('Escape');const coords=await page.locator('#coordinates').textContent();
    await page.keyboard.down('d');await delay(700);await page.keyboard.up('d');
    await until(()=>page.locator('#coordinates').textContent().then(t=>t!==coords),'Movement blocked after starting');
-   await page.locator('#new-start-btn').click();
-   await page.locator('#welcome-account-id').fill('legacy-player');
-   await page.locator('#welcome-account-pw').fill('test-password');
-   await page.locator('#welcome-load-btn').click();
+   await page.locator('#menu-account').click();
+   await page.locator('#account-load-id').fill('legacy-player');
+   await page.locator('#account-load-pw').fill('test-password');
+   await page.locator('#account-load-btn').click();
    await page.locator('#welcome').waitFor({state:'hidden'});
    await until(()=>page.locator('#field-equip').textContent().then(t=>t.includes('[일반]')),'Legacy gear did not render');
    await page.locator('#menu-bag').click();await page.locator('[data-filter=materials]').click();

@@ -116,7 +116,7 @@ node tests/combat_effects.cjs
 node tests/render_performance.cjs
 ```
 
-Node는 JavaScript 문법·클라이언트 자동 검사에 쓰며 게임 실행에는 필요하지 않습니다. GitHub Actions도 포함되어 있습니다. Playwright와 Chromium이 있는 환경에서는 `node tests/browser_smoke.cjs`로 임시 월드를 사용한 실제 브라우저 검사를 실행할 수 있습니다. [검증 기록](docs/VALIDATION.md)을 참고하세요.
+Node는 JavaScript 문법·클라이언트 자동 검사에 쓰며 게임 실행에는 필요하지 않습니다. GitHub push·PR마다 서버/클라이언트 및 실제 브라우저 검사를 자동 실행합니다. main의 모든 검사를 통과하면 연결된 Linux 서버에 자동 배포할 수 있습니다. 서버를 한 번 연결하는 방법과 무료 VM/PC 운영 조건은 [자동화 안내](docs/AUTOMATION.md)를 참고하세요. Playwright와 Chromium이 있는 환경에서는 `node tests/browser_smoke.cjs`로 임시 월드를 사용한 실제 브라우저 검사를 실행할 수 있습니다. [검증 기록](docs/VALIDATION.md)을 참고하세요.
 
 ## 첫 레포 업로드
 

@@ -1,5 +1,9 @@
 # 개인 PC 실행과 링크 접속
 
+## GitHub 자동 반영
+
+테스트 통과 후 Linux VM 또는 개인 PC에 자동 반영하는 구성은 [자동화 안내](AUTOMATION.md)를 참고하세요. Docker 볼륨에 저장을 유지하고 배포 직전 SQLite 백업을 만듭니다. 외부 서버 연결 전에는 GitHub 검사만 실행합니다.
+
 ## 로컬 검증
 
 Python 3.11+를 설치합니다. 레포 루트에서 Windows `py -3 -m server.main`, macOS/Linux `python3 -m server.main`. 포트 변경은 `--port 8090`. Ctrl+C로 저장 후 종료합니다. 백그라운드 서비스 자동 등록은 이 패키지에서 하지 않습니다.

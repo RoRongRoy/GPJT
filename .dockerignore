@@ -1,0 +1,11 @@
+**
+!server/
+!server/**
+!public/
+!public/**
+!tools/
+!tools/backup.py
+!deploy/
+!deploy/Dockerfile
+**/__pycache__/
+**/*.pyc

@@ -4,6 +4,8 @@ from pathlib import Path
 root = Path(__file__).resolve().parent.parent
 errors = []
 for path in root.rglob('*.md'):
+    if set(path.relative_to(root).parts) & {'node_modules', '.git', '.venv', 'data', 'backups', 'test-results', 'playwright-report'}:
+        continue
     for target in re.findall(r'\]\(([^)]+)\)', path.read_text()):
         if '://' in target or target.startswith('#'):
             continue

@@ -1,0 +1,22 @@
+services:
+  game:
+    image: ${BLOODFALL_IMAGE:-bloodfall-game:local}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    stop_grace_period: 30s
+    ports:
+      - "${BLOODFALL_BIND:-127.0.0.1}:${BLOODFALL_PORT:-8080}:8080"
+    volumes:
+      - saves:/app/data
+      - backups:/app/backups
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  saves:
+  backups:

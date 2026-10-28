@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory() as d:
  r.world['enemies'][0].update(x=p['x']+1,y=p['y'],hp=10000)
  print(json.dumps(r.snapshot()));r.store.close()`],{cwd:root,encoding:'utf8'}));
 async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;await delay(30);}throw Error(msg);}
-(async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});try{
+(async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,headless:true,args:['--no-sandbox']});try{
  for(const layout of (process.env.HUD_LAYOUTS?.split(',')||['desktop','mobile','landscape'])){
   const mobile=layout!=='desktop';
   const context=await browser.newContext({viewport:layout==='mobile'?{width:390,height:844}:layout==='landscape'?{width:844,height:390}:{width:1440,height:1000},hasTouch:mobile}),page=await context.newPage(),errors=[],commands=[];

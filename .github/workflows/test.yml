@@ -1,8 +1,23 @@
-name: Prototype checks
-on: [push, pull_request]
+name: Game checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: game-checks-${{ github.event.pull_request.number || github.ref }}
+  # A live deployment must finish; cancel superseded feature-branch checks only.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    name: Server and client checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -11,14 +26,73 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: python -m unittest discover -s tests -v
-      - run: node --check public/app.js
-      - run: node --check public/world.js
-      - run: node --check public/gothic.js
-      - run: node --check public/sprites.js
-      - run: node --check public/sprite-manifest.js
-      - run: node --check public/combat.js
-      - run: node tests/combat_effects.cjs
-      - run: node tests/field_art.cjs
-      - run: node tests/client_navigation.cjs
-      - run: python tools/check_docs.py
+      - name: Server rules, saving and HTTP integration
+        run: python -m unittest discover -s tests -v
+      - name: JavaScript, movement and combat checks
+        run: npm run test:client
+      - name: Documentation links
+        run: python tools/check_docs.py
+
+  browser:
+    name: Browser and mobile checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
+      - name: New characters, account loading and skill HUD
+        run: npm run test:browser
+      - name: Retain HUD screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hud-screenshots-${{ github.run_attempt }}
+          path: /tmp/hotbar-*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+  ready:
+    name: Ready to deploy
+    needs: [tests, browser]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every test job to succeed
+        env:
+          SERVER_RESULT: ${{ needs.tests.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          test "$SERVER_RESULT" = success
+          test "$BROWSER_RESULT" = success
+          echo 'Server, client and browser checks passed.' >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to your server
+    needs: ready
+    # No paid hosting API or external deployment credential is needed.
+    # Enable only after a Linux runner with the bloodfall label is connected.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      vars.BLOODFALL_AUTO_DEPLOY == 'true'
+    runs-on: [self-hosted, linux, bloodfall]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build, back up, restart and check health
+        env:
+          BLOODFALL_BIND: ${{ vars.BLOODFALL_BIND || '127.0.0.1' }}
+          BLOODFALL_PORT: ${{ vars.BLOODFALL_PORT || '8080' }}
+        run: bash tools/deploy_game.sh
