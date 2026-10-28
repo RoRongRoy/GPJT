@@ -76,6 +76,7 @@ class WorldView {
    const sprinting=Boolean(effects.sprinting);
    const normal=art.pose('player',this.player.x,this.player.y,now,w.paused,sprinting),pose=this.combat?this.combat.pose(normal,now):normal;
    const actor=art.actors.get('player'),activeMove=(moving||now<(actor?.until||0))&&!w.paused;
+   if(activeMove)normal.frame=Math.floor(now/(sprinting?90:145))%4;
    const dirSign=(pose.row===0||pose.row===3)?1:-1,dirY=(pose.row<=1)?1:-1;
     // Lineage M-style locomotion: smooth walk->run transition, alternating footprints, stopping skid puff, dynamic stride bounce & sway.
     const lc=this.loco||(this.loco={run:0,trail:[],lastX:null,lastY:null,side:1,wasActive:false,tick:0});
