@@ -77,7 +77,7 @@ class WorldView {
    const normal=art.pose('player',this.player.x,this.player.y,now,w.paused,sprinting),pose=this.combat?this.combat.pose(normal,now):normal;
    const actor=art.actors.get('player'),activeMove=(moving||now<(actor?.until||0))&&!w.paused;
    const dirSign=(pose.row===0||pose.row===3)?1:-1,dirY=(pose.row<=1)?1:-1;
-    // Lineage M-style locomotion extras: eased walk->run blend, fading footprints, skid dust on stopping.
+    // Lineage M-style locomotion extras: eased walk->run blend, fading footprints, skid dust on stopping, and procedural animated legs.
     const lc=this.loco||(this.loco={run:0,trail:[],lastX:null,lastY:null,side:1,wasActive:false,tick:0});
     if(lc.tick!==now){
      lc.tick=now;
@@ -102,13 +102,27 @@ class WorldView {
       c.fillStyle='rgba(190,178,160,'+(0.3*(1-k)).toFixed(3)+')';c.beginPath();c.ellipse(tx+q.dx*scale*(1+k*2),ty-8*k*scale,(3+k*5)*scale,(1.6+k*2.5)*scale,0,0,Math.PI*2);c.fill();
      }
     }
-   // Foot-phase follows distance walked; the painted frames carry the stride, so only a light bounce and run lean are added.
-    const stridePhase=(actor?.dist||0)/(sprinting?.9:.85)*Math.PI/2;
-    let walkY=0,walkTilt=0,sxScale=1,syScale=1;const walkX=0;
-    if(actor)actor.lean=(actor.lean||0)+(((activeMove&&!p.mounted&&!this.combat)?dirSign*.07*lc.run:0)-(actor.lean||0))*.18;
+    // Animated leg striding cadence synchronized with distance & real-time movement
+    const cadence=(actor?.dist||0)*6.5+(activeMove?now*0.008:0);
+    const sinC=Math.sin(cadence),cosC=Math.cos(cadence);
+    const strideLen=(activeMove&&!p.mounted)?(7.5+8.5*lc.run)*scale:0;
+    const liftH=(activeMove&&!p.mounted)?(3.0+4.5*lc.run)*scale:0;
+    const fx=dirSign*0.82,fy=dirY*0.42;
+    const lx=-dirY*0.48,ly=dirSign*0.22;
+    const s1=sinC*strideLen,s2=-sinC*strideLen;
+    const l1=Math.max(0,-cosC)*liftH,l2=Math.max(0,cosC)*liftH;
+    const foot1={x:fx*s1+lx*4.8*scale,y:fy*s1+ly*4.8*scale-l1,lift:l1,forward:s1*dirSign>0};
+    const foot2={x:fx*s2-lx*4.8*scale,y:fy*s2-ly*4.8*scale-l2,lift:l2,forward:s2*dirSign>0};
+
+    let walkY=0,walkTilt=0,sxScale=1,syScale=1,walkX=0;
+    if(actor)actor.lean=(actor.lean||0)+(((activeMove&&!p.mounted&&!this.combat)?dirSign*(0.04+0.09*lc.run):0)-(actor.lean||0))*.2;
     if(activeMove&&!p.mounted&&!this.combat){
-     const stride=Math.abs(Math.sin(stridePhase)),stretch=1+(stride-.5)*.03*(.6+lc.run);walkY=-stride*(1.6+1.8*lc.run);syScale=stretch;sxScale=1/stretch;
-     walkTilt=actor.lean;
+     const strideNorm=Math.abs(sinC);
+     walkY=-strideNorm*(2.8+4.2*lc.run);
+     const stretch=1+(strideNorm-.5)*(0.04+0.07*lc.run);
+     syScale=stretch;sxScale=1/stretch;
+     walkTilt=actor.lean+sinC*(0.02+0.04*lc.run);
+     walkX=cosC*(1.2+1.8*lc.run);
     }
     const body=this.combat?.body(now)||{x:walkX,y:walkY,tilt:walkTilt};
    if(activeMove){
@@ -130,8 +144,32 @@ class WorldView {
      }
      c.restore();
    }
+   const drawBoot=(bx,by,lift)=>{
+    c.save();c.translate(bx,by);
+    c.fillStyle='rgba(6,9,14,'+(lift>0?0.2:0.42)+')';
+    c.beginPath();c.ellipse(0,lift,3.6*scale,1.8*scale,0,0,Math.PI*2);c.fill();
+    const vamp=p.species==='vampire',warrior=p.job==='warrior';
+    const mainColor=vamp?(warrior?'#220914':'#180816'):(warrior?'#232b35':'#20262e');
+    const rimColor=vamp?'#991b38':'#526274';
+    const toeDir=dirSign;
+    c.fillStyle=mainColor;c.beginPath();c.ellipse(0,-3*scale,2.8*scale,4.2*scale,0,0,Math.PI*2);c.fill();
+    c.beginPath();c.ellipse(toeDir*2.2*scale,-1*scale,3.8*scale,2.0*scale,toeDir*0.25,0,Math.PI*2);c.fill();
+    c.strokeStyle=rimColor;c.lineWidth=1.1*scale;
+    c.beginPath();c.moveTo(-toeDir*scale,-4*scale);c.lineTo(toeDir*3*scale,-1*scale);c.stroke();
+    if(vamp){c.fillStyle='#ff3366';c.beginPath();c.ellipse(toeDir*3.4*scale,-1*scale,1.1*scale,0.8*scale,0,0,Math.PI*2);c.fill();}
+    c.restore();
+   };
    c.save();c.translate(sx+body.x*scale,sy+body.y*scale);c.rotate(body.tilt);c.scale(sxScale,syScale);
-   art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose,gender:p.gender||'male',job:p.job||'warrior'});c.restore();
+   if(!p.mounted){
+    const rearFoot=dirY>0?(foot1.forward?foot2:foot1):(foot1.forward?foot1:foot2);
+    const frontFoot=rearFoot===foot1?foot2:foot1;
+    drawBoot(rearFoot.x,rearFoot.y,rearFoot.lift);
+    art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose,gender:p.gender||'male',job:p.job||'warrior'});
+    drawBoot(frontFoot.x,frontFoot.y,frontFoot.lift);
+   }else{
+    art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose,gender:p.gender||'male',job:p.job||'warrior'});
+   }
+   c.restore();
   };
   const poly=(points,color)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle=color;c.fill();};
   const tile=(x,y,color)=>{const [sx,sy]=project(x,y);poly([[sx,sy-th],[sx+tw+.6,sy],[sx,sy+th+.5],[sx-tw-.6,sy]],color);};
