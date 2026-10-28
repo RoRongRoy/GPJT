@@ -77,12 +77,37 @@ class WorldView {
    const normal=art.pose('player',this.player.x,this.player.y,now,w.paused,sprinting),pose=this.combat?this.combat.pose(normal,now):normal;
    const actor=art.actors.get('player'),activeMove=(moving||now<(actor?.until||0))&&!w.paused;
    const dirSign=(pose.row===0||pose.row===3)?1:-1,dirY=(pose.row<=1)?1:-1;
+    // Lineage M-style locomotion extras: eased walk->run blend, fading footprints, skid dust on stopping.
+    const lc=this.loco||(this.loco={run:0,trail:[],lastX:null,lastY:null,side:1,wasActive:false,tick:0});
+    if(lc.tick!==now){
+     lc.tick=now;
+     lc.run+=(((sprinting&&activeMove&&!p.mounted)?1:0)-lc.run)*(1-Math.exp(-8*dt));
+     const px=this.player.x,py=this.player.y;
+     if(lc.lastX===null){lc.lastX=px;lc.lastY=py;}
+     if(activeMove&&!p.mounted&&Math.hypot(px-lc.lastX,py-lc.lastY)>(sprinting?.8:.55)){
+      lc.side=-lc.side;lc.trail.push({k:'print',x:px,y:py,side:lc.side,born:now,life:1500});lc.lastX=px;lc.lastY=py;
+     }
+     if(!activeMove){lc.lastX=px;lc.lastY=py;}
+     if(lc.wasActive&&!activeMove&&lc.run>.45){
+      for(let i=0;i<5;i++)lc.trail.push({k:'puff',x:px,y:py,dx:(Math.random()-.5)*14,born:now,life:420+i*60});
+     }
+     lc.wasActive=activeMove;
+     lc.trail=lc.trail.filter(q=>now-q.born<q.life).slice(-40);
+    }
+    for(const q of lc.trail){
+     const k=(now-q.born)/q.life,[tx,ty]=project(q.x,q.y);
+     if(q.k==='print'){
+      c.fillStyle='rgba(10,12,18,'+(0.28*(1-k)).toFixed(3)+')';c.beginPath();c.ellipse(tx+q.side*3*scale,ty+scale,2.4*scale,1.2*scale,0,0,Math.PI*2);c.fill();
+     }else{
+      c.fillStyle='rgba(190,178,160,'+(0.3*(1-k)).toFixed(3)+')';c.beginPath();c.ellipse(tx+q.dx*scale*(1+k*2),ty-8*k*scale,(3+k*5)*scale,(1.6+k*2.5)*scale,0,0,Math.PI*2);c.fill();
+     }
+    }
    // Foot-phase follows distance walked; the painted frames carry the stride, so only a light bounce and run lean are added.
     const stridePhase=(actor?.dist||0)/(sprinting?.9:.85)*Math.PI/2;
-    let walkY=0,walkTilt=0;const sxScale=1,syScale=1,walkX=0;
-    if(actor)actor.lean=(actor.lean||0)+(((activeMove&&!p.mounted&&!this.combat)?(sprinting?dirSign*.06:0):0)-(actor.lean||0))*.18;
+    let walkY=0,walkTilt=0,sxScale=1,syScale=1;const walkX=0;
+    if(actor)actor.lean=(actor.lean||0)+(((activeMove&&!p.mounted&&!this.combat)?dirSign*.07*lc.run:0)-(actor.lean||0))*.18;
     if(activeMove&&!p.mounted&&!this.combat){
-     walkY=-Math.abs(Math.sin(stridePhase))*(sprinting?3.2:1.6);
+     const stride=Math.abs(Math.sin(stridePhase)),stretch=1+(stride-.5)*.03*(.6+lc.run);walkY=-stride*(1.6+1.8*lc.run);syScale=stretch;sxScale=1/stretch;
      walkTilt=actor.lean;
     }
     const body=this.combat?.body(now)||{x:walkX,y:walkY,tilt:walkTilt};
