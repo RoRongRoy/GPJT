@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261028-hud2"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261028-hud3"><style>
+ .welcome-quick-resume{background:rgba(217,79,112,0.15);border:1px solid rgba(217,79,112,0.45);border-radius:6px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+ .welcome-quick-resume strong{color:#ffcfd9;font-size:12.5px;display:block}
+ .welcome-quick-resume strong .highlight{color:#ff5277;font-weight:bold}
+ .welcome-quick-resume small{color:#bfa8af;font-size:11px;display:block;margin-top:2px}
+ .quick-resume-content{display:flex;align-items:center;gap:10px}
+ .quick-resume-icon{font-size:18px}
+ .quick-resume-btn{white-space:nowrap;font-weight:bold;padding:5px 12px !important;height:auto !important;background:#d94f70 !important;color:#fff !important;border:none !important;border-radius:4px;cursor:pointer}
+</style></head>
 <body class="field-ui">
 <header class="topbar">
  <a class="brand" href="/" aria-label="BLOODFALL 시작 화면"><span class="brand-mark">B<span>/</span>F</span><span>BLOODFALL<small>격리구역 · FIELD JOURNAL</small></span></a>
@@ -41,6 +49,7 @@
      <button data-species="vampire"><span class="portrait-pair"><img data-gender="male" src="/art/vampire-scholar.png" alt="뱀파이어 남성" width="1024" height="1536"><img data-gender="female" src="/art/vampire-female-scholar.png" alt="뱀파이어 여성" width="1024" height="1536"></span><span class="species-caption"><span class="species-symbol">☾</span><strong id="welcome-vampire-title">뱀파이어 · 남성 전사</strong><small id="welcome-vampire-sub">VAMPIRE · 근거리 클로 전사 / 원거리 지팡이 혈법사</small><span id="welcome-vampire-trait" class="species-trait">기본 지급: 무딘 혈족 클로 · 흡혈 및 혈마법 스킬</span></span></button>
     </div>
     <div class="welcome-account-box">
+     <div id="welcome-quick-resume" class="welcome-quick-resume" hidden></div>
      <div class="welcome-account-head"><strong>📂 저장된 계정 불러오기</strong><small>이전에 생성·저장한 계정으로 이어하기</small></div>
      <div class="welcome-account-form">
       <input id="welcome-account-id" type="text" maxlength="20" placeholder="계정 아이디 (2~20자)" autocomplete="username">
@@ -257,6 +266,12 @@
     <p id="account-load-msg" class="account-feedback" role="status"></p>
    </div>
    <div class="account-card">
+    <h3 class="section-label">🔄 기기 로컬 백업 즉시 복구</h3>
+    <p class="muted">서버 연결이 불안정하거나 세션이 초기화되었을 때 브라우저에 저장된 최근 캐릭터를 즉시 복구합니다.</p>
+    <button id="account-local-restore-btn" type="button" class="wide accent">🔄 최근 로컬 모험 즉시 불러오기</button>
+    <p id="account-local-restore-msg" class="account-feedback" role="status"></p>
+   </div>
+   <div class="account-card">
     <h3 class="section-label">✨ 신규 모험자로 새로 시작</h3>
     <p class="muted">저장된 기존 계정은 서버에 그대로 보존되며, 새 캐릭터(Lv.1 기본 장비)로 처음부터 모험을 시작합니다.</p>
     <div class="account-new-buttons">
@@ -298,5 +313,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261028-movement1"></script><script src="/app.js?v=20261028-hud2" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261028-movement1"></script><script src="/app.js?v=20261028-hud3" type="module"></script>
 </body></html>
