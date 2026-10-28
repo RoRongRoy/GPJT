@@ -98,7 +98,7 @@ class Runtime:
             if len(username) < 2 or len(username) > 20:
                 raise RuleError('계정 아이디는 2~20자로 입력하세요.')
             current_acc = candidate['player'].get('account')
-            if not (current_acc == username and not password) and (len(password) < 4 or len(password) > 40):
+            if not (current_acc == username and not password) and (len(password) < 1 or len(password) > 40):
                 raise RuleError('비밀번호는 4~40자로 입력하세요.')
             candidate['player']['account'] = username
             account_prof = {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'base', 'next_gear_id') if k in candidate}
@@ -113,7 +113,12 @@ class Runtime:
                 raise RuleError('불러올 계정 아이디와 비밀번호를 모두 입력하세요.')
             saved_prof = self.store.load_account(username, password)
             if not saved_prof:
-                raise RuleError('계정 아이디 또는 비밀번호가 일치하지 않습니다.')
+                backup_prof = command.get('backup_profile')
+                if backup_prof and isinstance(backup_prof, dict) and backup_prof.get('player', {}).get('chosen'):
+                    self.store.save_account(username, password, backup_prof)
+                    saved_prof = self.store.load_account(username, password)
+                if not saved_prof:
+                    raise RuleError('계정 아이디 또는 비밀번호가 일치하지 않습니다.')
             candidate['log'] = []  # Old accounts have no personal history to restore.
             for k in PROFILE_KEYS:
                 if k in saved_prof:
@@ -136,6 +141,24 @@ class Runtime:
             }
             lvl = candidate['player'].get('combat_level', 1)
             candidate['log'] = [f"계정 '{username}' (Lv.{lvl}) 모험 데이터를 불러왔습니다."] + candidate['log'][:7]
+            return True
+        if action == 'restore_local_save':
+            backup_prof = command.get('profile')
+            if not backup_prof or not isinstance(backup_prof, dict) or not backup_prof.get('player', {}).get('chosen'):
+                raise RuleError('복원할 저장 데이터가 올바르지 않습니다.')
+            for k in PROFILE_KEYS:
+                if k in backup_prof:
+                    candidate[k] = copy.deepcopy(backup_prof[k])
+            if 'next_gear_id' in backup_prof:
+                candidate['next_gear_id'] = max(candidate.get('next_gear_id', 1), backup_prof['next_gear_id'])
+            if 'base' in backup_prof and not is_peer:
+                for fk, fv in backup_prof['base'].get('facilities', {}).items():
+                    candidate['base']['facilities'][fk] = max(candidate['base']['facilities'].get(fk, 0), fv)
+            candidate['player']['chosen'] = True
+            ensure_starter_gear(candidate)
+            lvl = candidate['player'].get('combat_level', 1)
+            acc_name = candidate['player'].get('account') or '로컬 백업'
+            candidate['log'] = [f"{acc_name} (Lv.{lvl}) 모험 데이터를 복원했습니다."] + candidate['log'][:7]
             return True
         if action == 'new_adventurer':
             fresh = new_world()

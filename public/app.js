@@ -181,7 +181,7 @@ async function command(action, fields={}) {
   if(e.status===409){
    try{
     accept(await api('/api/state'));
-    if(['choose','new_adventurer','account_save','account_load','learn_skill','change_class'].includes(action)){
+    if(['choose','new_adventurer','account_save','account_load','restore_local_save','learn_skill','change_class'].includes(action)){
      const retry=await api('/api/action',{revision:state.world.revision,command:{action,...fields,...(state.movement?.enabled?{input_seq:movementInput.seq}:{})}});
      accept(retry);
      return;
@@ -210,6 +210,117 @@ const CLASS_CATALOG={
 };
 function classInfo(species='human',job='warrior'){return (state?.classes?.[species]?.[job])||CLASS_CATALOG[species]?.[job]||CLASS_CATALOG.human.warrior;}
 function genderName(gender='male'){return gender==='female'?'여성':'남성';}
+// Local storage backup & dual persistence helpers
+function saveLocalAccountBackup(username, password, world) {
+ if (!world || !world.player) return;
+ const p = world.player;
+ const profileKeys = ['player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch', 'base', 'next_gear_id'];
+ const profile = {};
+ for (const k of profileKeys) { if (world[k]) profile[k] = world[k]; }
+ const summary = {
+  username,
+  species: p.species,
+  gender: p.gender || 'male',
+  job: p.job || 'warrior',
+  level: p.combat_level || 1,
+  savedAt: Date.now()
+ };
+ try {
+  if (username) {
+   localStorage.setItem('bloodfall_acc_' + username.toLowerCase(), JSON.stringify({username, password, profile, summary}));
+   localStorage.setItem('bloodfall_last_login', JSON.stringify({username, password, summary}));
+  }
+  localStorage.setItem('bloodfall_quicksave_profile', JSON.stringify({profile, summary}));
+ } catch (e) {}
+}
+
+function getLocalAccountBackup(username) {
+ try {
+  const raw = localStorage.getItem('bloodfall_acc_' + (username || '').toLowerCase());
+  return raw ? JSON.parse(raw) : null;
+ } catch (e) { return null; }
+}
+
+function getLastLogin() {
+ try {
+  const raw = localStorage.getItem('bloodfall_last_login');
+  return raw ? JSON.parse(raw) : null;
+ } catch (e) { return null; }
+}
+
+let lastBackupTime = 0;
+function backupCurrentWorld(world) {
+ if (!world || !world.player || !world.player.chosen) return;
+ const now = Date.now();
+ if (now - lastBackupTime < 2000) return; // throttle to 2s
+ lastBackupTime = now;
+ saveLocalAccountBackup(world.player.account || '', '', world);
+}
+
+function updateWelcomeAccountUI() {
+ const last = getLastLogin();
+ const quickBox = $('welcome-quick-resume');
+ if (last && last.summary) {
+  const s = last.summary;
+  const spText = s.species === 'vampire' ? '뱀파이어' : '인간';
+  const jText = s.job === 'ranged' ? (s.species === 'vampire' ? '혈법사' : '거너') : '전사';
+  if (quickBox) {
+   quickBox.hidden = false;
+   quickBox.innerHTML = `
+    <div class="quick-resume-content">
+     <span class="quick-resume-icon">⚡</span>
+     <div>
+      <strong>최근 플레이 계정: <span class="highlight">${s.username}</span></strong>
+      <small>Lv.${s.level} ${spText} ${jText} · 안전하게 저장됨</small>
+     </div>
+    </div>
+    <button type="button" id="welcome-quick-btn" class="accent quick-resume-btn">바로 이어하기 ▶</button>
+   `;
+   const qBtn = $('welcome-quick-btn');
+   if (qBtn) qBtn.onclick = () => submitAccountAction('account_load', {username: last.username, password: last.password}, 'welcome-account-msg');
+  }
+  if ($('welcome-account-id') && !$('welcome-account-id').value) $('welcome-account-id').value = last.username;
+  if ($('welcome-account-pw') && !$('welcome-account-pw').value) $('welcome-account-pw').value = last.password;
+  if ($('account-load-id') && !$('account-load-id').value) $('account-load-id').value = last.username;
+  if ($('account-load-pw') && !$('account-load-pw').value) $('account-load-pw').value = last.password;
+ } else {
+  try {
+   const q = JSON.parse(localStorage.getItem('bloodfall_quicksave_profile') || 'null');
+   if (q && q.profile && q.profile.player && q.profile.player.chosen) {
+    const p = q.profile.player;
+    const spText = p.species === 'vampire' ? '뱀파이어' : '인간';
+    if (quickBox) {
+     quickBox.hidden = false;
+     quickBox.innerHTML = `
+      <div class="quick-resume-content">
+       <span class="quick-resume-icon">⚡</span>
+       <div>
+        <strong>마지막 플레이 캐릭터 (로컬 백업)</strong>
+        <small>Lv.${p.combat_level || 1} ${spText} · 브라우저 저장됨</small>
+       </div>
+      </div>
+      <button type="button" id="welcome-quick-local-btn" class="accent quick-resume-btn">이어서 플레이 ▶</button>
+     `;
+     const qlBtn = $('welcome-quick-local-btn');
+     if (qlBtn) qlBtn.onclick = async () => {
+      try {
+       const res = await api('/api/action', {
+        revision: state.world.revision,
+        command: { action: 'restore_local_save', profile: q.profile }
+       });
+       welcomeForced = false;
+       accept(res);
+       toast('로컬 저장 데이터를 복원했습니다.');
+      } catch (err) { toast(err.message || '복원 실패'); }
+     };
+    }
+   } else if (quickBox) {
+    quickBox.hidden = true;
+   }
+  } catch (e) {}
+ }
+}
+
 function updateWelcomeCustomizer(){
  const gText=genderName(selectedGender),hCls=classInfo('human',selectedJob),vCls=classInfo('vampire',selectedJob);
  document.querySelectorAll('[data-select-gender]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.selectGender===selectedGender)));
@@ -221,6 +332,7 @@ function updateWelcomeCustomizer(){
  if($('welcome-vampire-title'))$('welcome-vampire-title').textContent=`뱀파이어 · ${gText} ${vCls.name}`;
  if($('welcome-vampire-sub'))$('welcome-vampire-sub').textContent=`VAMPIRE · ${vCls.style} · ${vCls.weapon_type} · 사거리 ${vCls.attack_range}`;
  if($('welcome-vampire-trait'))$('welcome-vampire-trait').textContent=`기본 무기: ${vCls.starter_weapon} · 흡혈 및 혈족 비전`;
+ updateWelcomeAccountUI();
 }
 document.querySelectorAll('[data-select-gender]').forEach(b=>b.onclick=()=>{selectedGender=b.dataset.selectGender;updateWelcomeCustomizer();});
 document.querySelectorAll('[data-select-job]').forEach(b=>b.onclick=()=>{selectedJob=b.dataset.selectJob;updateWelcomeCustomizer();});
@@ -234,7 +346,7 @@ function accept(data,fromBroadcast=false) {
    data.world.player.x=state.world.player.x;
    data.world.player.y=state.world.player.y;
   }
-  state=data;view.reconcileInput(data);update();
+  state=data;backupCurrentWorld(data.world);view.reconcileInput(data);update();
  }
 }
 function span(className,text) { const n=document.createElement('span'); n.className=className; n.textContent=text; return n; }
@@ -368,14 +480,44 @@ async function submitAccountAction(action,fields,msgId){
  const msgEl=$(msgId);
  if(msgEl)msgEl.textContent='서버 처리 중...';
  try{
-  const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields,...(state.movement?.enabled?{input_seq:movementInput.seq}:{})}});
+  let cmd = {action,...fields,...(state.movement?.enabled?{input_seq:movementInput.seq}:{})};
+  if(action==='account_load'){
+   const u=(fields.username||'').trim();
+   const bk=getLocalAccountBackup(u);
+   if(bk&&bk.profile)cmd.backup_profile=bk.profile;
+  }
+  const result=await api('/api/action',{revision:state.world.revision,command:cmd});
   if(action==='account_load')welcomeForced=false;
   accept(result);
   const noteText=result.world.log?.[0]||'처리되었습니다.';
   if(msgEl)msgEl.textContent=noteText;
   toast(noteText);
-  if(action==='account_load'&&activePanel==='account')closePanel();
+  if(action==='account_save'&&fields.username){
+   saveLocalAccountBackup(fields.username.trim(),fields.password||'',result.world);
+   updateWelcomeAccountUI();
+  }
+  if(action==='account_load'&&fields.username){
+   saveLocalAccountBackup(fields.username.trim(),fields.password||'',result.world);
+   if(activePanel==='account')closePanel();
+  }
  }catch(e){
+  if(action==='account_load'){
+   const u=(fields.username||'').trim();
+   const bk=getLocalAccountBackup(u);
+   if(bk&&bk.profile&&bk.profile.player&&bk.profile.player.chosen){
+    try{
+     if(msgEl)msgEl.textContent='로컬 백업 데이터로 복원 중...';
+     const rRes=await api('/api/action',{revision:state.world.revision,command:{action:'restore_local_save',profile:bk.profile}});
+     welcomeForced=false;
+     accept(rRes);
+     toast(`계정 '${u}' 데이터를 로컬 백업에서 안전하게 복원했습니다.`);
+     if(msgEl)msgEl.textContent=`계정 '${u}' 복원 완료`;
+     saveLocalAccountBackup(u,fields.password||'',rRes.world);
+     if(activePanel==='account')closePanel();
+     return;
+    }catch(rErr){}
+   }
+  }
   if(msgEl)msgEl.textContent=e.message||'오류가 발생했습니다.';
   toast(e.message||'오류가 발생했습니다.');
  }
