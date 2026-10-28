@@ -1554,3 +1554,129 @@ main{
  #skill-bar .skill-slot{width:44px !important;min-width:44px !important;max-width:44px !important;height:44px !important}
  #skill-bar .skill-glyph{width:30px;height:30px}
 }
+
+/* Field HUD: edge-anchored information, open play space and optional quickslots. */
+body.field-ui{--hud-gold:#b9a16e;--hud-ink:#100f0dcc;overflow:hidden}
+.field-ui .topbar,.field-ui footer{display:none!important}
+.field-ui main{position:fixed!important;inset:0!important;height:100dvh!important;display:block!important;max-width:none!important;padding:0!important;margin:0!important}
+.field-ui .world-panel{display:block!important;height:100%!important;padding:0!important;margin:0!important}
+.field-ui .canvas-wrap{width:100%;height:100dvh!important;min-height:0!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+.field-ui .canvas-wrap::after{content:'';position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 60px 65px -45px #000,inset 0 -55px 65px -40px #000;z-index:1}
+.field-ui .field-vitals{left:16px!important;top:14px!important;width:290px!important;max-width:none!important;height:86px;display:block!important;filter:drop-shadow(0 2px 4px #000);pointer-events:none}
+.field-ui .field-vitals button{pointer-events:auto}
+.field-ui .field-vitals .hud-portrait-button{position:absolute;left:0;top:0;width:66px!important;height:76px!important;padding:0!important;overflow:hidden;border:2px solid #b4a185!important;border-radius:8px 8px 26px 26px!important;background:#1c2229!important;box-shadow:0 0 0 2px #17140f,inset 0 0 15px #000}
+.hud-portrait-button img{width:100%;height:100%;object-fit:cover;object-position:50% 19%;transform:scale(1.4);transform-origin:50% 22%}
+#hud-name{position:absolute;left:78px;top:0;color:#e4d4b4;font-size:12px;letter-spacing:1px;text-shadow:0 1px 3px #000}
+.field-ui .field-vitals>button:not(.hud-portrait-button):not(.level-badge):not(.equip-hud-btn){position:absolute;left:73px;top:26px;width:206px;height:18px!important;padding:0 6px!important;background:#1c0b0f!important;border:1px solid #998161!important;border-radius:2px!important;display:flex;justify-content:space-between;gap:0!important;overflow:hidden}
+.field-ui .field-vitals>#field-mp-wrap{top:47px!important;background:#0d1326!important}
+.field-ui .field-vitals button>i{position:absolute;inset:0;width:100%!important;height:100%!important;background:transparent!important;border-radius:0!important;z-index:0}
+.field-ui .field-vitals button>i>b{background:linear-gradient(#db4353,#8b162c)!important;box-shadow:inset 0 1px #ffaaa977}
+.field-ui .field-vitals #field-mp-bar{background:linear-gradient(#3283de,#173f98)!important}
+.field-ui .field-vitals .vampire-blood #field-mp-bar{background:linear-gradient(#ba629b,#6f2d6a)!important}
+.field-ui .field-vitals button>span,.field-ui .field-vitals button>strong{position:relative;z-index:1;font-size:10px!important;color:#fff!important;text-shadow:0 1px 2px #000}
+.field-ui .field-vitals .level-badge{position:absolute;left:8px;top:62px;padding:0 4px!important;height:24px!important;background:#171611!important;border-color:#ac9162!important;border-radius:12px!important}
+.field-ui .field-vitals .level-badge i,.field-ui #field-equip-btn,.field-ui #field-bag,.field-ui #field-infection{display:none!important}
+.field-ui #field-vital{position:absolute;left:76px;top:68px;font-size:10px!important;max-width:none;color:#c2bbae!important;background:none!important;padding:0!important}
+.field-ui .field-top{top:104px!important;left:17px!important;right:auto!important}
+.field-ui .field-badge{padding:2px 6px!important;font-size:10px!important;background:#13120d88!important;border:0!important}
+.field-ui #camp-access{left:165px!important;top:104px!important;height:22px!important;background:#272319bb!important;border:1px solid #82704d88!important;padding:2px 6px!important;box-shadow:none!important}
+.field-ui #camp-access small,.field-ui #camp-access kbd{display:none!important}
+.field-ui #camp-access[hidden]{display:none!important}
+.hud-quest{position:absolute;left:17px;top:142px;width:247px;padding:10px 20px 10px 10px;text-align:left;background:linear-gradient(90deg,#0b0b0bd9,#15151088,transparent);border:0;border-left:2px solid #9e8550;border-radius:0;z-index:3;text-shadow:0 1px 3px #000}
+.hud-quest>span:first-child{display:block;color:#c5b18b;font-size:11px}.hud-quest small{margin-left:18px;font-size:10px;color:#bab4a3}.hud-quest strong{display:block;color:#77c59d;font-size:13px;font-weight:500;margin-top:5px}.hud-quest .quest-arrow{position:absolute;right:10px;top:14px;color:#dcc392;font-size:26px}
+.field-ui .menu-dock{position:absolute!important;top:12px!important;right:16px!important;left:auto!important;bottom:auto!important;transform:none!important;width:auto!important;height:56px!important;display:flex!important;gap:8px!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important}
+.field-ui .menu-dock .dock-item[hidden]{display:none!important}
+.field-ui .menu-dock .dock-major-btn{flex-direction:column!important;width:49px!important;height:54px!important;gap:5px!important;padding:3px!important;border:0!important;background:radial-gradient(ellipse at center,#34302166,transparent)!important;border-radius:0!important;box-shadow:none!important;color:#e3d5b8!important}
+.field-ui .menu-dock .dock-major-btn[aria-expanded=true]{background:#5e4c2c66!important;border-bottom:2px solid #ceb478!important}
+.field-ui .menu-dock .dock-glyph{font-family:Georgia,serif;font-size:27px!important;color:#e1d2b2!important;text-shadow:0 1px 2px #000,0 0 8px #a8874733}
+.field-ui .menu-dock .dock-name{font-size:10px!important;color:#d3c7ae!important;font-weight:500!important;letter-spacing:0!important}
+.field-ui .menu-dock kbd{display:none!important}
+.field-ui .dock-flyout{top:100%!important;bottom:auto!important;left:auto!important;right:0!important;transform:none!important;background:#171611f5;border-color:#887149}
+.field-ui .dock-flyout::after{display:none}.field-ui .dock-flyout .dock-sub-btn{width:100%!important;justify-content:space-between!important;font-size:11px!important}
+.field-ui .menu-dock [data-category=controls]{display:none!important}
+.field-ui .atlas{right:18px!important;top:86px!important;bottom:auto!important;width:170px!important;padding:4px!important;background:#0e1014c9!important;border:1px solid #a38b57!important;box-shadow:0 0 0 2px #12110e,0 4px 16px #0008!important;border-radius:0!important}
+.field-ui .atlas canvas{display:block;width:160px!important;height:142px!important;object-fit:contain;background:#101319}
+.field-ui .atlas-heading{font-size:9px!important;padding:0 2px 3px;display:flex!important;justify-content:space-between}.field-ui .atlas-caption{display:none!important}
+.field-ui .world-title{height:auto!important;display:flex!important;left:auto!important;right:14px!important;top:257px!important;bottom:auto!important;transform:none!important;width:180px!important;max-width:none!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;text-shadow:0 1px 4px #000;white-space:normal!important}
+.field-ui .world-title h1{font-size:15px!important;color:#e5dbc5!important}.field-ui .world-title p{display:block!important;font-size:9px!important;line-height:1.4!important;color:#bdb6a6!important;margin-top:4px!important}.field-ui .world-title .eyebrow,.field-ui .world-title .clock{display:none!important}
+.field-ui .map-tools{right:18px!important;top:312px!important;bottom:auto!important;gap:3px!important}.field-ui .map-tools button{width:25px!important;height:25px!important;padding:0!important;background:#14140daa!important;border-color:#9f8c5c66!important}.field-ui .map-tools #zoom-level{font-size:9px!important}
+.field-ui #activity-feed{left:18px!important;right:auto!important;bottom:30px!important;width:260px!important;max-width:29vw!important;font-size:10px!important;z-index:3!important}
+.field-ui #activity-feed .activity-heading{font-size:9px;color:#baa781}.field-ui #activity-feed li{padding:4px 7px!important;background:linear-gradient(90deg,#080a0bb3,transparent)!important;border:0!important;font-size:10px!important;line-height:1.5}.field-ui #activity-feed li:nth-child(n+4){display:none!important}
+.field-ui #skill-bar.lineage-hotbar:not([hidden]){left:50%!important;right:auto!important;bottom:27px!important;top:auto!important;transform:translateX(-50%)!important;width:auto!important;max-width:none!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important}
+.field-ui #skill-bar .hotbar-slots-track{display:flex!important;gap:5px!important;width:auto!important}
+.field-ui #skill-bar .skill-slot{display:grid!important;place-items:center;width:58px!important;min-width:58px!important;max-width:58px!important;height:58px!important;background:linear-gradient(145deg,#24231ddd,#0c0e10d9)!important;border:1px solid #8d8267!important;border-radius:2px!important;box-shadow:inset 0 0 0 2px #090b0b,0 2px 6px #0008!important;opacity:1!important}
+.field-ui #skill-bar .skill-slot.slot-empty{background:linear-gradient(140deg,#17191888,#080a0c66)!important;border-color:#625e536e!important;box-shadow:inset 0 0 0 1px #0005!important}
+.field-ui #skill-bar .skill-slot:not(.slot-empty)::after{content:'';position:absolute;bottom:0;left:35%;width:30%;height:2px;background:#bba472;box-shadow:0 0 6px #e7bd5f}
+.field-ui #skill-bar .skill-slot:disabled .skill-glyph{opacity:.4}.field-ui #skill-bar .skill-glyph{width:39px;height:39px}
+.field-ui #interaction.action-cluster{left:auto!important;right:20px!important;bottom:105px!important;top:auto!important;width:202px!important;height:188px!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;display:block!important}
+.field-ui #interaction[hidden]{display:none!important}
+.field-ui #interaction .nearby-tracker{position:absolute;border:0!important;background:none!important;box-shadow:none!important;bottom:2px;right:0;width:202px!important;padding:0!important;text-align:right;min-width:0!important}.field-ui #interaction .eyebrow{display:none!important}.field-ui #nearby-label{max-width:202px!important;color:#d4c3a1;font-size:10px!important;text-shadow:0 1px 3px #000}
+.field-ui #interaction .action-grid{position:absolute;inset:0;display:block!important;padding:0!important;min-width:0!important}
+.field-ui #interaction .action-btn{position:absolute!important;width:44px!important;height:44px!important;padding:0!important;background:radial-gradient(circle at 40% 25%,#383327cc,#131411dd)!important;border:1px solid #998665!important;border-radius:50%!important;box-shadow:inset 0 0 0 3px #141511,0 2px 8px #0008!important;display:grid!important;place-items:center}
+.field-ui #interaction .action-btn .action-text{font-size:9px!important;line-height:1.25!important;color:#d8cbb1}.field-ui #interaction kbd{display:none!important}
+.field-ui #interaction .attack-button{right:4px;bottom:25px;width:82px!important;height:82px!important;border:2px solid #b49a6a!important;transform:none;background:radial-gradient(circle,#4a4030aa,#151510dd)!important}
+.field-ui #interaction .attack-button .action-text{font-size:19px!important}
+.field-ui #interaction .auto-hunt-button{right:99px;bottom:26px;width:57px!important;height:57px!important;color:#eac58f!important;border-color:#b17e43!important}
+.field-ui #interaction .auto-hunt-button[aria-pressed=true]{background:radial-gradient(circle,#9f501e,#552715)!important;box-shadow:0 0 12px #fb762c99,inset 0 0 0 3px #c89a51!important;border-color:#ffe2a2!important}
+.field-ui #interaction #interact{right:64px;top:0}.field-ui #interaction #loot-btn{right:9px;top:20px}.field-ui #interaction #sprint-toggle{right:121px;top:22px}.field-ui #interaction #mount-toggle{right:157px;top:72px}
+.field-ui #interaction #sprint-toggle[aria-pressed=true]{border-color:#e9c675!important;background:#635330cc!important}
+.quick-items{position:absolute;right:20px;bottom:27px;display:flex;gap:5px;z-index:4}
+.quick-items button{position:relative;width:58px;height:58px;padding:8px;border:1px solid #8d8267;border-radius:2px;background:linear-gradient(145deg,#2f2b22e6,#101310df);box-shadow:inset 0 0 0 2px #080a0b;opacity:1}
+.quick-items button:disabled img{opacity:.35}.quick-items img{width:36px;height:36px}.quick-items small{position:absolute;bottom:2px;right:5px;color:#decda0;font:12px Georgia,serif}
+.hud-experience{position:absolute;bottom:0;left:0;right:0;height:4px;background:#1b1913;z-index:4;pointer-events:none}.hud-experience>i{display:block;height:100%;background:linear-gradient(90deg,#9b7931,#dac583);box-shadow:0 0 5px #bb994b}.hud-experience>span{position:absolute;bottom:5px;left:17px;font-size:9px;color:#bba878;text-shadow:0 1px 2px #000}
+.field-ui .touch-pad{left:20px!important;bottom:110px!important;right:auto!important;width:116px!important;height:116px!important;grid-template-columns:repeat(3,36px)!important;grid-template-rows:repeat(3,36px)!important;gap:2px!important;background:radial-gradient(circle,#9d94651a,#090b0b33);border:1px solid #b09c6655;border-radius:50%;padding:1px;z-index:4}
+.field-ui .touch-pad button{border:0!important;border-radius:50%!important;background:#181b16aa!important;color:#d7c9a1!important;font-size:14px!important;box-shadow:none!important}.field-ui .touch-pad button[data-direction=down]{grid-row:3!important;grid-column:2!important}.field-ui .touch-pad button.pressed{background:#8c794caa!important}
+.field-ui .loot-box{left:50%!important;bottom:100px!important;transform:translateX(-50%);z-index:6!important}
+.field-ui #menu-dialog{top:80px!important;bottom:100px!important;right:18px!important;height:auto!important;max-height:calc(100dvh - 180px)!important;background:linear-gradient(135deg,#26241efc,#121514fc)!important;border:1px solid #89764f!important;box-shadow:0 14px 60px #000b!important}
+.field-ui #menu-dialog .menu-body{max-height:none!important;min-height:0;overflow-y:auto}
+.field-ui #menu-dialog[data-panel=skills] .menu-body{scroll-padding-top:255px}
+.field-ui .hotbar-editor{background:linear-gradient(145deg,#29271f,#141613);border-color:#83704d;border-radius:2px}.field-ui .hotbar-editor-slot{border-radius:2px;background:linear-gradient(140deg,#24251e,#101311)}.field-ui .hotbar-editor-slot.slot-empty{background:#0e1110;border-color:#625b48}
+.hotbar-editor-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:8px}.hotbar-editor-footer small{color:#b0a78f;font-size:10px}.hotbar-editor-footer button{font-size:11px;padding:7px 9px;white-space:nowrap;border-color:#89754d;background:#25251e}
+.field-ui .skill-card{border-radius:2px;background:#171a17;border-color:#585744}.field-ui .skill-card.unlocked{background:linear-gradient(120deg,#27281f,#141815);border-color:#81704a}.field-ui .skill-badge{background:#292c22;border-color:#635b40}.field-ui .skill-select-button{background:#323021;border-color:#968052;border-radius:2px}.field-ui .skill-select-button[aria-pressed=true]{background:#60502c}
+@media(pointer:coarse){.field-ui .touch-pad{display:grid!important}.field-ui #activity-feed{bottom:240px!important}}
+@media(max-width:1000px){
+ .field-ui .menu-dock{gap:3px!important;right:8px!important}.field-ui .menu-dock .dock-major-btn{width:43px!important}
+ .field-ui #skill-bar .skill-slot{width:49px!important;min-width:49px!important;max-width:49px!important;height:49px!important}.field-ui #skill-bar .skill-glyph{width:34px;height:34px}
+ .field-ui #activity-feed{width:220px!important;max-width:25vw!important}
+}
+@media(max-width:600px){
+ .field-ui .field-vitals{left:9px!important;top:10px!important;width:242px!important;transform:scale(.85);transform-origin:top left}
+ .field-ui .menu-dock{left:8px!important;right:auto!important;top:100px!important;height:44px!important;gap:2px!important}.field-ui .menu-dock .dock-major-btn{width:38px!important;height:44px!important}.field-ui .menu-dock .dock-glyph{font-size:23px!important}.field-ui .menu-dock .dock-name{font-size:9px!important}
+ .field-ui .atlas{top:12px!important;right:9px!important;width:103px!important}.field-ui .atlas canvas{width:93px!important;height:85px!important}.field-ui .atlas-heading{font-size:7px!important}
+ .field-ui .world-title{right:6px!important;top:124px!important;width:110px!important}.field-ui .world-title h1{font-size:11px!important}.field-ui .world-title p{font-size:8px!important}.field-ui .map-tools{right:9px!important;top:177px!important}
+ .field-ui .field-top{top:85px!important;left:9px!important}.field-ui #camp-access{display:none!important}
+ .hud-quest{left:9px;top:157px;width:220px;padding:6px 14px 7px 8px}.hud-quest strong{font-size:11px}.hud-quest>span:first-child{font-size:9px}.hud-quest small{font-size:9px}.hud-quest .quest-arrow{font-size:22px;top:7px}
+ .field-ui #skill-bar.lineage-hotbar:not([hidden]){bottom:23px!important;left:50%!important;right:auto!important;width:auto!important}
+ .field-ui #skill-bar .hotbar-slots-track{gap:4px!important;grid-template-columns:none!important}.field-ui #skill-bar .skill-slot{width:49px!important;min-width:49px!important;max-width:49px!important;height:49px!important}
+ .field-ui #interaction.action-cluster{right:12px!important;bottom:143px!important;transform:scale(.9);transform-origin:bottom right}
+ .quick-items{right:12px;bottom:86px}.quick-items button{width:47px;height:47px;padding:5px}.quick-items img{width:30px;height:30px}
+ .field-ui .touch-pad{left:18px!important;bottom:105px!important}
+ .field-ui #activity-feed{left:10px!important;bottom:252px!important;width:170px!important;max-width:45vw!important}.field-ui #activity-feed li{font-size:9px!important}.field-ui #activity-feed li:nth-child(n+3){display:none!important}
+ .field-ui #menu-dialog,.field-ui #menu-dialog[data-panel=skills],.field-ui #menu-dialog[data-panel=bag],.field-ui #menu-dialog[data-panel=equip]{top:8px!important;bottom:12px!important;left:8px!important;right:8px!important;width:auto!important;max-width:none!important;max-height:calc(100dvh - 20px)!important}
+ .field-ui .hotbar-editor-heading>span{display:none}.hotbar-editor-footer{gap:6px}.hotbar-editor-footer small{font-size:9px;max-width:170px}
+ .field-ui .loot-box{bottom:86px!important;max-height:calc(100dvh - 110px);overflow:auto}
+}
+@media(max-height:520px) and (min-width:601px){
+ .field-ui .field-vitals{transform:scale(.85);transform-origin:top left}.field-ui .field-top{top:93px!important}.field-ui #camp-access{top:93px!important}
+ .hud-quest{top:123px;width:220px;padding:5px 10px}.hud-quest strong{font-size:11px}
+ .field-ui .atlas{top:73px!important;width:114px!important}.field-ui .atlas canvas{width:104px!important;height:78px!important}.field-ui .world-title{top:181px!important;width:124px!important}.field-ui .world-title h1{font-size:12px!important}.field-ui .world-title p,.field-ui .map-tools{display:none!important}
+ .field-ui #interaction.action-cluster{bottom:83px!important;transform:scale(.76);transform-origin:bottom right}.quick-items{bottom:19px}.quick-items button{width:47px;height:47px;padding:5px}
+ .field-ui .touch-pad{bottom:25px!important;transform:scale(.85);transform-origin:bottom left}.field-ui #activity-feed{bottom:157px!important;max-width:180px!important}.field-ui #activity-feed li:nth-child(n+2){display:none!important}
+ .field-ui #menu-dialog{top:8px!important;bottom:8px!important;max-height:calc(100dvh - 16px)!important}
+ .field-ui #menu-dialog[data-panel=skills] .hotbar-editor{position:static}.field-ui #menu-dialog[data-panel=skills] .menu-body{scroll-padding-top:10px}
+}
+@media(prefers-reduced-motion:reduce){.field-ui .skill-art svg{filter:none}.field-ui .slot-flash{animation:none!important}}
+
+.field-ui #toast{top:24%;bottom:auto;max-width:calc(100vw - 40px);background:#1a1912ed;color:#e4d0a1;border:1px solid #a58a53;font-size:12px;padding:10px 16px;text-align:center}
+.field-ui .field-badge{display:inline-flex!important}.field-ui #field-vital{display:block!important;border:0!important}
+.field-ui .canvas-wrap:has(#welcome:not([hidden])) .hud-quest,.field-ui .canvas-wrap:has(#welcome:not([hidden])) .quick-items,.field-ui .canvas-wrap:has(#welcome:not([hidden])) .hud-experience{visibility:hidden}
+@media(max-height:520px) and (min-width:601px){
+ .field-ui .atlas canvas{height:60px!important}.field-ui .world-title{top:171px!important}.field-ui #interaction.action-cluster{bottom:65px!important;height:176px!important}
+}
+@media(max-width:359px){
+ .field-ui .field-vitals{transform:scale(.69)}.field-ui .atlas{width:92px!important;right:6px!important}.field-ui .atlas canvas{width:82px!important}
+ .field-ui .menu-dock{gap:0!important}.field-ui .menu-dock .dock-major-btn{width:34px!important}.field-ui .hud-quest{width:190px}
+ .field-ui #skill-bar .skill-slot{width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important}
+}
+
+.field-ui #connection{position:absolute;top:24%;left:50%;transform:translateX(-50%);max-width:90%;padding:8px 14px;background:#201611ee;border:1px solid #b68c5c;z-index:8;font-size:12px;text-align:center}.field-ui #connection:not(.status-error){display:none!important}
