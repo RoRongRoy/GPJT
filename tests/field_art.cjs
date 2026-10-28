@@ -22,6 +22,16 @@ for(const [x,y,row] of [[1,0,0],[0,1,1],[-1,0,2],[0,-1,3]]){
 art.pose('idle',0,0,0);art.pose('idle',1,0,300);
 assert.equal(art.pose('idle',1,0,800).frame,0,'Idle must stop walking');
 assert.equal(art.pose('idle',2,0,900,true).frame,0,'Pause must stop walking');
+function stride(id,speed,fps,sprint=false){art.pose(id,0,0,0);let pose;for(let i=1;i<=fps;i++)pose=art.pose(id,speed*i/fps,0,1000*i/fps,false,sprint);return pose;}
+const walk=stride('walk',6,60),walk30=stride('walk30',6,30),run=stride('run',9.9,60,true);
+assert.ok(walk.moving&&run.moving);
+assert.ok(Math.abs(walk.phase-walk30.phase)<1e-9,'Stride must be independent of frame rate');
+assert.equal(art.pose('walk',6.1,0,1016,false,false,{dx:0,dy:0}).moving,false,'Key release must suppress reconciliation drift');
+assert.equal(art.pose('run',60,0,1016,false,true).frame,0,'Teleport must not animate a step');
+assert.equal(art.pose('walk30',6,0,1200).moving,false,'Stationary actor must stop');
+const phase=art.actors.get('walk30').phase;
+art.pose('walk30',7,0,1300,true);
+assert.equal(art.actors.get('walk30').phase,phase,'Pause must not advance stride');
 art.character(100,200,1,'vampire',true,300,{pose:{row:3,frame:2}});
 assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest.vampire.frames[14]).slice(0,4));
 art.images.pine.complete=false;art.images.pine.naturalWidth=0;art.images.pine.onerror();

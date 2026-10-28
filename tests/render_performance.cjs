@@ -8,7 +8,7 @@ const fixture=JSON.parse(cp.execFileSync(process.env.PYTHON||'python',['-c','imp
  const page=await browser.newPage({viewport:{width:1440,height:1000}});
  await page.route('http://render.test/**',route=>{const url=new URL(route.request().url());if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:'<canvas id="world" style="width:1280px;height:720px"></canvas><canvas id="mini"></canvas><script src="/gothic.js"></script><script src="/sprite-manifest.js"></script><script src="/sprites.js"></script><script src="/world.js"></script>'});return route.fulfill({path:root+'/public'+url.pathname});});
  await page.goto('http://render.test/');await page.evaluate(f=>{window.fixture=f;window.view=new WorldView(document.querySelector('#world'),document.querySelector('#mini'));},fixture);
- await page.waitForFunction(()=>view.art.loaded===11);
+ await page.waitForFunction(()=>view.art.loaded===Object.keys(FIELD_SPRITES).length);
  const results=[];
  for(const scene of [{name:'camp',x:22,y:23,w:1280,h:720,dpr:1},{name:'forest',x:78,y:30,w:1280,h:720,dpr:1},{name:'mobile-forest',x:78,y:30,w:370,h:580,dpr:2}]){
  await page.evaluate(s=>{world.style.width=s.w+'px';world.style.height=s.h+'px';Object.defineProperty(window,'devicePixelRatio',{value:s.dpr,configurable:true});fixture.world.player.x=s.x;fixture.world.player.y=s.y;view.camera=null;view.player=null;},scene);

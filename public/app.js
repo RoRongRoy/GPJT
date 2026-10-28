@@ -7,6 +7,7 @@ const session = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.
 let state = null, busy = false, connected = false, polling = false, toastTimer, selected = null;
 let target=null, hurtUntil=0, pendingAction=null, pendingTimer=null, lastCommandAt=-Infinity, lastMove= -Infinity, autoHunt=false, sprintToggle=false, shiftHeld=false, pointerDown=false;
 const held=new Set(), touchHeld=new Set();
+const movementInput={dx:0,dy:0,sprint:false,seq:0,lastSent:-Infinity,pending:0,rtt:0};
 const canvas=$('world'), view=new WorldView(canvas,$('minimap'));
 const facilityRows=new Map();
 let activePanel=null, panelOpener=null, inventoryFilter='all', selectedRecipe='soup';
@@ -103,7 +104,7 @@ if(typeof io==='function'){
  socket=io({auth:{key,session},query:{key,session},reconnectionDelay:600});
  socket.on('connect',()=>{connected=true;lastSocketAt=performance.now();updateConnectionBadge();});
  socket.on('state',data=>{connected=true;lastSocketAt=performance.now();accept(data,true);updateConnectionBadge();});
- socket.on('disconnect',()=>{updateConnectionBadge();});
+ socket.on('disconnect',()=>{clearMovement();view.resetInput();updateConnectionBadge();});
  socket.on('connect_error',err=>{
   if(!connected&&!state){$('connection').textContent=err.message||'서버 연결 재시도 중...';$('connection').classList.add('status-error');}
  });
@@ -112,21 +113,38 @@ async function api(path, body) {
  if(socket?.connected){
   try{
    return await new Promise((resolve,reject)=>{
-    const ev=path==='/api/action'?'action':'state';
+    const ev=path==='/api/input'?'input':path==='/api/action'?'action':'state';
     socket.emit(ev,body||{},res=>{
-     if(res?.ok){connected=true;lastSocketAt=performance.now();updateConnectionBadge();resolve(res.state);}
+     if(res?.ok){connected=true;if(res.state)lastSocketAt=performance.now();updateConnectionBadge();resolve(path==='/api/input'?res.input:res.state);}
      else{const error=new Error(res?.error||'서버 오류');error.status=res?.status||400;reject(error);}
     });
    });
   }catch(err){
-   if(err.status!==408&&err.status!==503)throw err;
-   // Seamless HTTP fallback if WebSocket ACK timed out or reset mid-flight
+   if((err.status!==408&&err.status!==503)||path==='/api/action')throw err;
+   // Only reads and sequenced direction inputs are safe to retry after a lost ACK.
   }
  }
- const response = await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','X-Access-Key':key,'X-Session-ID':session},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(5000)});
+ const response = await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','X-Access-Key':key,'X-Session-ID':session},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(5000),keepalive:path==='/api/input'});
  const data = await response.json();
  if(!response.ok) { const error=new Error(data.error || '서버 오류'); error.status=response.status; throw error; }
  connected=true; updateConnectionBadge(); return data;
+}
+function driveMovement(dx,dy){
+ if(!state?.movement?.enabled)return;
+ const sprint=Boolean((dx||dy)&&isSprinting());
+ const input=movementInput,now=performance.now(),changed=dx!==input.dx||dy!==input.dy||sprint!==input.sprint;
+ input.dx=dx;input.dy=dy;input.sprint=sprint;
+ if(!changed&&(!(dx||dy)||now-input.lastSent<100||input.pending>=2))return;
+ // Direction changes and release supersede old packets; never replay a movement queue.
+ const seq=++input.seq;input.lastSent=now;input.pending++;
+ view.setInput(state,dx,dy,seq,sprint);
+ api('/api/input',{seq,dx,dy,sprint}).then(()=>{
+  const rtt=performance.now()-now;input.rtt=input.rtt?input.rtt*.75+rtt*.25:rtt;view.inputLatency=Math.min(.2,input.rtt/2000);
+ }).catch(e=>{
+  if(seq<input.seq)return;
+  if(!e.status)connected=false;
+  clearMovement();view.resetInput();
+ }).finally(()=>{input.pending--;});
 }
 function schedulePending(){
  clearTimeout(pendingTimer);
@@ -149,7 +167,7 @@ async function command(action, fields={}) {
  lastCommandAt=performance.now();
  if(isMove)view.predictMove(state,fields);
  try {
-  const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
+  const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields,...(state.movement?.enabled?{input_seq:movementInput.seq}:{})}});
   if(isMove)view.endMove(true);
   accept(result);
   const drops=(result.world.gear||[]).filter(g=>!(before.gear||[]).some(old=>old.id===g.id));
@@ -164,7 +182,7 @@ async function command(action, fields={}) {
    try{
     accept(await api('/api/state'));
     if(['choose','new_adventurer','account_save','account_load','learn_skill','change_class'].includes(action)){
-     const retry=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
+     const retry=await api('/api/action',{revision:state.world.revision,command:{action,...fields,...(state.movement?.enabled?{input_seq:movementInput.seq}:{})}});
      accept(retry);
      return;
     }
@@ -209,14 +227,14 @@ document.querySelectorAll('[data-select-job]').forEach(b=>b.onclick=()=>{selecte
 updateWelcomeCustomizer();
 function accept(data,fromBroadcast=false) {
  if(!data?.world)return;
- if(!state || data.world.revision >= state.world.revision) {
+ if(!state || (data.world.revision >= state.world.revision&&(!data.snapshot_time||!state.snapshot_time||data.snapshot_time>=state.snapshot_time))) {
   if(state && data.world.player.hp<state.world.player.hp)hurtUntil=performance.now()+350;
   // Prevent a delayed peer broadcast from snapping the local player's position backward while a move is in flight
-  if(fromBroadcast && moveBusy && state?.world?.player){
+  if(!data.movement?.enabled&&fromBroadcast && moveBusy && state?.world?.player){
    data.world.player.x=state.world.player.x;
    data.world.player.y=state.world.player.y;
   }
-  state=data; update();
+  state=data;view.reconcileInput(data);update();
  }
 }
 function span(className,text) { const n=document.createElement('span'); n.className=className; n.textContent=text; return n; }
@@ -289,7 +307,7 @@ function setSprint(active,silent=false){
  if(!silent)toast(sprintToggle?'🏃 달리기 ON · 이동 속도가 65% 빨라집니다 (Shift 또는 버튼으로 해제)':'달리기 OFF · 일반 걸음으로 이동합니다');
 }
 function draw(){view.draw(state,target,selected,{hurtUntil,sprinting:isSprinting()});}
-function clearMovement(){held.clear();touchHeld.clear();shiftHeld=false;pointerDown=false;target=null;updateSprintUI();document.querySelectorAll('[data-direction]').forEach(b=>b.classList.remove('pressed'));}
+function clearMovement(){held.clear();touchHeld.clear();shiftHeld=false;pointerDown=false;driveMovement(0,0);target=null;updateSprintUI();document.querySelectorAll('[data-direction]').forEach(b=>b.classList.remove('pressed'));}
 function navigate(x,y,id=null){
  if(!state?.world.player.chosen||state.world.paused||!connected)return;
  if(autoHunt&&!id?.startsWith('enemy:'))setAutoHunt(false,true);
@@ -350,7 +368,7 @@ async function submitAccountAction(action,fields,msgId){
  const msgEl=$(msgId);
  if(msgEl)msgEl.textContent='서버 처리 중...';
  try{
-  const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields}});
+  const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields,...(state.movement?.enabled?{input_seq:movementInput.seq}:{})}});
   if(action==='account_load')welcomeForced=false;
   accept(result);
   const noteText=result.world.log?.[0]||'처리되었습니다.';
@@ -1050,7 +1068,7 @@ window.addEventListener('keydown',e=>{
  const k=e.key.toLowerCase();
  if(k==='shift'){if(!shiftHeld){shiftHeld=true;updateSprintUI();stepMovement();}return;}
  if(e.shiftKey&&!shiftHeld){shiftHeld=true;updateSprintUI();}
- if(moveKeys.includes(k)){e.preventDefault();closePanel(false);closeLootBox();target=null;held.add(k);stepMovement();}
+ if(moveKeys.includes(k)){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closePanel(false);closeLootBox();target=null;held.add(k);stepMovement();}
  if(e.repeat)return;
  if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closeLootBox();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
  const shortcut={h:'survival',k:'skills',c:'equip',i:'bag',j:'journal',u:'account',b:'camp'}[k];
@@ -1066,20 +1084,25 @@ window.addEventListener('keydown',e=>{
 });
 window.addEventListener('keyup',e=>{
  const k=e.key.toLowerCase();
- if(k==='shift'){shiftHeld=false;updateSprintUI();return;}
+ if(k==='shift'){shiftHeld=false;updateSprintUI();}
  held.delete(k);
+ if(k==='shift'||moveKeys.includes(k)){const {dx,dy}=screenDirection();driveMovement(dx,dy);}
 });
 window.addEventListener('blur',()=>{clearMovement();pendingAction=null;clearTimeout(pendingTimer);});
 document.addEventListener('visibilitychange',()=>{clearMovement();pendingAction=null;clearTimeout(pendingTimer);});
 const touchKeys={up:'w',left:'a',down:'s',right:'d'};
 for(const button of document.querySelectorAll('[data-direction]')){
  const key=touchKeys[button.dataset.direction];
- button.addEventListener('pointerdown',e=>{e.preventDefault();closePanel(false);closeLootBox();target=null;touchHeld.add(key);button.classList.add('pressed');button.setPointerCapture(e.pointerId);stepMovement();});
- const release=()=>{touchHeld.delete(key);button.classList.remove('pressed');};
+ button.addEventListener('pointerdown',e=>{e.preventDefault();if(autoHunt)setAutoHunt(false,true);closePanel(false);closeLootBox();target=null;touchHeld.add(key);button.classList.add('pressed');button.setPointerCapture(e.pointerId);stepMovement();});
+ const release=()=>{touchHeld.delete(key);button.classList.remove('pressed');const {dx,dy}=screenDirection();driveMovement(dx,dy);};
  button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
 }
 function stepMovement(){
- if(!state||!connected||busy||moveBusy||pendingAction||state.world.paused||!state.world.player.chosen||document.hidden)return;
+ if(!state||!connected||state.world.paused||!state.world.player.chosen||document.hidden){driveMovement(0,0);return;}
+ const manual=screenDirection();
+ if(state.movement?.enabled&&(manual.dx||manual.dy)){driveMovement(manual.dx,manual.dy);return;}
+ driveMovement(0,0);
+ if(busy||moveBusy||pendingAction)return;
  const now=performance.now(),sprinting=isSprinting(),moveGap=state.world.player.mounted?(sprinting?58:76):(sprinting?62:84);
  if(now-lastMove<moveGap||now-lastCommandAt<75)return;
  let {dx,dy}=screenDirection();

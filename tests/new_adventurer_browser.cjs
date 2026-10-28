@@ -67,8 +67,8 @@ s=Store(sys.argv[1]);s.save(new_world());s.save_account('legacy-player','test-pa
    }
    assert.deepEqual(errors,[]);
    console.log(`Passed ${transport} / ${species}: start, gear, movement, legacy account`);
-   await context.close();
+   await page.unrouteAll({behavior:'ignoreErrors'});await context.close();
   }
   console.log('New adventurer regression passed: human/vampire, HTTP/Socket.IO, desktop/mobile, starter gear, movement and legacy account load.');
- }finally{if(browser)await browser.close();if(server.exitCode===null){server.kill('SIGINT');await new Promise(r=>server.once('exit',r));}fs.rmSync(tmp,{recursive:true,force:true});}
+ }finally{if(browser){for(const context of browser.contexts())for(const page of context.pages())await page.unrouteAll({behavior:'ignoreErrors'});await browser.close();}if(server.exitCode===null){server.kill('SIGINT');await new Promise(r=>server.once('exit',r));}fs.rmSync(tmp,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

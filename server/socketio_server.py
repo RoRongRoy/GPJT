@@ -190,6 +190,11 @@ class SocketIOHub:
             else:
                 client.emit('state', snap)
             return
+        if event == 'input':
+            status, result = self.runtime.receive_input(client.session_id, payload)
+            if ack_id:
+                client.ack(ack_id, {'ok': status == 200, 'input': result, 'error': result.get('error'), 'status': status})
+            return
         if event == 'action':
             if not isinstance(payload, dict) or not isinstance(payload.get('command'), dict):
                 if ack_id:

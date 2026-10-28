@@ -86,7 +86,7 @@ class GothicArt {
   }
  });}
  character(x,y,scale,species,moving,now,{enemy=false,npc=false,mounted=false,tier=0,sprint=false,pose=null,gender='male',job='warrior'}={}){this.frame(x,y,scale,()=>{
-  const c=this.c,freq=sprint?52:82,stride=moving&&!mounted?Math.sin(now/freq)*(sprint?6.2:3.8):0,bounce=moving&&!mounted?Math.abs(Math.cos(now/freq))*(sprint?4.5:2.2):0,vampire=species==='vampire';
+  const c=this.c,phase=pose?.phase??now/(sprint?52:82),stride=moving&&!mounted?Math.sin(phase)*(sprint?6.2:3.8):0,bounce=moving&&!mounted?Math.abs(Math.sin(phase))*(sprint?4.5:2.2):0,vampire=species==='vampire';
   this.oval(4,2,17,7,'#06080dc0');
   if(enemy){
    this.poly([[-8,-38-bounce],[4,-35-bounce],[11,-9-bounce],[-4,-5-bounce],[-11,-16-bounce]],'#3e4548','#747668');

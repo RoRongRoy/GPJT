@@ -20,6 +20,7 @@ from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, IT
 from .socketio_server import SocketIOHub
 from .storage import Store
 from .worldmap import WORLD_MAP
+from .movement import MovementInputs
 
 ROOT = Path(__file__).resolve().parent.parent
 PROFILE_KEYS = ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch', 'log')
@@ -46,6 +47,7 @@ class Runtime:
         self.session = None
         self.last_seen = 0
         self.last_command = 0
+        self.movement = MovementInputs()
         self.sessions = {}
         self.next_player_index = 1
 
@@ -151,6 +153,18 @@ class Runtime:
             return True
         return False
 
+    def receive_input(self, token, payload):
+        with self.lock:
+            try:
+                self.authorize(token)
+                return 200, self.movement.receive(self.world, self._profile_for(token), token, payload, time.monotonic())
+            except RuleError as e:
+                return 400, {'error': str(e)}
+
+    def advance_inputs(self, now):
+        for token in self.movement.inputs:
+            self.movement.advance(self.world, self._profile_for(token), token, now)
+
     def execute_action(self, token, command, expected_revision=None):
         with self.lock:
             try:
@@ -166,6 +180,13 @@ class Runtime:
                     return 409, {'error': '상태가 변경됐습니다. 새 상태에서 다시 시도하세요.'}
                 if not isinstance(command, dict):
                     raise RuleError('명령 형식 오류')
+                input_seq = command.get('input_seq')
+                if input_seq is not None and (type(input_seq) is not int or not 0 <= input_seq < 2**53):
+                    raise RuleError('이동 순서 오류')
+                self.movement.advance(self.world, self._profile_for(token), token, now)
+                self.movement.stop(token, input_seq)
+                if command.get('action') == 'move':
+                    self.movement.check_step(token, now)
                 candidate = copy.deepcopy(self.world)
                 is_peer = (token != self.session)
                 if is_peer:
@@ -174,6 +195,8 @@ class Runtime:
                         candidate[k] = peer_prof[k]
                 if not self._handle_account_action(candidate, command, is_peer):
                     act(candidate, command)
+                if command.get('action') == 'move':
+                    self.movement.block_after_step(token, now)
                 acc_name = candidate['player'].get('account')
                 is_fast_move = isinstance(command, dict) and command.get('action') == 'move'
                 if acc_name and not is_fast_move:
@@ -196,6 +219,9 @@ class Runtime:
                         self.store.save(candidate)
                     self.world = candidate
                     self.last_command = now
+                if self.world['paused']:
+                    for moving_token in self.movement.inputs:
+                        self.movement.stop(moving_token)
                 sess_info['last_command'] = now
                 return 200, self.snapshot(token)
             except RuleError as e:
@@ -236,6 +262,8 @@ class Runtime:
             })
         return {
             'world': world_view,
+            'snapshot_time': time.time(),
+            'movement': self.movement.snapshot(active_token, now),
             'others': others,
             'online_count': max(1, online_count),
             'pois': live_pois(self.world),
@@ -331,7 +359,7 @@ def make_handler(runtime, access_key, sio=None):
             if path.startswith('/socket.io/'):
                 hub.handle_http_polling(self, 'POST')
                 return
-            if path != '/api/action':
+            if path not in ('/api/action', '/api/input'):
                 self.send(404, {'error': 'Not found'})
                 return
             if not self.allowed():
@@ -341,12 +369,16 @@ def make_handler(runtime, access_key, sio=None):
                 if not 0 < length <= 4096:
                     raise ValueError('크기 오류')
                 body = json.loads(self.rfile.read(length))
-                if not isinstance(body, dict) or not isinstance(body.get('command'), dict):
+                if not isinstance(body, dict) or (path == '/api/action' and not isinstance(body.get('command'), dict)):
                     raise ValueError('명령 형식 오류')
             except (ValueError, UnicodeError):
                 self.send(400, {'error': '잘못된 요청'})
                 return
             session_id = self.headers['X-Session-ID']
+            if path == '/api/input':
+                status, payload = runtime.receive_input(session_id, body)
+                self.send(status, payload)
+                return
             status, payload = runtime.execute_action(
                 session_id,
                 body['command'],
@@ -400,6 +432,7 @@ def main():
                 for sid_tok in active_sio:
                     runtime.authorize(sid_tok)
                 if now - runtime.last_seen < 2.5 or active_sio:
+                    runtime.advance_inputs(now)
                     tick(runtime.world, now - previous, extra_profiles=runtime.active_peer_profiles())
                     should_broadcast = bool(active_sio) and (now - last_broadcast >= .2)
                 if now - saved >= 2:

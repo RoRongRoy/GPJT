@@ -514,24 +514,8 @@ def act(w, command, rng=random.random):
         dx, dy = command.get('dx'), command.get('dy')
         sprint = bool(command.get('sprint'))
         require(type(dx) is int and type(dy) is int and dx in (-1, 0, 1) and dy in (-1, 0, 1) and (dx or dy), '이동 입력 오류')
-        cooldown(w, 'move', MOVEMENT['interval'] * (.72 if sprint else 1.0))
-        speed = MOVEMENT['step']
-        if p['mounted']:
-            tier = p['unlocks'][p['species']]
-            if p['species'] == 'vampire' and p['blood'] <= 5:
-                p['mounted'] = False
-                note(w, '혈액이 부족해 안전하게 착지했습니다.')
-            if p['mounted']:
-                speed *= MOVEMENT['mount_base'] + tier * MOVEMENT['mount_tier']
-                if sprint:
-                    speed *= 1.25
-                if p['species'] == 'vampire':
-                    p['blood'] = max(0, p['blood'] - 0.18)
-        elif sprint:
-            speed *= MOVEMENT.get('sprint_mult', 1.65)
-        norm = math.hypot(dx, dy)
-        p['x'] = max(1, min(SIZE - 2, p['x'] + dx / norm * speed))
-        p['y'] = max(1, min(SIZE - 2, p['y'] + dy / norm * speed))
+        cooldown(w, 'move', MOVEMENT['interval'])
+        move_actor(w, dx, dy, MOVEMENT['interval'], sprint)
     elif action == 'gather':
         node = next((n for n in POIS if n['id'] == command.get('id')), None)
         require(node and node['kind'] != 'npc', '채집 지점 오류')
@@ -874,3 +858,26 @@ def patrol(actor, home, elapsed, seed, radius, dt):
     wave = .72 + .26*math.sin(elapsed*.43 + seed*1.7)
     target = {'x': home['x']+math.cos(angle)*radius*wave, 'y': home['y']+math.sin(angle)*radius*wave}
     move_toward(actor, target, dt*1.45)
+
+
+def move_actor(profile, dx, dy, seconds, sprint=False):
+    """Shared discrete/continuous movement; callers own input validation and time."""
+    if seconds <= 0 or not (dx or dy):
+        return
+    p = profile['player']
+    steps = seconds / MOVEMENT['interval']
+    distance = MOVEMENT['step'] * steps
+    if p['mounted'] and p['species'] == 'vampire' and p['blood'] <= 5:
+        p['mounted'] = False
+        note(profile, '혈액이 부족해 안전하게 착지했습니다.')
+    if p['mounted']:
+        distance *= MOVEMENT['mount_base'] + p['unlocks'][p['species']]*MOVEMENT['mount_tier']
+        if sprint:
+            distance *= 1.25
+        if p['species'] == 'vampire':
+            p['blood'] = max(0, p['blood'] - .18*steps)
+    elif sprint:
+        distance *= MOVEMENT['sprint_mult']
+    norm = math.hypot(dx, dy)
+    p['x'] = max(1, min(SIZE-2, p['x']+dx/norm*distance))
+    p['y'] = max(1, min(SIZE-2, p['y']+dy/norm*distance))

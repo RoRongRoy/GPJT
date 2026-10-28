@@ -6,6 +6,7 @@ class WorldView {
  }
  playCombat(before,after,kind){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0);}
  predictMove(state,{dx,dy,sprint}){
+  this.streamInput=null;this.streamPosition=null;
   const p=state.world.player,m=state.map.movement;
   const mounted=p.mounted&&!(p.species==='vampire'&&p.blood<=5);
   const mult=mounted?(m.mount_base+p.unlocks[p.species]*m.mount_tier)*(sprint?1.25:1):(sprint?(m.sprint_mult||1.65):1);
@@ -14,6 +15,40 @@ class WorldView {
   this.prediction={x:Math.max(1,Math.min(state.map.size-2,p.x+dx/norm*step)),y:Math.max(1,Math.min(state.map.size-2,p.y+dy/norm*step))};
  }
  endMove(accepted,soft=false){this.prediction=null;if(!accepted&&!soft)this.player=null;}
+ setInput(state,dx,dy,seq,sprint=false){
+  if(!this.streamPosition)this.streamPosition={...(this.player||state.world.player)};
+  const old=this.streamInput;
+  this.streamInput={dx,dy,sprint,changeSeq:!old||old.dx!==dx||old.dy!==dy||old.sprint!==sprint?seq:old.changeSeq};
+  this.prediction=null;
+ }
+ resetInput(){this.streamInput=null;this.streamPosition=null;this.player=null;this.prediction=null;}
+ reconcileInput(state){
+  if(!state.movement?.enabled)return;
+  const p=state.world.player;
+  this.inputAnchor={x:p.x,y:p.y,...state.movement,received:performance.now()};
+  if(state.world.paused||!p.chosen||(this.streamPosition&&Math.hypot(this.streamPosition.x-p.x,this.streamPosition.y-p.y)>6))this.resetInput();
+ }
+ inputPosition(state,dt,now){
+  const input=this.streamInput,position=this.streamPosition,a=this.inputAnchor;
+  if(!input||!position||!a)return null;
+  const p=state.world.player,m=state.map.movement,norm=Math.hypot(input.dx,input.dy);
+  const mounted=p.mounted&&!(p.species==='vampire'&&p.blood<=5);
+  const speedFor=sprint=>m.step/m.interval*(mounted?(m.mount_base+p.unlocks[p.species]*m.mount_tier)*(sprint?1.25:1):(sprint?m.sprint_mult:1));
+  const speed=speedFor(input.sprint);
+  const horizon=a.lease+Math.min(.2,this.inputLatency||0);
+  const stale=now-a.received>700;
+  if(norm&&!stale&&!state.world.paused){position.x+=input.dx/norm*speed*dt;position.y+=input.dy/norm*speed*dt;}
+  if(stale||(a.seq>=input.changeSeq&&a.dx===input.dx&&a.dy===input.dy&&a.sprint===input.sprint)){
+   const lead=stale?0:Math.min(horizon,(now-a.received)/1000+(a.age||0)+(this.inputLatency||0)),an=Math.hypot(a.dx,a.dy);
+   const serverSpeed=speedFor(a.sprint),x=a.x+(an?a.dx/an*serverSpeed*lead:0),y=a.y+(an?a.dy/an*serverSpeed*lead:0),follow=1-Math.exp(-8*dt);
+   position.x+=(x-position.x)*follow;position.y+=(y-position.y)*follow;
+  }
+  // A stalled connection cannot predict indefinitely beyond confirmed coordinates.
+  const gap=Math.hypot(position.x-a.x,position.y-a.y),limit=speed*horizon+.5;
+  if(gap>limit){position.x=a.x+(position.x-a.x)/gap*limit;position.y=a.y+(position.y-a.y)/gap*limit;}
+  position.x=Math.max(1,Math.min(state.map.size-2,position.x));position.y=Math.max(1,Math.min(state.map.size-2,position.y));
+  return position;
+ }
  prepareScenery(state){
   if(this.mapSource===state.map&&this.poiSource===state.pois)return;
   this.mapSource=state.map;this.poiSource=state.pois;
@@ -58,9 +93,8 @@ class WorldView {
    this.canvas.width=Math.round(width*ratio);this.canvas.height=Math.round(height*ratio);
   }
   c.setTransform(ratio,0,0,ratio,0,0);
-  const w=state.world,p=w.player,size=state.map.size,visual=this.prediction||p;
+  const w=state.world,p=w.player,size=state.map.size,visual=this.inputPosition(state,dt,now)||this.prediction||p;
   if(!this.player||Math.hypot(this.player.x-visual.x,this.player.y-visual.y)>5)this.player={x:visual.x,y:visual.y};
-  const moving=Math.hypot(this.player.x-visual.x,this.player.y-visual.y)>.02;
   const follow=1-Math.exp(-36*dt);
   this.player.x+=(visual.x-this.player.x)*follow;this.player.y+=(visual.y-this.player.y)*follow;
   if(!this.camera)this.camera={...this.player};
@@ -74,9 +108,9 @@ class WorldView {
   const project=(x,y,z=0)=>this.project(x,y,z);
   const paintPlayer=(sx,sy)=>{
    const sprinting=Boolean(effects.sprinting);
-   const normal=art.pose('player',this.player.x,this.player.y,now,w.paused,sprinting),pose=this.combat?this.combat.pose(normal,now):normal;
-   const actor=art.actors.get('player'),activeMove=(moving||now<(actor?.until||0))&&!w.paused;
-   if(activeMove)normal.frame=Math.floor(now/(sprinting?90:145))%4;
+   const normal=art.pose('player',this.player.x,this.player.y,now,w.paused,sprinting,this.streamInput),pose=this.combat?this.combat.pose(normal,now):normal;
+   const activeMove=normal.moving;
+   this.canvas.dataset.locomotion=activeMove?(sprinting?'run':'walk'):'idle';
    const dirSign=(pose.row===0||pose.row===3)?1:-1,dirY=(pose.row<=1)?1:-1;
     // Lineage M-style locomotion: smooth walk->run transition, alternating footprints, stopping skid puff, dynamic stride bounce & sway.
     const lc=this.loco||(this.loco={run:0,trail:[],lastX:null,lastY:null,side:1,wasActive:false,tick:0});
@@ -106,9 +140,7 @@ class WorldView {
     // Crisp 2D walk cadence: subtle vertical step bounce synced with stride, zero canvas tilt/stretch to keep authentic 2D sprite art sharp
     let walkY=0;
     if(activeMove&&!p.mounted&&!this.combat){
-     const stepPeriod=sprinting?180:290;
-     const stepPhase=(now%stepPeriod)/stepPeriod;
-     walkY=-Math.sin(stepPhase*Math.PI)*(sprinting?2.2:1.4)*scale;
+     walkY=-Math.abs(Math.sin(normal.phase))*(1.4+lc.run*.8);
     }
     const body=this.combat?.body(now)||{x:0,y:walkY,tilt:0};
    if(activeMove){
@@ -130,7 +162,7 @@ class WorldView {
      }
      c.restore();
    }
-   c.save();c.translate(sx+(body.x||0)*scale,sy+(body.y||0));if(body.tilt)c.rotate(body.tilt);
+   c.save();c.translate(sx+(body.x||0)*scale,sy+(body.y||0)*scale);if(body.tilt)c.rotate(body.tilt);
    art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose,gender:p.gender||'male',job:p.job||'warrior'});
    c.restore();
   };
@@ -225,8 +257,8 @@ class WorldView {
      const [hx,hy]=project(e.home_x??e.x,e.home_y??e.y);art.prop('storage',hx+26*scale,hy+8*scale,scale*.7);
      const isVamp=['vampire','ferryman'].includes(e.id);
      c.strokeStyle=isVamp?'#c87b9244':'#b5c89c44';c.lineWidth=1;c.setLineDash([2,5]);c.beginPath();c.ellipse(hx,hy,36*scale,18*scale,0,0,Math.PI*2);c.stroke();c.setLineDash([]);
-     const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused),npcBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin((art.actors.get('npc:'+e.id)?.dist||0)/.85*Math.PI/2))*1.6*scale:0;
-     art.character(sx,sy+npcBob,scale,isVamp?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
+     const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused),npcBob=pose.moving?-Math.abs(Math.sin(pose.phase))*1.6*scale:0;
+     art.character(sx,sy+npcBob,scale,isVamp?'vampire':'human',pose.moving,now,{npc:true,pose});
     }
     const focus=e.id===selected||near<=3.5;
     if(focus){c.strokeStyle='#e9d29a';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy,28*scale,14*scale,0,0,Math.PI*2);c.stroke();}
@@ -237,18 +269,18 @@ class WorldView {
    }
    if(e.type==='enemy'){
     const pose=art.pose('enemy:'+e.id,e.x,e.y,now,w.paused),high=(e.level||1)>=8,boss=(e.level||1)>=12;
-    const eBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin((art.actors.get('enemy:'+e.id)?.dist||0)/.85*Math.PI/2))*1.8*scale:0;
+    const eBob=pose.moving?-Math.abs(Math.sin(pose.phase))*1.8*scale:0;
     if(high){c.strokeStyle=boss?'#ff525288':'#d68c7766';c.lineWidth=boss?2:1.3;c.beginPath();c.ellipse(sx,sy+2*scale,(boss?24:19)*scale,(boss?11:9)*scale,0,0,Math.PI*2);c.stroke();}
-    art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),'human',pose.frame!==0,now,{enemy:true,variant:high,pose});
+    art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),'human',pose.moving,now,{enemy:true,variant:high,pose});
     c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);c.fillStyle=boss?'#ff5c5c':high?'#d9734e':'#ad5866';c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
     const tierTag=boss?'[최상위] ':high?'[고렙] ':(e.level||1)>=4?'[중렙] ':'[저렙] ';
     labels.push([`${tierTag}${e.name||'감염체'} Lv.${e.level||1}`,sx,sy-111*scale,boss?'#ff7b7b':(e.level||1)>(p.combat_level||1)+2?'#ff9c88':'#e4c9c1']);
     this.points.push({x:sx,y:sy-23*scale,id:'enemy:'+e.id,left:sx-29*scale,right:sx+29*scale,top:sy-95*scale,bottom:sy+10*scale});
    }
    if(e.type==='peer'){
-    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=pose.frame!==0&&!w.paused&&!e.mounted?-Math.abs(Math.sin((art.actors.get('peer:'+e.id)?.dist||0)/.85*Math.PI/2))*1.6*scale:0;
+    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=pose.moving&&!e.mounted?-Math.abs(Math.sin(pose.phase))*1.6*scale:0;
     c.strokeStyle='#6bc5e8aa';c.lineWidth=1.4;c.beginPath();c.ellipse(sx,sy+2*scale,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
-    art.character(sx,sy+pBob,scale,e.species,pose.frame!==0,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose,gender:e.gender||'male',job:e.job||'warrior'});
+    art.character(sx,sy+pBob,scale,e.species,pose.moving,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose,gender:e.gender||'male',job:e.job||'warrior'});
     c.fillStyle='#151c29';c.fillRect(sx-16*scale,sy-96*scale,32*scale,4*scale);
     c.fillStyle='#5bc0eb';c.fillRect(sx-16*scale,sy-96*scale,32*scale*Math.min(1,Math.max(0,e.hp||0)/100),4*scale);
     labels.push([`${e.name||'생존자'} · Lv.${e.combat_level||1}`,sx,sy-108*scale,'#9ee4ff']);

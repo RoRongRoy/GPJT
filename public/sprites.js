@@ -66,17 +66,22 @@ class FieldArt extends GothicArt {
  }
  lantern(x,y,scale){if(!this.prop('lantern',x,y,scale))super.lantern(x,y,scale);this.glow(x,y-101*scale,30*scale,'#e8b26924');}
  facility(x,y,scale,id){if(!this.prop(id,x,y,scale))super.facility(x,y,scale,id);}
- // Walk cycle advances with distance travelled (feet never slide) and direction is smoothed, so diagonal jitter cannot flip the facing.
- pose(id,x,y,now,paused=false,sprint=false){
-  let a=this.actors.get(id);if(!a){a={x,y,row:0,until:0,dist:0,vx:0,vy:0};this.actors.set(id,a);}
-  const dx=x-a.x,dy=y-a.y,step=Math.hypot(dx,dy);
-  if(step>.0003){
+ // Keep the original artwork intact; drive its frames from actual travel.
+ pose(id,x,y,now,paused=false,sprint=false,intent=null){
+  let a=this.actors.get(id);if(!a){a={x,y,row:0,until:0,dist:0,phase:0,vx:0,vy:0,time:now};this.actors.set(id,a);}
+  const dx=x-a.x,dy=y-a.y,step=Math.hypot(dx,dy),gap=now-a.time;
+  const stopped=paused||(intent&&!intent.dx&&!intent.dy),teleport=step>2||gap>400;
+  if(stopped||teleport){a.until=0;a.vx=0;a.vy=0;}
+  else if(step>.002){
    a.vx=a.vx*.5+dx*.5;a.vy=a.vy*.5+dy*.5;if(Math.hypot(a.vx,a.vy)<1e-9){a.vx=dx;a.vy=dy;}
    const right=a.vx-a.vy>=0,front=a.vx+a.vy>=0;
-   a.row=front?(right?0:1):(right?3:2);a.until=now+260;
-   if(!paused)a.dist+=Math.min(step,1.5);
+   a.row=front?(right?0:1):(right?3:2);a.until=now+80;
+   a.dist+=step;
+   a.phase=(a.phase+step/(sprint?.9:.85)*Math.PI/2)%(Math.PI*2);
   }
-  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(a.dist/(sprint?.9:.85))%4:0};
+  a.x=x;a.y=y;a.time=now;
+  const moving=!stopped&&now<a.until;
+  return {row:a.row,frame:moving?Math.floor(a.phase/(Math.PI/2))%4:0,phase:a.phase,moving};
  }
  // Base sheets: human = female, vampire = male. The opposite gender uses its own sheet.
  actorKey(species,options){const g=options.gender;if(options.npc||!g)return species;const female=g==='female';return species==='human'?(female?'human':'human-male'):(female?'vampire-female':'vampire');}
