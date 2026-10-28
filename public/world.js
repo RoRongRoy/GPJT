@@ -185,25 +185,27 @@ class WorldView {
   const minY=Math.max(0,Math.floor(Math.min(...corners.map(n=>n.y)))),maxY=Math.min(size-1,Math.ceil(Math.max(...corners.map(n=>n.y))));
   const visible=(x,y)=>x>=minX&&x<=maxX&&y>=minY&&y<=maxY;
   this.prepareScenery(state);
-  const outsideCamp=e=>Math.hypot(e.x-w.base.x,e.y-w.base.y)>=state.map.base_clear_radius;
+  const hasBase=Boolean(w.base&&w.base.established!==false&&w.base.x!=null);
+  const outsideCamp=e=>!hasBase||Math.hypot(e.x-w.base.x,e.y-w.base.y)>=state.map.base_clear_radius;
   const scenery=this.scenery.filter(e=>visible(e.x,e.y)&&outsideCamp(e));
   if(!art.ground(state,this.projection)){
    const palettes={outskirts:'#404449',forest:'#2f3b39',marsh:'#33434a',works:'#4d494b'};
    for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++)tile(x,y,palettes[this.region(state,x,y).id]);
   }
   for(const pond of this.ponds){if(!visible(pond.x,pond.y)||!outsideCamp(pond))continue;const [sx,sy]=project(pond.x,pond.y);ellipse(sx,sy,22,9,'#253842');ellipse(sx+3*scale,sy,14,4,'#93a8b02c');}
-  if(!art.campGround(w.base.x,w.base.y,this.projection,state.map.base_radius))for(let x=-2;x<=2;x++)for(let y=-2;y<=2;y++)tile(w.base.x+x,w.base.y+y,'#5c5757');
+  if(hasBase&&!art.campGround(w.base.x,w.base.y,this.projection,state.map.base_radius))for(let x=-2;x<=2;x++)for(let y=-2;y<=2;y++)tile(w.base.x+x,w.base.y+y,'#5c5757');
   if(target){
    const [tx,ty]=project(target.x,target.y),[px,py]=project(this.player.x,this.player.y);
    c.setLineDash([3,9]);c.strokeStyle='#ead3a488';c.lineWidth=1.5;c.beginPath();c.moveTo(px,py);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);
    c.strokeStyle='#f2d39b';c.beginPath();c.ellipse(tx,ty,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
   }
   const offsets={kitchen:[-4,2],alchemy:[3,-4],medical:[2,4],storage:[5,0]};
-  const facilities=Object.entries(w.base.facilities).filter(([,level])=>level).map(([id,level])=>({x:w.base.x+offsets[id][0],y:w.base.y+offsets[id][1],id,level,type:'facility'}));
+  const facilities=hasBase?Object.entries(w.base.facilities||{}).filter(([,level])=>level).map(([id,level])=>({x:w.base.x+offsets[id][0],y:w.base.y+offsets[id][1],id,level,type:'facility'})):[];
   const smooth=(e,key)=>{let v=this.entityPositions.get(key);if(!v||Math.hypot(v.x-e.x,v.y-e.y)>5||w.paused)v={x:e.x,y:e.y};
    const follow=1-Math.exp(-12*dt);v.x+=(e.x-v.x)*follow;v.y+=(e.y-v.y)*follow;this.entityPositions.set(key,v);return {...e,...v};};
   const otherBases=(state.other_bases||[]).map(b=>({...b,type:'other_base'}));
-  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...(w.drops||[]).map(d=>({...d,type:'drop'})),{...w.base,type:'base'},...facilities,...otherBases,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
+  const baseEntity=hasBase?[{...w.base,type:'base'}]:[];
+  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...(w.drops||[]).map(d=>({...d,type:'drop'})),...baseEntity,...facilities,...otherBases,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
   this.points=[];const labels=[];let playerCovered=false;
   const tree=(x,y,seed=0)=>{const [sx,sy]=project(x,y);art.tree(sx,sy,scale,seed);};
   for(const e of entities){
@@ -324,7 +326,7 @@ class WorldView {
   c.strokeStyle='#c7baa466';c.lineWidth=1.3;
   for(const road of state.map.roads){c.beginPath();road.forEach(([x,y],i)=>i?c.lineTo(x*k,y*k):c.moveTo(x*k,y*k));c.stroke();}
   for(const node of state.pois){c.fillStyle=node.kind==='npc'?'#e6be89':'#d9e3bc';c.fillRect(node.x*k-1,node.y*k-1,2,2);}
-  const w=state.world;
+  const w=state.world,hasBase=Boolean(w.base&&w.base.established!==false&&w.base.x!=null);
   for(const enemy of w.enemies){if(enemy.hp>0){c.fillStyle='#eb8d78';c.fillRect(enemy.x*k-1,enemy.y*k-1,2,2);}}
   for(const drop of (w.drops||[])){c.fillStyle='#ffd966';c.fillRect(drop.x*k-1.5,drop.y*k-1.5,3,3);}
   for(const peer of (state.others||[])){if(peer.chosen){c.fillStyle='#5bc0eb';c.beginPath();c.arc(peer.x*k,peer.y*k,2.5,0,Math.PI*2);c.fill();}}
@@ -332,8 +334,10 @@ class WorldView {
    c.strokeStyle='#38bdf855';c.lineWidth=1;c.beginPath();c.arc(ob.x*k,ob.y*k,state.map.base_radius*k,0,Math.PI*2);c.stroke();
    c.fillStyle='#38bdf8';c.fillRect(ob.x*k-2,ob.y*k-2,4,4);
   }
-  c.strokeStyle='#e9cf8f88';c.lineWidth=1;c.beginPath();c.arc(w.base.x*k,w.base.y*k,state.map.base_radius*k,0,Math.PI*2);c.stroke();
-  c.fillStyle='#ffda8d';c.fillRect(w.base.x*k-3,w.base.y*k-3,6,6);
+  if(hasBase){
+   c.strokeStyle='#e9cf8f88';c.lineWidth=1;c.beginPath();c.arc(w.base.x*k,w.base.y*k,state.map.base_radius*k,0,Math.PI*2);c.stroke();
+   c.fillStyle='#ffda8d';c.fillRect(w.base.x*k-3,w.base.y*k-3,6,6);
+  }
   if(this.projection){
    const r=this.canvas.getBoundingClientRect(),corners=[[0,0],[r.width,0],[r.width,r.height],[0,r.height]].map(([x,y])=>this.toWorld(x,y));
    c.strokeStyle='#e9efcf66';c.lineWidth=1;c.beginPath();corners.forEach((v,i)=>i?c.lineTo(v.x*k,v.y*k):c.moveTo(v.x*k,v.y*k));c.closePath();c.stroke();

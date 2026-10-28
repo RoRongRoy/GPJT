@@ -1359,6 +1359,28 @@ main{
  border-color:#ffd166 !important;
  color:#fff !important;
 }
+#camp-access.camp-claim-prompt, .camp-access.camp-claim-prompt{
+ background:linear-gradient(135deg,rgba(75,40,15,0.96),rgba(40,20,10,0.98)) !important;
+ border-color:#f59e0b !important;
+ box-shadow:0 0 16px rgba(245,158,11,0.5), 0 4px 14px rgba(0,0,0,0.6) !important;
+ animation:claimBasePulse 2s infinite ease-in-out !important;
+}
+#camp-access.camp-claim-prompt:hover, .camp-access.camp-claim-prompt:hover{
+ background:linear-gradient(135deg,rgba(95,50,20,0.98),rgba(55,26,12,1)) !important;
+ border-color:#fbbf24 !important;
+ box-shadow:0 0 22px rgba(251,191,36,0.7), 0 4px 16px rgba(0,0,0,0.7) !important;
+}
+#camp-access.camp-claim-prompt>span, .camp-access.camp-claim-prompt>span{
+ color:#fef08a !important;
+ filter:drop-shadow(0 0 4px #f59e0b);
+}
+#camp-access.camp-claim-prompt strong, .camp-access.camp-claim-prompt strong{
+ color:#fef3c7 !important;
+}
+@keyframes claimBasePulse{
+ 0%,100%{box-shadow:0 0 12px rgba(245,158,11,0.45), 0 4px 14px rgba(0,0,0,0.6);}
+ 50%{transform:translateY(-1.5px);box-shadow:0 0 22px rgba(245,158,11,0.8), 0 6px 18px rgba(0,0,0,0.7);}
+}
 #camp-access>span, .camp-access>span{
  font-size:14px !important;
  color:#ffd166 !important;

@@ -54,7 +54,7 @@ class Runtime:
     def _new_peer_profile(self, index):
         fresh = new_world()
         site = BASE_SPAWN_SITES[(index - 1) % len(BASE_SPAWN_SITES)]
-        fresh['base'] = {'x': site[0], 'y': site[1], 'facilities': dict.fromkeys(FACILITIES, 0)}
+        fresh['base'] = {'x': None, 'y': None, 'established': False, 'facilities': dict.fromkeys(FACILITIES, 0)}
         fresh['player']['x'] = float(site[0])
         fresh['player']['y'] = float(site[1] + 1)
         return {k: copy.deepcopy(fresh[k]) for k in PROFILE_KEYS}
@@ -163,7 +163,7 @@ class Runtime:
         if action == 'new_adventurer':
             fresh = new_world()
             site = BASE_SPAWN_SITES[(sess_info['index'] - 1) % len(BASE_SPAWN_SITES)] if (is_peer and sess_info) else START_BASE
-            fresh['base'] = {'x': site[0], 'y': site[1], 'facilities': dict.fromkeys(FACILITIES, 0)}
+            fresh['base'] = {'x': None, 'y': None, 'established': False, 'facilities': dict.fromkeys(FACILITIES, 0)}
             fresh['player']['x'] = float(site[0])
             fresh['player']['y'] = float(site[1] + 1)
             for k in PROFILE_KEYS:
@@ -276,7 +276,7 @@ class Runtime:
             prof = self._profile_for(tok)
             p = prof['player']
             acc = p.get('account') or f"생존자 #{info['index']}"
-            if 'base' in prof and p.get('chosen'):
+            if 'base' in prof and p.get('chosen') and prof['base'].get('established') and prof['base'].get('x') is not None:
                 b = prof['base']
                 other_bases.append({
                     'id': tok[:8],

@@ -90,7 +90,7 @@ const poiContents={
  metal:[['metal',3,'고철 금속 부품'],['scroll',1,'기계공의 주문서'],['wood',1,'폐목재']],
 };
 let activeLoot=null,lootChecks=new Set(),inspectOnArrive=false;
-function bagCapacity(w=state?.world){return w?160+(w.base.facilities.storage||0)*50+((w.player.combat_level||1)-1)*10:160;}
+function bagCapacity(w=state?.world){const sl=(w?.base&&w.base.established!==false)?(w.base.facilities?.storage||0):0;return w?160+sl*50+((w.player.combat_level||1)-1)*10:160;}
 function bagUsed(w=state?.world){return w?Object.values(w.inventory).reduce((a,b)=>a+b,0)+(w.gear?.length||0)*4:0;}
 function isBagFull(w=state?.world){return !w||bagUsed(w)>=bagCapacity(w)||(w.gear?.length||0)>=20;}
 function toast(message) { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600); }
@@ -372,7 +372,7 @@ function update() {
  $('level').textContent=`Lv.${p.combat_level||1} · EXP ${p.xp||0}/${(p.combat_level||1)>=50?'MAX':(p.combat_level||1)*40} · 공격 사거리 ${cls.attack_range} · 공격력 +${((p.combat_level||1)-1)*3} · 방어력 +${Math.floor(((p.combat_level||1)-1)/2)} · 무기강화 +${p.level}`;
  $('day').textContent=`DAY ${String(1+Math.floor(w.elapsed/600)).padStart(2,'0')}`;
  $('time').textContent=`활동 ${Math.floor(w.elapsed/60)}분 ${Math.floor(w.elapsed%60)}초`;
- $('base-pos').textContent=`${w.base.x} / ${w.base.y}`;
+ $('base-pos').textContent=(w.base&&w.base.established!==false&&w.base.x!=null)?`${w.base.x} / ${w.base.y}`:'미선포 (필드에서 B 선포)';
  const meters=p.species==='human'?[['체력 (HP)',p.hp],['마나 (MP)',p.mp??100],['포만도',p.food],['수분',p.water],['감염',p.infection]]:[['체력 (HP · 자동재생/흡혈)',p.hp],['혈액량',p.blood],['안정도',p.stability],['감염',p.infection]];
  $('meters').replaceChildren(...meters.map(([name,value])=>{
   const row=document.createElement('div'), label=document.createElement('div');label.className='meter-label';label.append(span('',name),span('',String(Math.ceil(value))));
@@ -385,7 +385,7 @@ function update() {
    row.className='facility';info.append(title,cost);row.append(info,button);$('facilities').append(row);
    button.onclick=()=>manualAction('build',{facility:id});facilityRows.set(id,{title,cost,button});
   }
-  const {title,cost,button}=facilityRows.get(id),level=w.base.facilities[id];
+  const {title,cost,button}=facilityRows.get(id),level=w.base?.facilities?.[id]||0;
   title.textContent=`${name} · Lv.${level}`;cost.textContent=level>=3?'최대 레벨':`목재 ${3*(level+1)} · 부품 ${2*(level+1)}`;
   button.textContent=level?'개선':'건설';button.disabled=level>=3||w.paused||w.inventory.wood<3*(level+1)||w.inventory.metal<2*(level+1);button.title=cost.textContent;
  }
@@ -438,7 +438,7 @@ function handleCanvasPoint(e,allowNode=true){
  const r=canvas.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top,p=state.world.player;
  const node=allowNode?view.points.map(n=>({...n,d:Math.hypot(n.x-cx,n.y-cy)})).filter(n=>cx>=n.left&&cx<=n.right&&cy>=n.top&&cy<=n.bottom).sort((a,b)=>a.d-b.d)[0]:null;
  if(node){
-  if(node.id==='base'){inspectOnArrive=false;if(canUseCamp()){openPanel('camp');return;}navigate(state.world.base.x,state.world.base.y);}
+  if(node.id==='base'){inspectOnArrive=false;if(canUseCamp()){openPanel('camp');return;}if(state.world.base?.x!=null)navigate(state.world.base.x,state.world.base.y);}
   else if(node.id.startsWith('enemy:')){inspectOnArrive=false;const enemy=state.world.enemies.find(n=>n.id===Number(node.id.split(':')[1]));if(enemy)navigate(enemy.x,enemy.y,node.id);}
   else if(node.id.startsWith('drop:')){const drop=(state.world.drops||[]).find(d=>d.id===node.id);if(drop){if(Math.hypot(drop.x-p.x,drop.y-p.y)<=3.5){clearMovement();selected=drop.id;openLootBox({type:'drop',id:drop.id});return;}inspectOnArrive=true;navigate(drop.x,drop.y,drop.id);}}
   else{const poi=state.pois.find(n=>n.id===node.id);if(poi){if(poi.kind!=='npc'&&Math.hypot(poi.x-p.x,poi.y-p.y)<=3.5){clearMovement();selected=poi.id;openLootBox({type:'poi',id:poi.id});return;}inspectOnArrive=poi.kind!=='npc';navigate(poi.x,poi.y,poi.id);}}
@@ -458,7 +458,7 @@ $('minimap').addEventListener('click',e=>{
  navigate(poi?poi.x:x,poi?poi.y:y,poi?.id);canvas.focus({preventScroll:true});stepMovement();
 });
 $('zoom-in').onclick=()=>changeZoom(.1);$('zoom-out').onclick=()=>changeZoom(-.1);$('focus-view').onclick=toggleFocus;
-function goHome(){if(state){navigate(state.world.base.x,state.world.base.y);stepMovement();}}
+function goHome(){if(state&&state.world.base?.established!==false&&state.world.base?.x!=null){navigate(state.world.base.x,state.world.base.y);stepMovement();}}
 $('go-home').onclick=goHome;$('travel-home').onclick=goHome;
 $('interact').onclick=()=>interact();
 $('loot-btn').onclick=()=>quickLoot();
@@ -575,6 +575,7 @@ $('account-new-welcome').onclick=()=>{closePanel();welcomeForced=true;manualActi
 function canUseCamp(){
  if(!state||!connected||!state.world.player.chosen)return false;
  const {player,base}=state.world;
+ if(!base||base.established===false||base.x==null)return false;
  return Math.hypot(player.x-base.x,player.y-base.y)<=state.map.base_radius;
 }
 function closePanel(restoreFocus=true){
@@ -608,8 +609,25 @@ function openPanel(name,opener=null){
  renderInventory();renderRecipe();if(name==='skills'){renderSkillsMenu();renderHotbarEditor();}$('menu-title').focus({preventScroll:true});return true;
 }
 function updateContext(){
- const {player:p}=state.world,atCamp=canUseCamp();
- $('menu-camp').hidden=!atCamp;const campDockItem=$('menu-camp')?.closest?.('.dock-item');if(campDockItem)campDockItem.hidden=!atCamp;$('camp-access').hidden=!atCamp;
+ const {player:p,base:b}=state.world,hasBase=Boolean(b&&b.established!==false&&b.x!=null),atCamp=canUseCamp();
+ const campDockItem=$('menu-camp')?.closest?.('.dock-item');
+ if(!hasBase){
+  $('camp-access').hidden=!p.chosen;
+  $('camp-access').classList.add('camp-claim-prompt');
+  $('camp-access').innerHTML='<span>🚩</span><strong>아지트 선포</strong><small>안전지대에서 B로 선포</small><kbd>B</kbd>';
+  $('camp-access').title='현재 위치에 거점 선포 (B)';
+  $('menu-camp').hidden=!p.chosen;
+  $('menu-camp').innerHTML='<span class="dock-glyph">🚩</span><span class="dock-name">아지트 선포</span><kbd>B</kbd>';
+  if(campDockItem)campDockItem.hidden=!p.chosen;
+ }else{
+  $('camp-access').classList.remove('camp-claim-prompt');
+  $('camp-access').innerHTML='<span>⌂</span><strong>아지트 관리</strong><small>제작 · 시설 · 연구</small><kbd>B</kbd>';
+  $('camp-access').title='아지트 관리 (B)';
+  $('camp-access').hidden=!atCamp;
+  $('menu-camp').innerHTML='<span class="dock-glyph">⌂</span><span class="dock-name">아지트</span><kbd>B</kbd>';
+  $('menu-camp').hidden=!atCamp;
+  if(campDockItem)campDockItem.hidden=!atCamp;
+ }
  document.querySelectorAll('[data-panel]').forEach(button=>button.disabled=(!p.chosen&&button.dataset.panel!=='account')||!connected);
  $('auto-hunt').disabled=!p.chosen||!connected||state.world.paused;
  updateSprintUI();
@@ -1090,12 +1108,16 @@ function renderRecipe(){
   const have=w.inventory[id]||0,row=document.createElement('div');row.className='recipe-cost-row';
   row.append(span('',state.items[id]),span(have<amount?'missing':'',`${have} / ${amount}`));if(have<amount)enough=false;return row;
  }));
- const facility=w.base.facilities[recipe.facility]>0;
+ const facility=(w.base?.facilities?.[recipe.facility]||0)>0;
  const reason=!canUseCamp()?'아지트에서 제작할 수 있습니다.':w.paused?'일시정지를 해제하면 제작할 수 있습니다.':!facility?`${facilityNames[recipe.facility]}를 먼저 건설하세요.`:!enough?'필요한 재료가 부족합니다.':'재료가 준비되었습니다.';
  $('recipe-status').textContent=reason;$('craft-submit').disabled=!canUseCamp()||w.paused||!facility||!enough;
 }
 for(const button of document.querySelectorAll('[data-panel]'))button.onclick=()=>{
  const name=button.dataset.panel;
+ if(name==='camp'){
+  const b=state?.world?.base,hasBase=Boolean(b&&b.established!==false&&b.x!=null);
+  if(!hasBase){manualAction('claim_base');return;}
+ }
  if(activePanel===name)closePanel();else openPanel(name,button);
 };
 $('menu-close').onclick=()=>closePanel();
@@ -1284,7 +1306,14 @@ window.addEventListener('keydown',e=>{
  if(e.repeat)return;
  if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closeLootBox();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
  const shortcut={h:'survival',k:'skills',c:'equip',i:'bag',j:'journal',u:'account',b:'camp'}[k];
- if(shortcut){e.preventDefault();if(activePanel===shortcut)closePanel();else openPanel(shortcut);}
+ if(shortcut){
+  e.preventDefault();
+  if(shortcut==='camp'){
+   const b=state?.world?.base,hasBase=Boolean(b&&b.established!==false&&b.x!=null);
+   if(!hasBase){manualAction('claim_base');return;}
+  }
+  if(activePanel===shortcut)closePanel();else openPanel(shortcut);
+ }
  const skillKey=HOTBAR_KEYS.includes(k)?hotbarMap[k]:null;
  if(skillKey&&!activePanel){e.preventDefault();if(state?.world.player.chosen)useSkill(skillKey);}
  if(k==='e'){e.preventDefault();interact();}
@@ -1384,7 +1413,7 @@ function updateGuide(){
  const steps=[
   [p.chosen,'시작 종족 선택','인간과 뱀파이어 중 첫 삶을 선택하세요. 의료실에서 전환할 수 있습니다.'],
   [m.includes('gather'),'첫 자원 채집','목재나 식수 지점을 클릭하세요. 내부 자원을 확인하고 파밍합니다.'],
-  [w.base.facilities[facility]>0,human?'아지트에 주방 건설':'아지트에 연금대 건설','아지트 관리 → 시설에서 건설하세요. 목재 3 · 부품 2'],
+  [(w.base?.facilities?.[facility]||0)>0,human?'아지트에 주방 건설':'아지트에 연금대 건설','아지트 관리 → 시설에서 건설하세요. 목재 3 · 부품 2'],
   [m.includes('craft:'+meal),human?'따뜻한 수프 제작':'안정화 혈액 제작',human?'아지트에서 수프 제작: 작물 2 · 식수 1':'아지트에서 강화혈액 제작: 원혈 2 · 약초 1 · 식수 1'],
   [m.includes('consume:'+meal),human?'첫 식사 하기':'강화혈액 마시기','하단 생존 메뉴에서 만든 소모품을 사용하세요.']
  ];
@@ -1415,7 +1444,7 @@ function updateGuide(){
    const poiTxt=cooldown?`🔍 ${cooldown}s`:close?(nearest.kind==='npc'?'💬 보고':'🔍 파밍'):'🔍 파밍';
    if(interactLbl)interactLbl.textContent=poiTxt;else $('interact').textContent=poiTxt;
   }
- $('location-hint').textContent=autoHunt?'● 자동사냥 중'+(isBagFull(w)?' (가방 가득 참·루팅 제외)':' (자동 루팅 ON)')+' · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):Math.hypot(p.x-w.base.x,p.y-w.base.y)<=state.map.base_radius?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
+ $('location-hint').textContent=autoHunt?'● 자동사냥 중'+(isBagFull(w)?' (가방 가득 참·루팅 제외)':' (자동 루팅 ON)')+' · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):canUseCamp()?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
 }
 let pollFailures=0;
 async function poll(){

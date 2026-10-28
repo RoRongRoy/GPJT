@@ -2,7 +2,7 @@
 import math
 import random
 
-from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES
+from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at
 
 from .equipment import RARITIES, roll_equipment, equipment_power
 
@@ -332,7 +332,8 @@ def sync_starter_gear_names(w):
 
 
 def bag_capacity(w):
-    return 160 + w['base']['facilities'].get('storage', 0) * 50 + (w['player'].get('combat_level', 1) - 1) * 10
+    storage_lvl = w['base']['facilities'].get('storage', 0) if (w.get('base') and w['base'].get('established', True)) else 0
+    return 160 + storage_lvl * 50 + (w['player'].get('combat_level', 1) - 1) * 10
 
 
 def bag_used(w):
@@ -434,7 +435,10 @@ def spend(w, costs):
 
 
 def at_base(w):
-    require(dist(w['player'], w['base']) <= BASE_USE_RADIUS, '아지트 가까이에서 이용하세요.')
+    b = w.get('base')
+    if not b or not b.get('established', True) or b.get('x') is None:
+        raise RuleError('아직 아지트가 선포되지 않았습니다. 원하는 구역에서 [아지트 선포]를 하세요.')
+    require(dist(w['player'], b) <= BASE_USE_RADIUS, '아지트 가까이에서 이용하세요.')
 
 
 def threat(w):
@@ -637,7 +641,26 @@ def act(w, command, rng=random.random):
         x, y = round(p['x']), round(p['y'])
         require(all(math.hypot(x-n['x'], y-n['y']) >= 2 for n in live_pois(w)), '자원·NPC 지점과 겹칩니다.')
         w['base']['x'], w['base']['y'] = x, y
+        w['base']['established'] = True
         note(w, '아지트 즉시 이동 · 시설과 보관품 유지')
+    elif action == 'claim_base':
+        require(not threat(w), '주변에 적이 있어 아지트를 선포할 수 없습니다. 안전한 곳으로 이동하세요.')
+        x = round(float(command.get('x', p['x'])), 1)
+        y = round(float(command.get('y', p['y'])), 1)
+        require(4 <= x <= SIZE - 4 and 4 <= y <= SIZE - 4, '격리구역 경계에서는 아지트를 선포할 수 없습니다.')
+        require(math.hypot(p['x'] - x, p['y'] - y) <= 4.0, '현재 캐릭터 주변에만 아지트를 선포할 수 있습니다.')
+        require(all(math.hypot(x-n['x'], y-n['y']) >= 3.0 for n in live_pois(w)), '자원이나 NPC 지점과 너무 가까워 선포할 수 없습니다.')
+        require(all(math.hypot(x-ex, y-ey) >= 8.0 for ex, ey in ENEMY_SPAWNS), '감염체 서식지와 너무 가깝습니다. 안전지대에서 선포하세요.')
+        was_est = w['base'].get('established')
+        w['base']['x'] = x
+        w['base']['y'] = y
+        w['base']['established'] = True
+        w['base'].setdefault('facilities', dict.fromkeys(FACILITIES, 0))
+        r_name = region_at(x, y)['name']
+        if was_est:
+            note(w, f'🚩 아지트 위치를 [{r_name}] ({x:.1f}, {y:.1f}) 구역으로 재선포했습니다.')
+        else:
+            note(w, f'🚩 [{r_name}] ({x:.1f}, {y:.1f}) 구역에 나만의 아지트를 선포했습니다! 이제 시설을 건설할 수 있습니다.')
     elif action == 'enhance':
         at_base(w)
         level = p['level']
@@ -817,7 +840,7 @@ def tick(w, dt, extra_profiles=None):
         p = target_prof['player']
         d = dist(e, p)
         target_base = target_prof.get('base', w['base'])
-        protected = dist(p, target_base) <= BASE_USE_RADIUS
+        protected = bool(target_base.get('established', True) and target_base.get('x') is not None) and dist(p, target_base) <= BASE_USE_RADIUS
         if dist(e, home) > 10:
             e['returning'] = True
         if e['returning']:
@@ -843,7 +866,9 @@ def tick(w, dt, extra_profiles=None):
         p = prof['player']
         if p['hp'] <= 0 or p['infection'] >= 100:
             respawn_base = prof.get('base', w['base'])
-            p.update(x=float(respawn_base['x']), y=float(respawn_base['y']+1), hp=65., infection=0., mounted=False)
+            rx = float(respawn_base['x']) if respawn_base.get('established', True) and respawn_base.get('x') is not None else float(START_BASE[0])
+            ry = float(respawn_base['y']+1) if respawn_base.get('established', True) and respawn_base.get('y') is not None else float(START_BASE[1]+1)
+            p.update(x=rx, y=ry, hp=65., infection=0., mounted=False)
             note(prof, '감염/전투 불능 · 치료소에서 복구 (감염체 시체는 후속 구현)')
 
 
