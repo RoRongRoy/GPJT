@@ -142,7 +142,7 @@ class Runtime:
             lvl = candidate['player'].get('combat_level', 1)
             candidate['log'] = [f"계정 '{username}' (Lv.{lvl}) 모험 데이터를 불러왔습니다."] + candidate['log'][:7]
             return True
-        if action == 'restore_local_save':
+        if action in ('restore_local_save', 'account_restore'):
             backup_prof = command.get('profile')
             if not backup_prof or not isinstance(backup_prof, dict) or not backup_prof.get('player', {}).get('chosen'):
                 raise RuleError('복원할 저장 데이터가 올바르지 않습니다.')
@@ -199,7 +199,8 @@ class Runtime:
                 min_gap = .028 if is_move_cmd else .055
                 if last_cmd > 0 and now - last_cmd < min_gap:
                     return 429, {'error': '입력이 너무 빠릅니다.'}
-                if not is_move_cmd and expected_revision is not None and expected_revision != self.world['revision']:
+                is_account_cmd = isinstance(command, dict) and command.get('action') in ('account_save', 'account_load', 'restore_local_save', 'account_restore', 'new_adventurer')
+                if not is_move_cmd and not is_account_cmd and expected_revision is not None and expected_revision != self.world['revision']:
                     return 409, {'error': '상태가 변경됐습니다. 새 상태에서 다시 시도하세요.'}
                 if not isinstance(command, dict):
                     raise RuleError('명령 형식 오류')

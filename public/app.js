@@ -355,6 +355,7 @@ function update() {
  const w=state.world,p=w.player;
  updateContext();
  $('intro-art').hidden=p.chosen&&!welcomeForced;
+ if(!p.chosen||welcomeForced)updateWelcomeAccountUI();
  document.body.dataset.species=p.chosen?p.species:'unchosen';
  const portrait=$('survivor-art');
  const portraitKey=p.species+':'+(p.gender||'male');if(portrait.dataset.portraitSpecies!==portraitKey){portrait.dataset.portraitSpecies=portraitKey;const fem=p.gender==='female';portrait.src=p.species==='human'?(fem?'/art/human-warden.png':'/art/human-male-warden.png'):(fem?'/art/vampire-female-scholar.png':'/art/vampire-scholar.png');portrait.alt=(p.species==='human'?'인간 ':'뱀파이어 ')+(fem?'여성':'남성')+' 초상';}
@@ -528,6 +529,44 @@ $('welcome-load-btn').onclick=()=>submitAccountAction('account_load',{username:$
 for(const id of ['welcome-account-id','welcome-account-pw'])$(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('welcome-load-btn').click();}});
 $('account-save-btn').onclick=()=>submitAccountAction('account_save',{username:$('account-save-id').value,password:$('account-save-pw').value},'account-save-msg');
 $('account-load-btn').onclick=()=>submitAccountAction('account_load',{username:$('account-load-id').value,password:$('account-load-pw').value},'account-load-msg');
+const accLocalRestoreBtn=$('account-local-restore-btn');
+if(accLocalRestoreBtn){
+ accLocalRestoreBtn.onclick=async()=>{
+  const msgEl=$('account-local-restore-msg');
+  try{
+   const last=getLastLogin();
+   let profile=null;
+   if(last&&last.summary&&last.summary.username){
+    const bk=getLocalAccountBackup(last.summary.username);
+    if(bk&&bk.profile)profile=bk.profile;
+   }
+   if(!profile){
+    const q=JSON.parse(localStorage.getItem('bloodfall_quicksave_profile')||'null');
+    if(q&&q.profile)profile=q.profile;
+   }
+   if(!profile||!profile.player||!profile.player.chosen){
+    if(msgEl)msgEl.textContent='복원 가능한 로컬 백업 데이터가 없습니다.';
+    toast('복원 가능한 로컬 백업 데이터가 없습니다.');
+    return;
+   }
+   if(msgEl)msgEl.textContent='로컬 백업 데이터 복원 중...';
+   const rRes=await api('/api/action',{
+    revision:state.world.revision,
+    command:{action:'restore_local_save',profile}
+   });
+   welcomeForced=false;
+   accept(rRes);
+   const lvl=profile.player.combat_level||1;
+   const sp=profile.player.species==='vampire'?'뱀파이어':'인간';
+   toast(`로컬 백업 (Lv.${lvl} ${sp}) 데이터를 성공적으로 복원했습니다.`);
+   if(msgEl)msgEl.textContent='복원 완료!';
+   closePanel();
+  }catch(err){
+   if(msgEl)msgEl.textContent=err.message||'복원 실패';
+   toast(err.message||'복원 실패');
+  }
+ };
+}
 $('account-new-human').onclick=()=>{welcomeForced=false;closePanel();manualAction('choose',{species:'human',gender:selectedGender,job:selectedJob});toast('신규 인간 모험자로 새로운 여정을 시작합니다.');};
 $('account-new-vampire').onclick=()=>{welcomeForced=false;closePanel();manualAction('choose',{species:'vampire',gender:selectedGender,job:selectedJob});toast('신규 뱀파이어 모험자로 새로운 여정을 시작합니다.');};
 $('account-new-welcome').onclick=()=>{closePanel();welcomeForced=true;manualAction('new_adventurer',{});update();};
