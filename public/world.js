@@ -5,14 +5,15 @@ class WorldView {
   this.entityPositions=new Map();this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;
  }
  playCombat(before,after,kind){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0);}
- predictMove(state,{dx,dy}){
+ predictMove(state,{dx,dy,sprint}){
   const p=state.world.player,m=state.map.movement;
   const mounted=p.mounted&&!(p.species==='vampire'&&p.blood<=5);
-  const step=m.step*(mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1),norm=Math.hypot(dx,dy);
+  const mult=mounted?(m.mount_base+p.unlocks[p.species]*m.mount_tier)*(sprint?1.25:1):(sprint?(m.sprint_mult||1.65):1);
+  const step=m.step*mult,norm=Math.hypot(dx,dy);
   if(!norm)return;
   this.prediction={x:Math.max(1,Math.min(state.map.size-2,p.x+dx/norm*step)),y:Math.max(1,Math.min(state.map.size-2,p.y+dy/norm*step))};
  }
- endMove(accepted){this.prediction=null;if(!accepted)this.player=null;}
+ endMove(accepted,soft=false){this.prediction=null;if(!accepted&&!soft)this.player=null;}
  prepareScenery(state){
   if(this.mapSource===state.map&&this.poiSource===state.pois)return;
   this.mapSource=state.map;this.poiSource=state.pois;
@@ -59,30 +60,12 @@ class WorldView {
   c.setTransform(ratio,0,0,ratio,0,0);
   const w=state.world,p=w.player,size=state.map.size,visual=this.prediction||p;
   if(!this.player||Math.hypot(this.player.x-visual.x,this.player.y-visual.y)>5)this.player={x:visual.x,y:visual.y};
-  const lag=Math.hypot(this.player.x-visual.x,this.player.y-visual.y);
-  const follow=1-Math.exp(-30*dt);
-  const px0=this.player.x,py0=this.player.y;
+  const moving=Math.hypot(this.player.x-visual.x,this.player.y-visual.y)>.02;
+  const follow=1-Math.exp(-36*dt);
   this.player.x+=(visual.x-this.player.x)*follow;this.player.y+=(visual.y-this.player.y)*follow;
-  // Lineage M-style locomotion: walk -> run transition, footfall bob, lean and dust.
-  const lc=this.loco||(this.loco={moveFor:0,idleFor:0,dust:[],lastDust:0,dirX:0,dirY:1,phase:0,run:0});
-  const mdx=this.player.x-px0,mdy=this.player.y-py0,mlen=Math.hypot(mdx,mdy),speed=dt>0?mlen/dt:0;
-  const moving=lag>.025||speed>.35;
-  if(moving&&!w.paused){
-   lc.moveFor+=dt;lc.idleFor=0;
-   if(mlen>1e-4){lc.dirX=mdx/mlen;lc.dirY=mdy/mlen;}
-  }else{lc.idleFor+=dt;if(lc.idleFor>.12)lc.moveFor=0;}
-  const running=!w.paused&&moving&&(p.mounted||(lc.moveFor>.45&&speed>2.4));
-  lc.run+=((running?1:0)-lc.run)*(1-Math.exp(-9*dt));
-  if(moving&&!w.paused)lc.phase+=dt*(7+lc.run*5);
-  if(moving&&!w.paused&&now-lc.lastDust>(running?65:125)){
-   lc.lastDust=now;
-   lc.dust.push({x:this.player.x-lc.dirX*.22+(Math.random()-.5)*.25,y:this.player.y-lc.dirY*.22+(Math.random()-.5)*.25,born:now,life:running?560:400,r:running?5.5:3.5,rise:running?16:10});
-   if(lc.dust.length>30)lc.dust.shift();
-  }
-  lc.dust=lc.dust.filter(d=>now-d.born<d.life);
   if(!this.camera)this.camera={...this.player};
-  this.camera.x+=(this.player.x-this.camera.x)*(1-Math.exp(-16*dt));
-  this.camera.y+=(this.player.y-this.camera.y)*(1-Math.exp(-16*dt));
+  this.camera.x+=(this.player.x-this.camera.x)*(1-Math.exp(-22*dt));
+  this.camera.y+=(this.player.y-this.camera.y)*(1-Math.exp(-22*dt));
   const scale=this.zoom*(width<600?.85:1),tw=34*scale,th=17*scale;
   this.projection={scale,tw,th,width,height,ox:width/2-(this.camera.x-this.camera.y)*tw,oy:height*.52-(this.camera.x+this.camera.y)*th};
   if(this.combat&&!this.combat.active(now))this.combat=null;
@@ -90,36 +73,40 @@ class WorldView {
   this.canvas.dataset.art=art.failed.length?'fallback':art.loaded===Object.keys(FIELD_SPRITES).length?'ready':'loading';
   const project=(x,y,z=0)=>this.project(x,y,z);
   const paintPlayer=(sx,sy)=>{
-   const normal=art.pose('player',this.player.x,this.player.y,now,w.paused);
-   // Faster stride frames while running.
-   if(moving&&!w.paused)normal.frame=Math.floor(now/(lc.run>.5?90:145))%4;
-   const pose=this.combat?this.combat.pose(normal,now):normal;
-   const body=this.combat?.body(now)||{x:0,y:0,tilt:0};
-   const active=moving&&!w.paused,run=lc.run;
-   const bob=active?Math.abs(Math.sin(lc.phase))*(2.4+run*3.4)*scale:0;
-   const sway=active?Math.sin(lc.phase)*(0.6+run*1.2):0;
-   const lean=active?Math.sign(lc.dirX-lc.dirY)*(0.025+run*0.06)+Math.sin(lc.phase)*0.02*(1+run):0;
-   const squash=active?1+Math.sin(lc.phase*2)*(0.018+run*0.03):1;
-   // Ground dust puffs (drawn under the character).
-   for(const d of lc.dust){
-    const k=(now-d.born)/d.life,[dx,dy]=project(d.x,d.y);
-    c.fillStyle=`rgba(190,176,160,${(0.34*(1-k)).toFixed(3)})`;
-    c.beginPath();c.ellipse(dx,dy-d.rise*k*scale,d.r*(1+k*1.6)*scale,d.r*(1+k*1.6)*.55*scale,0,0,Math.PI*2);c.fill();
-   }
-   if(active&&!p.mounted){
-    // Footfall shadow pulses with the stride.
-    c.fillStyle='rgba(8,10,18,0.22)';c.beginPath();c.ellipse(sx,sy+2*scale,Math.max(6,13-bob*.8/scale)*scale,5.5*scale,0,0,Math.PI*2);c.fill();
-   }
-   if(run>.5&&active){
-    // Speed streaks behind the runner.
-    c.strokeStyle=`rgba(225,215,200,${(0.22*run).toFixed(3)})`;c.lineWidth=1.4*scale;
-    for(let i=0;i<3;i++){
-     const off=(i-1)*7*scale,len=(16+i*4)*scale,ax=sx-lc.dirX*10*scale+off*.4,ay=sy-30*scale-i*9*scale;
-     c.beginPath();c.moveTo(ax,ay);c.lineTo(ax-(lc.dirX-lc.dirY)*len*.5,ay-(lc.dirX+lc.dirY)*len*.25);c.stroke();
+   const sprinting=Boolean(effects.sprinting);
+   const normal=art.pose('player',this.player.x,this.player.y,now,w.paused,sprinting),pose=this.combat?this.combat.pose(normal,now):normal;
+   const actor=art.actors.get('player'),activeMove=(moving||now<(actor?.until||0))&&!w.paused;
+   const dirSign=(pose.row===0||pose.row===3)?1:-1,dirY=(pose.row<=1)?1:-1;
+   // Foot-phase follows distance walked; the painted frames carry the stride, so only a light bounce and run lean are added.
+    const stridePhase=(actor?.dist||0)/(sprinting?.9:.85)*Math.PI/2;
+    let walkY=0,walkTilt=0;const sxScale=1,syScale=1,walkX=0;
+    if(actor)actor.lean=(actor.lean||0)+(((activeMove&&!p.mounted&&!this.combat)?(sprinting?dirSign*.06:0):0)-(actor.lean||0))*.18;
+    if(activeMove&&!p.mounted&&!this.combat){
+     walkY=-Math.abs(Math.sin(stridePhase))*(sprinting?3.2:1.6);
+     walkTilt=actor.lean;
     }
+    const body=this.combat?.body(now)||{x:walkX,y:walkY,tilt:walkTilt};
+   if(activeMove){
+    c.save();
+    // Footstep dust puffs & sprint shockwave / speed lines
+    for(let i=0;i<(sprinting?4:2);i++){
+     const phase=((now/(sprinting?180:260))+i*.33)%1;
+     const dx=-dirSign*(8+phase*(sprinting?26:14))*scale,dy=-dirY*(2+phase*7)*scale+3*scale;
+     c.fillStyle=p.species==='vampire'?(sprinting?'#e35d7a55':'#b8889438'):(sprinting?'#e6d7b855':'#b8b49e38');
+     c.beginPath();c.ellipse(sx+dx,sy+dy,(4.5-phase*2.5)*scale,(2.4-phase*1.2)*scale,0,0,Math.PI*2);c.fill();
+    }
+    if(sprinting){
+      // Sprint wind streaks
+      c.strokeStyle=p.species==='vampire'?'#ff8da644':'#fff0c244';c.lineWidth=1.2*scale;
+      for(let i=0;i<2;i++){
+       const wy=sy-(26+i*24)*scale,wx=sx-dirSign*(14+i*5)*scale;
+       c.beginPath();c.moveTo(wx,wy);c.lineTo(wx-dirSign*(16+((now/8+i*7)%12))*scale,wy+dirY*2*scale);c.stroke();
+      }
+     }
+     c.restore();
    }
-   c.save();c.translate(sx+(body.x+sway)*scale,sy+body.y*scale-bob);c.rotate(body.tilt+lean);c.scale(1/squash,squash);
-   art.character(0,0,scale,p.species,moving&&!w.paused,now,{mounted:p.mounted,tier:p.unlocks[p.species],pose});c.restore();
+   c.save();c.translate(sx+body.x*scale,sy+body.y*scale);c.rotate(body.tilt);c.scale(sxScale,syScale);
+   art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose,gender:p.gender||'male',job:p.job||'warrior'});c.restore();
   };
   const poly=(points,color)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle=color;c.fill();};
   const tile=(x,y,color)=>{const [sx,sy]=project(x,y);poly([[sx,sy-th],[sx+tw+.6,sy],[sx,sy+th+.5],[sx-tw-.6,sy]],color);};
@@ -212,8 +199,8 @@ class WorldView {
      const [hx,hy]=project(e.home_x??e.x,e.home_y??e.y);art.prop('storage',hx+26*scale,hy+8*scale,scale*.7);
      const isVamp=['vampire','ferryman'].includes(e.id);
      c.strokeStyle=isVamp?'#c87b9244':'#b5c89c44';c.lineWidth=1;c.setLineDash([2,5]);c.beginPath();c.ellipse(hx,hy,36*scale,18*scale,0,0,Math.PI*2);c.stroke();c.setLineDash([]);
-     const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused);
-     art.character(sx,sy,scale,isVamp?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
+     const pose=art.pose('npc:'+e.id,e.x,e.y,now,w.paused),npcBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin((art.actors.get('npc:'+e.id)?.dist||0)/.85*Math.PI/2))*1.6*scale:0;
+     art.character(sx,sy+npcBob,scale,isVamp?'vampire':'human',pose.frame!==0,now,{npc:true,pose});
     }
     const focus=e.id===selected||near<=3.5;
     if(focus){c.strokeStyle='#e9d29a';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy,28*scale,14*scale,0,0,Math.PI*2);c.stroke();}
@@ -224,17 +211,18 @@ class WorldView {
    }
    if(e.type==='enemy'){
     const pose=art.pose('enemy:'+e.id,e.x,e.y,now,w.paused),high=(e.level||1)>=8,boss=(e.level||1)>=12;
+    const eBob=pose.frame!==0&&!w.paused?-Math.abs(Math.sin((art.actors.get('enemy:'+e.id)?.dist||0)/.85*Math.PI/2))*1.8*scale:0;
     if(high){c.strokeStyle=boss?'#ff525288':'#d68c7766';c.lineWidth=boss?2:1.3;c.beginPath();c.ellipse(sx,sy+2*scale,(boss?24:19)*scale,(boss?11:9)*scale,0,0,Math.PI*2);c.stroke();}
-    art.character(sx,sy,scale*(boss?1.15:high?1.06:1),'human',pose.frame!==0,now,{enemy:true,variant:high,pose});
+    art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),'human',pose.frame!==0,now,{enemy:true,variant:high,pose});
     c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);c.fillStyle=boss?'#ff5c5c':high?'#d9734e':'#ad5866';c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
     const tierTag=boss?'[최상위] ':high?'[고렙] ':(e.level||1)>=4?'[중렙] ':'[저렙] ';
     labels.push([`${tierTag}${e.name||'감염체'} Lv.${e.level||1}`,sx,sy-111*scale,boss?'#ff7b7b':(e.level||1)>(p.combat_level||1)+2?'#ff9c88':'#e4c9c1']);
     this.points.push({x:sx,y:sy-23*scale,id:'enemy:'+e.id,left:sx-29*scale,right:sx+29*scale,top:sy-95*scale,bottom:sy+10*scale});
    }
    if(e.type==='peer'){
-    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused);
+    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=pose.frame!==0&&!w.paused&&!e.mounted?-Math.abs(Math.sin((art.actors.get('peer:'+e.id)?.dist||0)/.85*Math.PI/2))*1.6*scale:0;
     c.strokeStyle='#6bc5e8aa';c.lineWidth=1.4;c.beginPath();c.ellipse(sx,sy+2*scale,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
-    art.character(sx,sy,scale,e.species,pose.frame!==0,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose});
+    art.character(sx,sy+pBob,scale,e.species,pose.frame!==0,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose,gender:e.gender||'male',job:e.job||'warrior'});
     c.fillStyle='#151c29';c.fillRect(sx-16*scale,sy-96*scale,32*scale,4*scale);
     c.fillStyle='#5bc0eb';c.fillRect(sx-16*scale,sy-96*scale,32*scale*Math.min(1,Math.max(0,e.hp||0)/100),4*scale);
     labels.push([`${e.name||'생존자'} · Lv.${e.combat_level||1}`,sx,sy-108*scale,'#9ee4ff']);

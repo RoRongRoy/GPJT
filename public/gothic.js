@@ -10,7 +10,7 @@ class GothicArt {
   this.poly([[x+w,y-h],[x,y+d-h],[x,y+d],[x+w,y]],right,'#191a20');
   this.poly([[x-w,y-h],[x,y-d-h],[x+w,y-h],[x,y+d-h]],top,'#76716a55');
  }
- glow(x,y,r,color){const c=this.c,g=c.createRadialGradient(x,y,1,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'#d98d3d00');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);}
+ glow(x,y,r,color){const c=this.c,g=c.createRadialGradient?.(x,y,1,x,y,r);if(g){g.addColorStop(0,color);g.addColorStop(1,'#d98d3d00');c.fillStyle=g;}else{c.fillStyle=color;}c.fillRect(x-r,y-r,r*2,r*2);}
  arch(x,y,w,h,fill){const c=this.c;c.beginPath();c.moveTo(x-w,y);c.lineTo(x-w,y-h*.65);c.quadraticCurveTo(x-w,y-h*.8,x,y-h);c.quadraticCurveTo(x+w,y-h*.8,x+w,y-h*.65);c.lineTo(x+w,y);c.closePath();c.fillStyle=fill;c.fill();}
  tree(x,y,scale,seed=0){this.frame(x,y,scale,()=>{
   this.oval(9,2,25,10,'#070b1099');
@@ -85,33 +85,121 @@ class GothicArt {
    this.block(-8,-3,9,5,35,'#7d6a52');this.line([[-14,-34],[-2,-28],[-2,-7]],'#b19b72',1);this.block(12,0,10,5,25,'#82745d');
   }
  });}
- character(x,y,scale,species,moving,now,{enemy=false,npc=false,mounted=false,tier=0}={}){this.frame(x,y,scale,()=>{
-  const c=this.c,step=moving&&!mounted?Math.sin(now/90)*3:0,vampire=species==='vampire';
+ character(x,y,scale,species,moving,now,{enemy=false,npc=false,mounted=false,tier=0,sprint=false,pose=null,gender='male',job='warrior'}={}){this.frame(x,y,scale,()=>{
+  const c=this.c,freq=sprint?52:82,stride=moving&&!mounted?Math.sin(now/freq)*(sprint?6.2:3.8):0,bounce=moving&&!mounted?Math.abs(Math.cos(now/freq))*(sprint?4.5:2.2):0,vampire=species==='vampire';
   this.oval(4,2,17,7,'#06080dc0');
   if(enemy){
-   this.poly([[-8,-38],[4,-35],[11,-9],[-4,-5],[-11,-16]],'#3e4548','#747668');
-   this.line([[-6,-9],[-9,2]],'#292b34',5);this.line([[5,-8],[9,3]],'#2d3037',5);
-   this.line([[-9,-32],[-17,-20],[-14,-12]],'#768277',4);this.line([[7,-29],[15,-21],[17,-13]],'#6b786c',3);
-   this.oval(-2,-43,7,9,'#95958a');this.line([[-7,-44],[-3,-45]],'#cf615c',1.5);this.line([[0,-45],[4,-43]],'#cf615c',1.5);
-   this.poly([[-8,-48],[-3,-55],[5,-49],[3,-46],[-4,-49]],'#33343a');return;
+   this.poly([[-8,-38-bounce],[4,-35-bounce],[11,-9-bounce],[-4,-5-bounce],[-11,-16-bounce]],'#3e4548','#747668');
+   this.line([[-6,-9-bounce],[-9-stride*.6,2]],'#292b34',5);this.line([[5,-8-bounce],[9+stride*.6,3]],'#2d3037',5);
+   this.line([[-9,-32-bounce],[-17,-20-bounce+stride*.4],[-14,-12-bounce+stride*.5]],'#768277',4);this.line([[7,-29-bounce],[15,-21-bounce-stride*.4],[17,-13-bounce-stride*.5]],'#6b786c',3);
+   this.oval(-2,-43-bounce,7,9,'#95958a');this.line([[-7,-44-bounce],[-3,-45-bounce]],'#cf615c',1.5);this.line([[0,-45-bounce],[4,-43-bounce]],'#cf615c',1.5);
+   this.poly([[-8,-48-bounce],[-3,-55-bounce],[5,-49-bounce],[3,-46-bounce],[-4,-49-bounce]],'#33343a');return;
   }
   if(mounted&&vampire){
-   const bob=Math.sin(now/140)*4,flap=Math.sin(now/75)*15,span=46+tier*8;
-   this.oval(0,3,24+tier*4,9+tier*2,'#2b0913aa');
-   this.glow(0,-22+bob,42+tier*8,'#b8254744');
-   this.poly([[0,-26+bob],[-16,-36+bob],[-span,-48-flap+bob],[-span*.78,-15-flap*.5+bob],[-18,-20+bob],[0,-12+bob],[18,-20+bob],[span*.78,-15-flap*.5+bob],[span,-48-flap+bob],[16,-36+bob]],'#4c1428','#d95b76');
-   this.poly([[0,-24+bob],[-12,-31+bob],[-span*.72,-38-flap*.8+bob],[-14,-18+bob],[0,-14+bob],[14,-18+bob],[span*.72,-38-flap*.8+bob],[12,-31+bob]],'#7a1b38');
-   this.line([[0,-26+bob],[-16,-36+bob],[-span,-48-flap+bob]],'#f08ca2',1.4);
-   this.line([[0,-26+bob],[16,-36+bob],[span,-48-flap+bob]],'#f08ca2',1.4);
-   this.line([[-16,-36+bob],[-span*.78,-15-flap*.5+bob]],'#c9556f',1);
-   this.line([[16,-36+bob],[span*.78,-15-flap*.5+bob]],'#c9556f',1);
-   for(let i=0;i<3;i++){
-    const a=now/220+i*2.1,bx=Math.cos(a)*(24+tier*5),by=-24+bob+Math.sin(a*1.5)*9;
-    this.line([[bx-5,by-2],[bx,by],[bx+5,by-2]],'#ff6b8b',1.3);
+   const row=pose?.row??0,facingRight=row===0||row===3,facingBack=row>=2;
+   const bank=moving?(facingRight?1:-1)*(sprint?.13:.07):0;
+   const flapSpeed=sprint?46:moving?58:82,flapPhase=now/flapSpeed;
+   const bob=Math.sin(now/(sprint?95:135))*(sprint?5.5:3.8)-(moving?4:0);
+   const wave=Math.sin(flapPhase)+.25*Math.sin(flapPhase*2);
+   const flap=wave*(sprint?21:16),elbowLift=Math.cos(flapPhase)*5;
+   const span=50+tier*9;
+   // Ground blood-moon shadow & crimson mist aura
+   this.oval(0,4,26+tier*4-wave*2,10+tier*1.5,'#140409d0');
+   this.oval(0,4,16+tier*3,6+tier,'#5e0f2466');
+   this.glow(0,-28+bob,48+tier*10,sprint?'#e01b4955':'#b8254744');
+   c.save();c.translate(0,-30+bob);c.rotate(bank);
+   // Secondary demonic lower wings for Tier 1+ (나이트메어 / 아크데몬)
+   if(tier>=1){
+    for(const s of [-1,1]){
+     const lw=(span*.68)*s,ly=8-flap*.55;
+     this.poly([[s*4,4],[s*16,-2+elbowLift*.4],[lw,-8-flap*.6],[lw*.82,14-flap*.3],[s*18,16],[s*5,10]],tier>=2?'#3b0918':'#2c0a17',tier>=2?'#ff5277aa':'#b5365388');
+     this.line([[s*4,4],[s*16,-2+elbowLift*.4],[lw,-8-flap*.6]],'#e35d7a88',1.1);
+    }
    }
-   this.oval(0,-25+bob,6,12,'#1d1324');
-   this.poly([[-5,-35+bob],[-2,-43+bob],[0,-37+bob],[2,-43+bob],[5,-35+bob]],'#2a1830');
-   this.line([[-3,-35+bob],[-1,-34+bob]],'#ff3355',1.6);this.line([[1,-34+bob],[3,-35+bob]],'#ff3355',1.6);
+   // Main articulated scalloped bat wings (left & right)
+   for(const s of [-1,1]){
+    const shX=s*6,shY=-4;
+    const elX=s*(18+tier*2),elY=-15-flap*.32+elbowLift;
+    const wrX=s*(31+tier*4),wrY=-23-flap*.68;
+    const tipX=s*span,tipY=-16-flap*1.08;
+    const f1X=s*(span*.84),f1Y=3-flap*.72;
+    const f2X=s*(span*.58),f2Y=11-flap*.42;
+    const f3X=s*(21+tier*2),f3Y=13-flap*.18;
+    const rootX=s*6,rootY=9;
+    // Scalloped leathery wing membrane
+    c.beginPath();c.moveTo(shX,shY);c.lineTo(elX,elY);c.lineTo(wrX,wrY);c.lineTo(tipX,tipY);
+    c.quadraticCurveTo((tipX+f1X)*.5-s*4,(tipY+f1Y)*.5-5,f1X,f1Y);
+    c.quadraticCurveTo((f1X+f2X)*.5-s*3,(f1Y+f2Y)*.5-5,f2X,f2Y);
+    c.quadraticCurveTo((f2X+f3X)*.5-s*2,(f2Y+f3Y)*.5-4,f3X,f3Y);
+    c.quadraticCurveTo(s*11,8,rootX,rootY);c.closePath();
+    const wg=c.createLinearGradient?.(0,wrY,tipX,f2Y);
+    if(wg){
+     wg.addColorStop(0,tier>=2?'#6e1129':'#4f1024');
+     wg.addColorStop(.55,tier>=1?'#330917':'#280915');
+     wg.addColorStop(1,'#14050c');
+     c.fillStyle=wg;
+    }else{
+     c.fillStyle=tier>=2?'#6e1129':'#4f1024';
+    }
+    c.fill();
+    c.strokeStyle=tier>=2?'#ff6b8b':'#d94b6b';c.lineWidth=1.2;c.stroke();
+    // Inner crimson membrane sheen
+    this.poly([[shX,shY],[elX,elY],[wrX,wrY],[f2X*.9,f2Y*.7],[f3X*.85,f3Y*.75]],'#9e1b3c44');
+    // Wing bone structure & finger ribs
+    this.line([[shX,shY],[elX,elY],[wrX,wrY],[tipX,tipY]],'#f58da3',1.6);
+    this.line([[wrX,wrY],[f1X,f1Y]],'#d4506d',1.1);
+    this.line([[wrX,wrY],[f2X,f2Y]],'#c44360',1.0);
+    this.line([[elX,elY],[f3X,f3Y]],'#a83852',.9);
+    // Wing-thumb claw at wrist joint
+    this.poly([[wrX,wrY],[wrX+s*2.5,wrY-6],[wrX-s*1.5,wrY-2]],'#f2d5dc');
+   }
+   // Hind talons & tail membrane (uropatagium)
+   const legSwing=moving?Math.sin(flapPhase)*2.5:0;
+   this.poly([[-7,9],[0,19+legSwing],[7,9]],'#240813','#7a243b88');
+   this.line([[-4,10],[-6,17+legSwing]],'#1b0d18',2.2);
+   this.line([[4,10],[6,17-legSwing]],'#1b0d18',2.2);
+   this.line([[-7,17+legSwing],[-5,19+legSwing]],'#d9b8c0',1.1);
+   this.line([[7,17-legSwing],[5,19-legSwing]],'#d9b8c0',1.1);
+   // Bat torso & dark velvet fur mane
+   this.oval(0,1,8.5,12,'#160d1c');
+   this.poly([[-8,-6],[0,-11],[8,-6],[6,7],[0,11],[-6,7]],'#261228','#6e294088');
+   this.poly([[-9,-5],[-4,-11],[0,-7],[4,-11],[9,-5],[5,1],[0,-2],[-5,1]],'#381936');
+   // Crimson blood-gem / crest on chest
+   if(!facingBack){
+    this.poly([[0,-6],[3.5,-1],[0,5],[-3.5,-1]],tier>=2?'#ff3860':'#c92247','#ffd1dc88');
+   }
+   // Sculpted vampire bat head & tall pointed ears
+   const hx=facingRight?1.2:-1.2,hy=-11;
+   // Outer ears
+   this.poly([[hx-6,hy-2],[hx-10,hy-16],[hx-2,hy-8]],'#1c0e21','#8c354d99');
+   this.poly([[hx+6,hy-2],[hx+10,hy-16],[hx+2,hy-8]],'#1c0e21','#8c354d99');
+   // Inner ear cartilage
+   this.poly([[hx-5.5,hy-3],[hx-8.2,hy-13],[hx-3,hy-7.5]],'#8f2440');
+   this.poly([[hx+5.5,hy-3],[hx+8.2,hy-13],[hx+3,hy-7.5]],'#8f2440');
+   if(tier>=2){
+    // Archdemon crown horns
+    this.line([[hx-3,hy-8],[hx-6,hy-19]],'#f5c97b',1.6);
+    this.line([[hx+3,hy-8],[hx+6,hy-19]],'#f5c97b',1.6);
+   }
+   this.oval(hx,hy,6.2,5.6,'#221229');
+   if(!facingBack){
+    // Glowing scarlet eyes & white fangs
+    this.glow(hx-2.5,hy-.5,7,'#ff1e4288');this.glow(hx+2.5,hy-.5,7,'#ff1e4288');
+    this.line([[hx-4.2,hy-1.2],[hx-1.2,hy-.3]],'#ff2e55',2);
+    this.line([[hx+1.2,hy-.3],[hx+4.2,hy-1.2]],'#ff2e55',2);
+    this.poly([[hx-2.4,hy+2.5],[hx-1.6,hy+5.6],[hx-.8,hy+2.5]],'#fff5f7');
+    this.poly([[hx+2.4,hy+2.5],[hx+1.6,hy+5.6],[hx+.8,hy+2.5]],'#fff5f7');
+   }
+   c.restore();
+   // Orbiting flock of mini blood-bats & blood mist droplets
+   const batCount=3+tier+(sprint?2:0);
+   for(let i=0;i<batCount;i++){
+    const a=now/(sprint?165:210)+i*(Math.PI*2/batCount);
+    const bx=Math.cos(a)*(26+tier*5+(i%2)*6),by=-26+bob+Math.sin(a*1.7)*10;
+    const mf=Math.sin(now/48+i*1.7)*4.5;
+    this.poly([[bx,by-1.5],[bx-4,by-4-mf],[bx-7.5,by-1-mf*.6],[bx-3,by+1],[bx,by+2],[bx+3,by+1],[bx+7.5,by-1-mf*.6],[bx+4,by-4-mf]],i%2?'#9e1939':'#541024','#ff6b8b99');
+    this.oval(bx,by+4,1.2,1.8,'#ff3b6188');
+   }
    return;
   }
   if(mounted){
@@ -135,19 +223,54 @@ class GothicArt {
    this.line([[-1,-44+vibe],[5,-43+vibe]],'#7ce8ff',2);
    return;
   }
-  this.line([[-5,-12],[-7,-1+step]],'#1b202b',6);this.line([[5,-12],[7,-1-step]],'#151d29',6);
-  this.poly([[-9,-39],[8,-39],[14,-5],[4,-9],[-2,-3],[-14,-8]],vampire?'#3d2637':'#313a43','#95948977');
-  if(vampire)this.poly([[5,-38],[15,-28],[20+step,-4],[10,-9],[5,-17]],'#792c45','#a4556266');
-  this.poly([[-10,-38],[0,-32],[9,-38],[4,-24],[-4,-24]],vampire?'#8b697b':'#7d8079');
-  this.line([[-10,-34],[-14,-18]],vampire?'#423241':'#3a4248',6);this.line([[9,-34],[15,-20]],'#35333d',5);
-  this.oval(-14,-17,3,4,'#bbb3a2');this.oval(15,-19,3,4,'#c0b9ac');
-  this.oval(0,-46,6,8,vampire?'#d0c9c4':'#bbae98');
-  this.poly([[-7,-47],[-7,-53],[-2,-57],[6,-53],[8,-45],[4,-47],[1,-52],[-4,-49]],'#141b25');
-  if(vampire){this.line([[-4,-45],[-1,-45]],'#c8848c',1);this.line([[2,-45],[4,-45]],'#c8848c',1);}
-  else {this.line([[-7,-32],[9,-18]],'#aa9578',2);this.block(-12,-21,4,2,9,'#5a5148');}
-  this.line([[-8,-21],[9,-21]],'#8f8674',1.5);
-  if(!npc){this.line([[14,-22],[22,-3]],'#b9b7a8',2);this.line([[13,-20],[18,-22]],'#c6af82',2);}
-  else {this.oval(14,-15,3,4,'#d9b778');this.glow(14,-15,20,'#e0ae6922');}
+  const lean=moving?(sprint?3.5:1.5):0,female=gender==='female',ranged=job==='ranged';
+  this.line([[-5,-12-bounce],[-7-stride*.7,-1+Math.max(0,stride)]],'#1b202b',female?5:6);
+  this.line([[5,-12-bounce],[7+stride*.7,-1+Math.max(0,-stride)]],'#151d29',female?5:6);
+  this.poly([[-9+lean,-39-bounce],[8+lean,-39-bounce],[14-stride*.3,-5-bounce],[4,-9-bounce],[-2,-3-bounce],[-14-stride*.3,-8-bounce]],vampire?(ranged?'#451d38':'#3d2637'):(ranged?'#293a47':'#313a43'),'#95948977');
+  if(vampire)this.poly([[5+lean,-38-bounce],[15,-28-bounce],[22+Math.abs(stride)*(sprint?1.4:.8),-4-bounce],[10,-9-bounce],[5,-17-bounce]],ranged?'#961e4b':'#792c45','#a4556266');
+  this.poly([[-10+lean,-38-bounce],[lean,-32-bounce],[9+lean,-38-bounce],[4,-24-bounce],[-4,-24-bounce]],vampire?'#8b697b':'#7d8079');
+  this.line([[-10+lean,-34-bounce],[-14+stride*.8,-18-bounce-stride*.4]],vampire?'#423241':'#3a4248',female?5:6);
+  this.line([[9+lean,-34-bounce],[15-stride*.8,-20-bounce+stride*.4]],'#35333d',5);
+  this.oval(-14+stride*.8,-17-bounce-stride*.4,3,4,'#bbb3a2');
+  this.oval(15-stride*.8,-19-bounce+stride*.4,3,4,'#c0b9ac');
+  this.oval(lean,-46-bounce,female?5.6:6,female?7.6:8,vampire?'#d0c9c4':'#bbae98');
+  this.poly([[-7+lean,-47-bounce],[-7+lean,-53-bounce],[-2+lean,-57-bounce],[6+lean,-53-bounce],[8+lean,-45-bounce],[4+lean,-47-bounce],[1+lean,-52-bounce],[-4+lean,-49-bounce]],vampire?(female?'#2b1224':'#141b25'):(female?'#3b2a22':'#141b25'));
+  if(female){
+   const hairWave=moving?Math.sin(now/70)*2.5:0;
+   this.poly([[-6+lean,-46-bounce],[-12+lean-hairWave,-31-bounce],[-7+lean-hairWave*.6,-27-bounce],[-3+lean,-41-bounce]],vampire?'#38152d':'#4a3328');
+   this.oval(lean+4,-53-bounce,2.2,1.6,vampire?'#ff4d6d':'#ffd166');
+  }
+  if(vampire){this.line([[-4+lean,-45-bounce],[-1+lean,-45-bounce]],'#c8848c',1);this.line([[2+lean,-45-bounce],[4+lean,-45-bounce]],'#c8848c',1);}
+  else {this.line([[-7+lean,-32-bounce],[9,-18-bounce]],'#aa9578',2);this.block(-12,-21-bounce,4,2,9,'#5a5148');}
+  this.line([[-8+lean*.5,-21-bounce],[9+lean*.5,-21-bounce]],'#8f8674',1.5);
+  if(!npc){
+   const hx=14-stride*.8,hy=-20-bounce+stride*.4,lx=-14+stride*.8,ly=-17-bounce-stride*.4;
+   if(!vampire&&ranged){
+    // Human Gunner: tactical rifle / firearm
+    this.line([[hx-2,hy],[hx+13,hy-3]],'#4b5663',3.2);
+    this.line([[hx+3,hy-1],[hx+17,hy-4]],'#9fb1c1',2);
+    this.line([[hx,hy],[hx-2,hy+6]],'#5c4635',2.4);
+    this.glow(hx+17,hy-4,8,'#7ce8ff44');
+   }else if(vampire&&!ranged){
+    // Vampire Warrior: dual crimson blood-claws on both hands
+    for(const [cx,cy,dir] of [[hx,hy,1],[lx,ly,-1]]){
+     this.line([[cx,cy],[cx+dir*8,cy+5]],'#ff2e55',1.8);
+     this.line([[cx,cy+1.5],[cx+dir*9,cy+8]],'#ff6b8b',1.6);
+     this.line([[cx,cy+3],[cx+dir*7,cy+10]],'#d91e41',1.5);
+    }
+   }else if(vampire&&ranged){
+    // Vampire Blood Mage: crimson blood-staff with floating orb
+    this.line([[hx-1,hy+14],[hx+7,hy-24]],'#4a2533',2.6);
+    this.oval(hx+7,hy-26,4.5,5.5,'#ff1e4d');
+    this.oval(hx+7,hy-26,2.2,2.8,'#ffd1dc');
+    this.glow(hx+7,hy-26,18,'#ff2e5566');
+   }else{
+    // Human Warrior: slayer blade
+    this.line([[hx,hy-2],[22-stride*.5,-3-bounce]],'#b9b7a8',2.4);
+    this.line([[hx-1,hy],[18-stride*.8,-22-bounce+stride*.4]],'#c6af82',2.2);
+   }
+  }
+  else {this.oval(14,-15-bounce,3,4,'#d9b778');this.glow(14,-15-bounce,20,'#e0ae6922');}
  });}
  sky(width,height,now){
   const c=this.c,g=c.createLinearGradient(0,0,0,height);g.addColorStop(0,'#11131e');g.addColorStop(.6,'#1c2430');g.addColorStop(1,'#18212b');c.fillStyle=g;c.fillRect(0,0,width,height);

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/gothic.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261028-6"></head>
 <body>
 <header class="topbar">
  <a class="brand" href="/" aria-label="BLOODFALL 시작 화면"><span class="brand-mark">B<span>/</span>F</span><span>BLOODFALL<small>격리구역 · FIELD JOURNAL</small></span></a>
@@ -8,23 +8,35 @@
 </header>
 <main>
  <section class="world-panel" aria-label="탐험">
-  <div class="world-title"><div><span class="eyebrow">CHRONICLES OF THE LONG NIGHT</span><h1 id="region-name">버려진 외곽</h1><p id="region-description">옛 야영지와 생존자의 길</p></div><div class="clock"><span>생존 기록</span><strong id="day">DAY 01</strong><span id="time">활동 0분 0초</span></div></div>
   <div class="canvas-wrap">
    <canvas id="world" aria-label="탐험 지도. WASD나 방향키로 화면 방향 이동, 클릭으로 목적지 이동, E로 상호작용." tabindex="0"></canvas>
+   <div class="world-title"><div><span class="eyebrow">CHRONICLES OF THE LONG NIGHT</span><h1 id="region-name">버려진 외곽</h1><p id="region-description">옛 야영지와 생존자의 길</p></div><div class="clock"><span>생존 기록</span><strong id="day">DAY 01</strong><span id="time">활동 0분 0초</span></div></div>
    <div id="intro-art" class="intro-art" aria-hidden="true"><img src="/art/nightfall-city.png" alt=""></div>
-   <div class="field-top"><span class="field-badge"><i></i> <span id="location-hint">안전지대 · 아지트</span></span><button id="focus-view" class="map-button" title="탐험 화면 넓히기 (V)" aria-pressed="false">⛶ <span>넓게 보기</span></button></div>
+   <div class="field-top"><span class="field-badge"><i></i> <span id="location-hint">안전지대 · 아지트</span></span><button id="focus-view" class="map-button" title="탐험 화면 넓히기 (V)" aria-pressed="false" hidden>⛶ <span>넓게 보기</span></button></div>
    <div class="field-vitals"><button data-panel="survival" aria-label="생존 상태 열기"><span>HP</span><strong id="field-hp">100</strong><i><b id="field-health-bar"></b></i></button><button id="field-mp-wrap" data-panel="survival" class="mp-badge" aria-label="마나 및 종족 특성"><span id="field-mp-label">MP</span><strong id="field-mp">100</strong><i id="field-mp-track"><b id="field-mp-bar"></b></i></button><button data-panel="survival" class="level-badge" aria-label="전투 레벨 및 경험치"><strong id="field-level">Lv.1</strong><i><b id="field-exp-bar"></b></i></button><span id="field-vital"></span><span id="field-bag"></span><button id="field-equip-btn" data-panel="equip" class="equip-hud-btn" aria-label="장착 장비 열기"><span id="field-equip">⚔ 미착용 · 🛡 미착용</span></button><span id="field-infection" hidden></span></div>
    <button id="camp-access" data-panel="camp" class="camp-access" hidden><span>⌂</span><strong>아지트 관리</strong><small>제작 · 시설 · 연구</small><kbd>B</kbd></button>
    <div class="atlas"><div class="atlas-heading"><span>격리구역</span><span id="coordinates">06 / 07</span></div><canvas id="minimap" width="320" height="320" aria-label="전체 지도. 클릭한 위치로 이동합니다." tabindex="0"></canvas><div class="atlas-caption">지도 클릭 → 이동</div></div>
-   <div class="map-tools"><button id="zoom-out" class="map-button" aria-label="지도 축소">−</button><span id="zoom-level">100%</span><button id="zoom-in" class="map-button" aria-label="지도 확대">+</button><button id="go-home" class="map-button" title="아지트로 걸어가기">⌂ <span class="btn-label">아지트로</span></button></div>
+   <div class="map-tools"><button id="zoom-out" class="map-button" aria-label="지도 축소">−</button><span id="zoom-level">100%</span><button id="zoom-in" class="map-button" aria-label="지도 확대">+</button><button id="go-home" class="map-button" title="아지트로 걸어가기" hidden>⌂ <span class="btn-label">아지트로</span></button></div>
    <div id="welcome">
     <button id="welcome-close-btn" type="button" class="icon-button welcome-close" aria-label="시작 화면 닫기" hidden>×</button>
     <span class="eyebrow">CHRONICLES OF THE LONG NIGHT</span><div class="welcome-mark">BLOODFALL</div>
     <h2>밤은 끝나지 않았다.</h2><p>무너진 도시, 남겨진 피난처.<br>당신은 무엇으로 살아남겠습니까?</p>
-    <div class="welcome-mode-badge"><strong>✨ 신규 모험자로 바로 시작</strong><small>계정 생성 없이 즉시 시작 · 플레이 중 언제든 계정/비번 생성 및 저장 가능</small></div>
+    <div class="welcome-mode-badge"><strong>✨ 신규 모험자로 바로 시작</strong><small>성별(남성·여성)과 전투 직업(근거리·원거리)을 고른 뒤 시작할 종족을 클릭하세요 · 계정 생성 없이 즉시 시작</small></div>
+    <div class="welcome-customizer" aria-label="성별 및 직업 선택">
+     <div class="custom-group" role="group" aria-label="성별 선택">
+      <span class="custom-label">성별</span>
+      <button type="button" data-select-gender="male" aria-pressed="true">♂ 남성</button>
+      <button type="button" data-select-gender="female" aria-pressed="false">♀ 여성</button>
+     </div>
+     <div class="custom-group" role="group" aria-label="직업 계열 선택">
+      <span class="custom-label">직업</span>
+      <button type="button" data-select-job="warrior" aria-pressed="true">⚔ 근거리 · 전사 (검 / 클로)</button>
+      <button type="button" data-select-job="ranged" aria-pressed="false">⌖ 원거리 · 거너(총) / 혈법사(지팡이)</button>
+     </div>
+    </div>
     <div class="species-choice">
-     <button data-species="human"><img src="/art/human-warden.png" alt="등불을 든 인간 생존자" width="1024" height="1536"><span class="species-caption"><span class="species-symbol">☀</span><strong>인간 (신규 시작)</strong><small>HUMAN · 빛을 지키는 자</small><span class="species-trait">식사와 기계, 동료의 온기</span></span></button>
-     <button data-species="vampire"><img src="/art/vampire-scholar.png" alt="붉은 혈액병을 지닌 뱀파이어" width="1024" height="1536"><span class="species-caption"><span class="species-symbol">☾</span><strong>뱀파이어 (신규 시작)</strong><small>VAMPIRE · 밤을 걷는 자</small><span class="species-trait">혈액 연금술, 영원한 갈증</span></span></button>
+     <button data-species="human"><span class="portrait-pair"><img data-gender="male" src="/art/human-male-warden.png" alt="등불을 든 인간 남성 생존자" width="1024" height="1536"><img data-gender="female" src="/art/human-warden.png" alt="등불을 든 인간 여성 생존자" width="1024" height="1536"></span><span class="species-caption"><span class="species-symbol">☀</span><strong id="welcome-human-title">인간 · 남성 전사</strong><small id="welcome-human-sub">HUMAN · 근거리 도검 전사 / 원거리 총기 거너</small><span id="welcome-human-trait" class="species-trait">기본 지급: 녹슨 기본 단검 · MP 기반 전술 스킬</span></span></button>
+     <button data-species="vampire"><span class="portrait-pair"><img data-gender="male" src="/art/vampire-scholar.png" alt="뱀파이어 남성" width="1024" height="1536"><img data-gender="female" src="/art/vampire-female-scholar.png" alt="뱀파이어 여성" width="1024" height="1536"></span><span class="species-caption"><span class="species-symbol">☾</span><strong id="welcome-vampire-title">뱀파이어 · 남성 전사</strong><small id="welcome-vampire-sub">VAMPIRE · 근거리 클로 전사 / 원거리 지팡이 혈법사</small><span id="welcome-vampire-trait" class="species-trait">기본 지급: 무딘 혈족 클로 · 흡혈 및 혈마법 스킬</span></span></button>
     </div>
     <div class="welcome-account-box">
      <div class="welcome-account-head"><strong>📂 저장된 계정 불러오기</strong><small>이전에 생성·저장한 계정으로 이어하기</small></div>
@@ -37,31 +49,162 @@
     </div>
     <span class="welcome-foot">종족은 의료실에서 바꿀 수 있습니다 · 아지트와 자산은 유지됩니다</span>
    </div>
+   <aside id="activity-feed" class="activity-feed" aria-label="최근 내 활동 기록" hidden><span class="activity-heading">활동 기록</span><ol id="activity-messages"></ol></aside>
    <div id="loot-box" class="loot-box" hidden>
     <div class="loot-head"><div><span id="loot-eyebrow" class="eyebrow">OBJECT INSPECT</span><strong id="loot-title">내용물 확인</strong><p id="loot-subtitle" class="loot-subtitle"></p></div><span id="loot-capacity" class="loot-cap"></span><button id="loot-close" class="icon-button" aria-label="루팅 창 닫기">×</button></div>
     <ul id="loot-list" class="loot-list"></ul>
     <div class="loot-actions"><button id="loot-selected" class="accent">선택 파밍</button><button id="loot-all">전체 획득 <kbd>F</kbd></button></div>
    </div>
-   <div id="interaction"><div><span class="eyebrow">NEARBY</span><span id="nearby-label">주변을 탐색하세요</span></div><button id="interact" title="오브젝트(폐차장·숲·샘 등) 내용물 확인 및 선택 파밍 (E)"><kbd>E</kbd> 🔍 파밍</button><button id="loot-btn" class="loot-action-btn" title="몬스터 필드 드랍 전리품 루팅 (F)"><span id="loot-btn-label">📦 루팅</span> <kbd>F</kbd></button><button id="mount-toggle" data-action="mount" class="mount-button" title="다크에덴 탈것 탑승/변신 (M)">🦇 탑승 <kbd>M</kbd></button><button data-action="attack" class="attack-button" title="가까운 감염체 공격 (Space)">⚔ 공격 <kbd>Space</kbd></button><button id="auto-hunt" class="auto-hunt-button" aria-pressed="false" title="자동사냥 켜기/끄기 (G)"><span id="auto-hunt-label">자동사냥 OFF</span> <kbd>G</kbd></button></div>
-   <div id="skill-bar" class="skill-bar" aria-label="전투 스킬" hidden><button id="skill-sweep" data-skill="sweep"><kbd>Q</kbd><span class="skill-glyph">✦</span><strong id="skill-sweep-name">회전 베기</strong><small id="skill-sweep-status"></small></button><button id="skill-recover" data-skill="recover"><kbd>R</kbd><span class="skill-glyph">✚</span><strong id="skill-recover-name">숨 고르기</strong><small id="skill-recover-status"></small></button></div>
+   <div id="interaction" class="action-cluster" aria-label="필드 액션">
+    <div class="nearby-tracker"><span class="eyebrow">NEARBY</span><span id="nearby-label">주변을 탐색하세요</span></div>
+    <div class="action-grid">
+     <button id="interact" class="action-btn" title="오브젝트 파밍 (E)"><kbd>E</kbd><span id="interact-label" class="action-text">🔍 파밍</span></button>
+     <button id="loot-btn" class="action-btn loot-action-btn" title="전리품 루팅 (F)"><kbd>F</kbd><span id="loot-btn-label" class="action-text">📦 루팅</span></button>
+     <button id="sprint-toggle" type="button" class="action-btn sprint-button" aria-pressed="false" title="질주/달리기 (Shift)"><kbd>⇧</kbd><span id="sprint-label" class="action-text">🏃 질주</span></button>
+     <button id="mount-toggle" data-action="mount" class="action-btn mount-button" title="탈것/변신 (M)"><kbd>M</kbd><span id="mount-label" class="action-text">🦇 변신</span></button>
+     <button data-action="attack" class="action-btn attack-button" title="공격 (Space)"><kbd>␣</kbd><span class="action-text">⚔ 공격</span></button>
+     <button id="auto-hunt" class="action-btn auto-hunt-button" aria-pressed="false" title="자동사냥 (G)"><kbd>G</kbd><span id="auto-hunt-visual" class="action-text">⚡ AUTO</span><span id="auto-hunt-label" hidden>자동사냥 OFF</span></button>
+    </div>
+   </div>
+   <div id="skill-bar" class="skill-bar lineage-hotbar" aria-label="전투 스킬 핫바" hidden>
+    <div class="hotbar-slots-track">
+     <button id="skill-sweep" class="skill-slot" data-slot="q" data-skill="sweep" draggable="true" title="회전 베기 (Q)">
+      <kbd class="slot-key">Q</kbd>
+      <span class="skill-glyph">✦</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-sweep-name">회전 베기</strong>
+       <small id="skill-sweep-status"></small>
+      </div>
+     </button>
+     <button id="skill-recover" class="skill-slot" data-slot="r" data-skill="recover" draggable="true" title="숨 고르기 (R)">
+      <kbd class="slot-key">R</kbd>
+      <span class="skill-glyph">✚</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-recover-name">숨 고르기</strong>
+       <small id="skill-recover-status"></small>
+      </div>
+     </button>
+     <button id="skill-strike" class="skill-slot" data-slot="1" data-skill="strike" draggable="true" title="크로스 스트라이크 (1)">
+      <kbd class="slot-key">1</kbd>
+      <span class="skill-glyph">⚔</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-strike-name">크로스 스트라이크</strong>
+       <small id="skill-strike-status"></small>
+      </div>
+     </button>
+     <button id="skill-ranged" class="skill-slot" data-slot="2" data-skill="ranged" draggable="true" title="은탄 사격 (2)">
+      <kbd class="slot-key">2</kbd>
+      <span class="skill-glyph">⌖</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-ranged-name">은탄 사격</strong>
+       <small id="skill-ranged-status"></small>
+      </div>
+     </button>
+     <button id="skill-purify" class="skill-slot" data-slot="3" data-skill="purify" draggable="true" title="성광 정화 (3)">
+      <kbd class="slot-key">3</kbd>
+      <span class="skill-glyph">✧</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-purify-name">성광 정화</strong>
+       <small id="skill-purify-status"></small>
+      </div>
+     </button>
+     <button id="skill-ultimate" class="skill-slot" data-slot="4" data-skill="ultimate" draggable="true" title="블레이드 스톰 (4)">
+      <kbd class="slot-key">4</kbd>
+      <span class="skill-glyph">✹</span>
+      <div class="skill-cd-mask"></div>
+      <span class="skill-cd-num"></span>
+      <span class="skill-lock-icon">🔒</span>
+      <div class="skill-tooltip">
+       <strong id="skill-ultimate-name">블레이드 스톰</strong>
+       <small id="skill-ultimate-status"></small>
+      </div>
+     </button>
+    </div>
+   </div>
    <div class="touch-pad" aria-label="터치 이동"><button data-direction="up" aria-label="위로 이동">↑</button><button data-direction="left" aria-label="왼쪽 이동">←</button><button data-direction="down" aria-label="아래로 이동">↓</button><button data-direction="right" aria-label="오른쪽 이동">→</button></div>
-   <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
-  </div>
-  <div class="field-caption"><button id="guide-hint" data-panel="guide">✦ 첫 생존 안내</button><span class="field-menu-hint">필요한 정보는 아래 메뉴에서</span></div>
-  <div class="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> 이동</span><span><kbd>E</kbd> 오브젝트 선택파밍</span><span><kbd>F</kbd> 필드드랍 루팅</span><span><kbd>Space</kbd> 공격</span><span><kbd>Q / R</kbd> 스킬</span><span><kbd>G</kbd> 자동사냥</span><span><kbd>C</kbd> 장착장비</span><span><kbd>I</kbd> 인벤토리</span><span><kbd>M</kbd> 탑승·변신</span><span><kbd>Esc</kbd> 이동 취소</span><span class="controls-end">클릭 이동 · 휠 확대</span></div>
- </section>
-</main>
-<nav class="menu-dock" aria-label="게임 메뉴">
- <button id="menu-survival" data-panel="survival" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">♡</span>생존<kbd>H</kbd></button>
- <button id="menu-equip" data-panel="equip" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">⚔</span>장비<kbd>C</kbd></button>
- <button id="menu-bag" data-panel="bag" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▣</span>가방<kbd>I</kbd></button>
- <button id="menu-journal" data-panel="journal" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">▤</span>수첩<kbd>J</kbd></button>
- <button id="menu-travel" data-panel="travel" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">⌖</span>이동</button>
- <button id="menu-account" data-panel="account" aria-controls="menu-dialog" aria-expanded="false"><span aria-hidden="true">💾</span>계정<kbd>U</kbd></button>
- <button id="menu-camp" data-panel="camp" aria-controls="menu-dialog" aria-expanded="false" class="camp-menu" hidden><span aria-hidden="true">⌂</span>아지트<kbd>B</kbd></button>
-</nav>
+    <nav class="menu-dock" aria-label="게임 메뉴">
+     <div class="dock-item" data-category="character">
+      <button id="menu-equip" data-panel="equip" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="캐릭터 (C: 장비 · K: 스킬 · H: 생존)">
+       <span class="dock-glyph">👤</span><span class="dock-name">캐릭터</span><kbd>C</kbd>
+      </button>
+      <div class="dock-flyout" role="menu">
+       <button type="button" data-panel="equip" class="dock-sub-btn" role="menuitem">⚔ 장착 장비<kbd>C</kbd></button>
+       <button type="button" id="menu-skills" data-panel="skills" class="dock-sub-btn" role="menuitem">✦ 종족 스킬<kbd>K</kbd></button>
+       <button type="button" data-panel="survival" class="dock-sub-btn" role="menuitem">♡ 생존 상태<kbd>H</kbd></button>
+      </div>
+     </div>
+
+     <div class="dock-item" data-category="bag">
+      <button id="menu-bag" data-panel="bag" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="가방 (I)">
+       <span class="dock-glyph">🎒</span><span class="dock-name">가방</span><kbd>I</kbd>
+      </button>
+     </div>
+
+     <div class="dock-item" data-category="journal">
+      <button id="menu-journal" data-panel="journal" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="모험 수첩 (J)">
+       <span class="dock-glyph">📜</span><span class="dock-name">모험</span><kbd>J</kbd>
+      </button>
+      <div class="dock-flyout" role="menu">
+       <button type="button" data-panel="guide" class="dock-sub-btn" role="menuitem">✦ 첫 생존 안내</button>
+       <button type="button" data-panel="quests" class="dock-sub-btn" role="menuitem">◇ 보급 의뢰</button>
+       <button type="button" data-panel="log" class="dock-sub-btn" role="menuitem">≡ 생존 기록</button>
+       <button type="button" id="menu-travel" data-panel="travel" class="dock-sub-btn" role="menuitem">⌖ 사냥터 안내</button>
+      </div>
+     </div>
+
+     <div class="dock-item" data-category="camp">
+      <button id="menu-camp" data-panel="camp" class="dock-major-btn camp-menu" aria-controls="menu-dialog" aria-expanded="false" title="아지트 (B)" hidden>
+       <span class="dock-glyph">🏰</span><span class="dock-name">아지트</span><kbd>B</kbd>
+      </button>
+      <div class="dock-flyout" role="menu">
+       <button type="button" data-panel="craft" class="dock-sub-btn" role="menuitem">♨ 제작</button>
+       <button type="button" data-panel="build" class="dock-sub-btn" role="menuitem">⌂ 시설</button>
+       <button type="button" data-panel="research" class="dock-sub-btn" role="menuitem">✧ 연구·강화</button>
+       <button type="button" data-panel="dispatch" class="dock-sub-btn" role="menuitem">⚑ 파견</button>
+      </div>
+     </div>
+
+     <div class="dock-item" data-category="system">
+      <button id="menu-account" data-panel="account" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="시스템 (U)">
+       <span class="dock-glyph">⚙️</span><span class="dock-name">시스템</span><kbd>U</kbd>
+      </button>
+      <div class="dock-flyout" role="menu">
+       <button type="button" data-panel="account" class="dock-sub-btn" role="menuitem">💾 계정 저장·불러오기<kbd>U</kbd></button>
+       <button type="button" data-panel="controls-view" class="dock-sub-btn" role="menuitem">⌨ 전체 조작키 안내</button>
+       <button type="button" id="flyout-pause" class="dock-sub-btn" role="menuitem">⏸ 일시정지</button>
+      </div>
+     </div>
+
+     <div class="dock-item" data-category="controls">
+      <button id="controls-help-btn" type="button" data-panel="controls-view" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="전체 조작키 안내 (키 가이드)">
+       <span class="dock-glyph">⌨</span><span class="dock-name">조작키</span><kbd>?</kbd>
+      </button>
+     </div>
+    </nav>
+    <div id="pause-overlay" hidden><span>Ⅱ</span><strong>잠시, 숨을 고르세요.</strong><p>월드 시간이 멈췄습니다. 계속하기를 누르면 돌아갑니다.</p></div>
+   </div>
+   <button id="guide-hint" data-panel="guide" hidden>✦ 첫 생존 안내</button>
+   <div class="controls" hidden></div>
+  </section>
+ </main>
 <dialog id="menu-dialog" aria-labelledby="menu-title" aria-describedby="menu-description">
  <header class="menu-heading"><button id="menu-back" class="icon-button" aria-label="상위 분류로" hidden>←</button><div><span id="menu-eyebrow" class="eyebrow">FIELD JOURNAL</span><h2 id="menu-title" tabindex="-1">생존</h2></div><button id="menu-close" class="icon-button" aria-label="메뉴 닫기">×</button></header>
+  <nav id="menu-subnav" class="menu-subnav" aria-label="중분류 탭"></nav>
  <p id="menu-description" class="menu-description"></p>
  <div class="menu-body">
   <section data-view="survival" hidden>
@@ -72,6 +215,15 @@
    <h3 class="section-label">식사와 회복</h3>
    <div class="consume"><button data-item="soup">수프</button><button data-item="water">식수</button><button data-item="blood">원혈</button><button data-item="elixir">강화혈액</button><button data-item="medicine">치료제</button></div>
    <p class="panel-note">보유한 소모품을 눌러 사용하세요.</p>
+  </section>
+  <section data-view="skills" hidden>
+   <div id="skills-summary" class="equip-stats-box"></div>
+   <h3 class="section-label">성별 및 종족 직업 전환 (근거리 / 원거리)</h3>
+   <div id="class-switcher" class="class-switcher"></div>
+   <h3 class="section-label">직업별 고유 스킬 및 퀵슬롯 등록 (드래그하여 Q · R · 1 · 2 · 3 · 4 슬롯에 장착)</h3>
+   <p class="panel-note hotbar-hint-note">⚔ <strong>리니지 M 퀵슬롯 등록 안내</strong>: 습득한 스킬을 드래그하여 하단 핫바 슬롯(Q·R·1~4)에 놓거나, 각 스킬 카드의 <code>[슬롯 등록]</code> 버튼을 클릭하여 원하는 단축키 슬롯에 즉시 장착할 수 있습니다.</p>
+   <div id="skills-list" class="equip-gear-list"></div>
+   <p class="panel-note">기본 스킬(Q·R)은 Lv.1부터 즉시 사용 가능하며, 상위 스킬(1·2·3·4)은 요구 레벨(Lv.3 / 5 / 8 / 12) 달성 후 몬스터에게서 낮은 확률(4%~8.5%)로 드랍되는 <strong>📖 고대 스킬북</strong>을 소모해 해금합니다.</p>
   </section>
   <section data-view="equip" hidden>
    <div id="equip-stats-summary" class="equip-stats-box"></div>
@@ -158,10 +310,38 @@
     </div>
    </div>
   </section>
+  <section data-view="controls-view" hidden>
+   <div class="controls-panel-body">
+    <div class="equip-stats-box">
+     <strong>⌨ 전체 조작키 및 단축키 안내</strong>
+     <p class="muted">BLOODFALL 격리구역 필드 탐험 및 전투 조작법입니다.</p>
+    </div>
+    <div class="controls-guide-grid">
+     <div class="controls-card"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>캐릭터 4방향 이동</span></div>
+     <div class="controls-card"><kbd>Shift</kbd><span>달리기 / 걷기 토글</span></div>
+     <div class="controls-card"><kbd>Space</kbd><span>가장 가까운 적 자동 공격</span></div>
+     <div class="controls-card"><kbd>Q</kbd><kbd>R</kbd><span>기본 전투 / 회복 스킬</span></div>
+     <div class="controls-card"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>스킬북 해금 직업 기술</span></div>
+     <div class="controls-card"><kbd>E</kbd><span>오브젝트 내용물 확인 및 선택 파밍</span></div>
+     <div class="controls-card"><kbd>F</kbd><span>몬스터 드랍 전리품 루팅</span></div>
+     <div class="controls-card"><kbd>G</kbd><span>자동사냥 토글</span></div>
+     <div class="controls-card"><kbd>M</kbd><span>다크에덴 박쥐 탑승 / 변신 토글</span></div>
+     <div class="controls-card"><kbd>V</kbd><span>탐험 화면 넓게 보기 (시야 확대)</span></div>
+     <div class="controls-card"><kbd>C</kbd><span>캐릭터 장착 장비 (무기/방어구)</span></div>
+     <div class="controls-card"><kbd>K</kbd><span>스킬북 목록 및 직업 계열 전환</span></div>
+     <div class="controls-card"><kbd>H</kbd><span>생존 상태(HP/MP) 및 음식 섭취</span></div>
+     <div class="controls-card"><kbd>I</kbd><span>가방 (소지품 인벤토리)</span></div>
+     <div class="controls-card"><kbd>J</kbd><span>모험 수첩 (퀘스트 / 가이드)</span></div>
+     <div class="controls-card"><kbd>B</kbd><span>아지트 관리 (제작/시설/연구)</span></div>
+     <div class="controls-card"><kbd>U</kbd><span>계정 생성·저장 및 불러오기</span></div>
+     <div class="controls-card"><kbd>Esc</kbd><span>열린 창 닫기 / 이동 취소</span></div>
+    </div>
+   </div>
+  </section>
  </div>
  <div id="menu-context" class="menu-context"></div>
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js"></script><script src="/sprite-manifest.js"></script><script src="/sprites.js"></script><script src="/combat.js"></script><script src="/world.js"></script><script src="/app.js" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-6"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-6"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261028-6"></script><script src="/app.js?v=20261028-6" type="module"></script>
 </body></html>

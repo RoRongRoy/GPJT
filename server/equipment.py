@@ -13,6 +13,30 @@ WEAPON_NAMES = {
     'epic': '피의 군주 대검',
     'legendary': '블러드폴 집행검',
 }
+JOB_WEAPON_NAMES = {
+    ('human', 'warrior'): WEAPON_NAMES,
+    ('human', 'ranged'): {
+        'normal': '수련자의 제식 권총',
+        'advanced': '단련된 은탄 소총',
+        'rare': '푸른 달빛 저격총',
+        'epic': '심판자의 대구경 중화기',
+        'legendary': '블러드폴 성광 캐논',
+    },
+    ('vampire', 'warrior'): {
+        'normal': '수련자의 혈족 클로',
+        'advanced': '단련된 핏빛 발톱',
+        'rare': '붉은 달빛 크림슨 클로',
+        'epic': '피의 군주 혈조',
+        'legendary': '블러드폴 심연의 클로',
+    },
+    ('vampire', 'ranged'): {
+        'normal': '수련자의 혈마법 지팡이',
+        'advanced': '단련된 진홍 지팡이',
+        'rare': '붉은 달빛 마도 지팡이',
+        'epic': '피의 군주 혈류 스태프',
+        'legendary': '블러드폴 심연의 지팡이',
+    },
+}
 ARMOR_NAMES = {
     'normal': '해진 야전복',
     'advanced': '강화 방호복',
@@ -30,7 +54,9 @@ def roll_equipment(world, enemy, rng, collect=True):
         if roll < threshold:
             slot = 'weapon' if rng() < .5 else 'armor'
             tier = 1 + (enemy['level']-1)//4
-            base_name = WEAPON_NAMES[rarity] if slot == 'weapon' else ARMOR_NAMES[rarity]
+            p = world.get('player', {})
+            wep_table = JOB_WEAPON_NAMES.get((p.get('species', 'human'), p.get('job', 'warrior')), WEAPON_NAMES)
+            base_name = wep_table[rarity] if slot == 'weapon' else ARMOR_NAMES[rarity]
             item = {'id': 'gear:' + str(world['next_gear_id']), 'slot': slot, 'rarity': rarity,
                     'name': f'{base_name} T{tier}',
                     'power': (4*tier if slot == 'weapon' else 2*tier) + spec['bonus']}

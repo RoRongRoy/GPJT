@@ -2,7 +2,7 @@ import copy
 import tempfile
 import unittest
 from pathlib import Path
-from server.game import new_world, act, RuleError, COMBAT
+from server.game import new_world, act, damage_enemy, RuleError, COMBAT
 from server.storage import Store
 
 
@@ -87,3 +87,78 @@ class CombatTests(unittest.TestCase):
         with self.assertRaises(RuleError):
             self.action(action='skill', skill='sweep')
         self.assertEqual(self.w,before)
+
+    def test_level_and_skillbook_unlocked_job_skills(self):
+        # Locked at Lv.1
+        for skill in ('strike', 'ranged', 'purify', 'ultimate'):
+            with self.assertRaises(RuleError):
+                self.action(action='skill', skill=skill)
+        # At Lv.3, strike still requires a skillbook to learn
+        self.w['player']['combat_level'] = 3
+        with self.assertRaises(RuleError):
+            self.action(action='skill', skill='strike')
+        with self.assertRaises(RuleError):
+            self.action(action='learn_skill', skill='strike')
+        # Monster kill drops skillbook at low probability (rng=0.01 < 0.04)
+        e_drop = self.w['enemies'][3]
+        e_drop.update(x=20, y=20, hp=10)
+        damage_enemy(self.w, e_drop, 50, rng=lambda: 0.01)
+        self.assertEqual(self.w['drops'][-1]['items'].get('skillbook'), 1)
+        self.action(action='loot', id=self.w['drops'][-1]['id'], item='skillbook')
+        self.assertEqual(self.w['inventory']['skillbook'], 1)
+        # Learn Lv.3 strike using 1 skillbook and cast it
+        self.action(action='learn_skill', skill='strike')
+        self.assertEqual(self.w['inventory']['skillbook'], 0)
+        self.assertIn('strike', self.w['player']['learned_skills'])
+        self.action(action='skill', skill='strike')
+        self.assertLess(self.w['enemies'][0]['hp'], 60)
+        self.assertEqual(self.w['enemies'][1]['hp'], 60)
+        # Give skillbooks for Lv.5 ranged (1 book), Lv.8 purify (2 books), Lv.12 ultimate (3 books)
+        self.w['inventory']['skillbook'] = 6
+        self.w['player']['combat_level'] = 5
+        self.action(action='learn_skill', skill='ranged')
+        self.assertEqual(self.w['inventory']['skillbook'], 5)
+        self.w['elapsed'] += 10
+        self.w['enemies'][0]['hp'] = 0
+        self.w['enemies'][1]['hp'] = 0
+        self.w['enemies'][2].update(x=24.2, y=20, hp=80)
+        self.action(action='skill', skill='ranged')
+        self.assertLess(self.w['enemies'][2]['hp'], 80)
+        # Unlock Lv.8 purify (2 skillbooks, heals HP and cleanses infection)
+        self.w['player'].update(combat_level=8, hp=60, infection=50, mp=100, food=90)
+        self.action(action='learn_skill', skill='purify')
+        self.assertEqual(self.w['inventory']['skillbook'], 3)
+        self.action(action='skill', skill='purify')
+        self.assertEqual(self.w['player']['hp'], 90)
+        self.assertEqual(self.w['player']['infection'], 15)
+        # Unlock Lv.12 ultimate (3 skillbooks, wide AoE)
+        self.w['player'].update(combat_level=12, species='vampire', job='ranged', hp=80, blood=90)
+        self.action(action='learn_skill', skill='ultimate')
+        self.assertEqual(self.w['inventory']['skillbook'], 0)
+        self.w['elapsed'] += 20
+        self.w['enemies'][0].update(x=22, y=20, hp=200)
+        self.w['enemies'][1].update(x=20, y=24.5, hp=200)
+        self.action(action='skill', skill='ultimate')
+        self.assertLess(self.w['enemies'][0]['hp'], 200)
+        self.assertLess(self.w['enemies'][1]['hp'], 200)
+
+    def test_gender_and_job_selection_and_ranged_reach(self):
+        # Human ranged (Gunner) uses firearm and hits distant enemy with basic attack (range 4.2)
+        w = new_world()
+        act(w, {'action': 'choose', 'species': 'human', 'gender': 'female', 'job': 'ranged'})
+        self.assertEqual(w['player']['gender'], 'female')
+        self.assertEqual(w['player']['job'], 'ranged')
+        self.assertEqual(w['gear'][0]['name'], '구형 제식 권총')
+        w['player'].update(x=20, y=20)
+        for e in w['enemies']:
+            e.update(x=60, y=60, hp=60)
+        w['enemies'][0].update(x=23.8, y=20, hp=60)
+        act(w, {'action': 'attack'})
+        self.assertEqual(w['enemies'][0]['hp'], 35)
+        # Switch to Vampire Warrior (Claw) and Vampire Ranged (Blood Mage with Staff)
+        act(w, {'action': 'choose', 'species': 'vampire', 'gender': 'male', 'job': 'warrior'})
+        self.assertEqual(w['gear'][0]['name'], '무딘 혈족 클로')
+        act(w, {'action': 'change_class', 'gender': 'female', 'job': 'ranged'})
+        self.assertEqual(w['player']['gender'], 'female')
+        self.assertEqual(w['player']['job'], 'ranged')
+        self.assertEqual(w['gear'][0]['name'], '고목 혈마법 지팡이')

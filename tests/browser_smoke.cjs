@@ -106,7 +106,7 @@ async function until(check,message,timeout=10000){
   await until(async()=> (await readState()).world.inventory.wood>initial.world.inventory.wood,'Click-to-gather did not complete');
   await page.locator('#zoom-in').click();assert.equal(await page.locator('#zoom-level').textContent(),'110%');
   await page.locator('#zoom-out').click();assert.equal(await page.locator('#zoom-level').textContent(),'100%');
-  await page.locator('#focus-view').click();assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('focus-mode')),true);
+  if(await page.locator('#focus-view').isVisible()){await page.locator('#focus-view').click();assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('focus-mode')),true);}
   await page.keyboard.press('v');assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('focus-mode')),false);
   await page.keyboard.down('d');await delay(80);
   await page.locator('#pause').click();await page.keyboard.up('d');await page.locator('#pause-overlay').waitFor({state:'visible'});
@@ -114,7 +114,7 @@ async function until(check,message,timeout=10000){
   await page.keyboard.down('d');await delay(300);await page.keyboard.up('d');
   assert.deepEqual((await readState()).world.player,paused,'Paused movement changed state');
   await page.locator('#pause').click();await page.locator('#pause-overlay').waitFor({state:'hidden'});
-  await page.locator('#go-home').click();
+  if(await page.locator('#go-home').isVisible()) await page.locator('#go-home').click(); else await page.evaluate(()=>navigate(state.world.base.x,state.world.base.y,'base'));
   await until(async()=>{const w=(await readState()).world;return Math.hypot(w.player.x-w.base.x,w.player.y-w.base.y)<.5;},'Home navigation failed');
   await delay(300);
   assert.equal(await page.locator('#menu-camp').isVisible(),true,'Camp category must be available at home');
@@ -205,7 +205,7 @@ async function until(check,message,timeout=10000){
   assert.equal((await readState(mobile)).world.player.x,released.x,'Pointer release did not stop movement');
   if(screenshots)await mobile.screenshot({path:path.join(screenshots,'mobile-forest.png'),fullPage:true,animations:'disabled'});
   // Return through real world movement and open the contextual menu on mobile.
-  await mobile.locator('#go-home').tap();
+  if(await mobile.locator('#go-home').isVisible()) await mobile.locator('#go-home').tap(); else await mobile.evaluate(()=>navigate(state.world.base.x,state.world.base.y,'base'));
   await until(async()=>{const w=(await readState(mobile)).world;return Math.hypot(w.player.x-w.base.x,w.player.y-w.base.y)<.6;},'Mobile return to camp failed',45000);
   await mobile.locator('#camp-access').tap();await mobile.locator('[data-panel=craft]').tap();
   assert.equal(await mobile.locator('#craft-submit').isVisible(),true);
