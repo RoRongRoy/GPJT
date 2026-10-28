@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261028-6"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261028-hotbar1"></head>
 <body>
 <header class="topbar">
  <a class="brand" href="/" aria-label="BLOODFALL 시작 화면"><span class="brand-mark">B<span>/</span>F</span><span>BLOODFALL<small>격리구역 · FIELD JOURNAL</small></span></a>
@@ -68,72 +68,12 @@
    </div>
    <div id="skill-bar" class="skill-bar lineage-hotbar" aria-label="전투 스킬 핫바" hidden>
     <div class="hotbar-slots-track">
-     <button id="skill-sweep" class="skill-slot" data-slot="q" data-skill="sweep" draggable="true" title="회전 베기 (Q)">
-      <kbd class="slot-key">Q</kbd>
-      <span class="skill-glyph">✦</span>
-      <div class="skill-cd-mask"></div>
-      <span class="skill-cd-num"></span>
-      <span class="skill-lock-icon">🔒</span>
-      <div class="skill-tooltip">
-       <strong id="skill-sweep-name">회전 베기</strong>
-       <small id="skill-sweep-status"></small>
-      </div>
-     </button>
-     <button id="skill-recover" class="skill-slot" data-slot="r" data-skill="recover" draggable="true" title="숨 고르기 (R)">
-      <kbd class="slot-key">R</kbd>
-      <span class="skill-glyph">✚</span>
-      <div class="skill-cd-mask"></div>
-      <span class="skill-cd-num"></span>
-      <span class="skill-lock-icon">🔒</span>
-      <div class="skill-tooltip">
-       <strong id="skill-recover-name">숨 고르기</strong>
-       <small id="skill-recover-status"></small>
-      </div>
-     </button>
-     <button id="skill-strike" class="skill-slot" data-slot="1" data-skill="strike" draggable="true" title="크로스 스트라이크 (1)">
-      <kbd class="slot-key">1</kbd>
-      <span class="skill-glyph">⚔</span>
-      <div class="skill-cd-mask"></div>
-      <span class="skill-cd-num"></span>
-      <span class="skill-lock-icon">🔒</span>
-      <div class="skill-tooltip">
-       <strong id="skill-strike-name">크로스 스트라이크</strong>
-       <small id="skill-strike-status"></small>
-      </div>
-     </button>
-     <button id="skill-ranged" class="skill-slot" data-slot="2" data-skill="ranged" draggable="true" title="은탄 사격 (2)">
-      <kbd class="slot-key">2</kbd>
-      <span class="skill-glyph">⌖</span>
-      <div class="skill-cd-mask"></div>
-      <span class="skill-cd-num"></span>
-      <span class="skill-lock-icon">🔒</span>
-      <div class="skill-tooltip">
-       <strong id="skill-ranged-name">은탄 사격</strong>
-       <small id="skill-ranged-status"></small>
-      </div>
-     </button>
-     <button id="skill-purify" class="skill-slot" data-slot="3" data-skill="purify" draggable="true" title="성광 정화 (3)">
-      <kbd class="slot-key">3</kbd>
-      <span class="skill-glyph">✧</span>
-      <div class="skill-cd-mask"></div>
-      <span class="skill-cd-num"></span>
-      <span class="skill-lock-icon">🔒</span>
-      <div class="skill-tooltip">
-       <strong id="skill-purify-name">성광 정화</strong>
-       <small id="skill-purify-status"></small>
-      </div>
-     </button>
-     <button id="skill-ultimate" class="skill-slot" data-slot="4" data-skill="ultimate" draggable="true" title="블레이드 스톰 (4)">
-      <kbd class="slot-key">4</kbd>
-      <span class="skill-glyph">✹</span>
-      <div class="skill-cd-mask"></div>
-      <span class="skill-cd-num"></span>
-      <span class="skill-lock-icon">🔒</span>
-      <div class="skill-tooltip">
-       <strong id="skill-ultimate-name">블레이드 스톰</strong>
-       <small id="skill-ultimate-status"></small>
-      </div>
-     </button>
+     <button id="skill-sweep" type="button" class="skill-slot" data-slot="1" data-skill="sweep" aria-label="1번 스킬"><span class="skill-glyph skill-art" aria-hidden="true"></span><span class="skill-cd-mask" aria-hidden="true"></span><span class="skill-lock-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8V6a4 4 0 0 1 8 0v2M4 8h12v10H4z"/></svg></span></button>
+     <button id="skill-recover" type="button" class="skill-slot" data-slot="2" data-skill="recover" aria-label="2번 스킬"><span class="skill-glyph skill-art" aria-hidden="true"></span><span class="skill-cd-mask" aria-hidden="true"></span><span class="skill-lock-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8V6a4 4 0 0 1 8 0v2M4 8h12v10H4z"/></svg></span></button>
+     <button id="skill-strike" type="button" class="skill-slot" data-slot="3" data-skill="strike" aria-label="3번 스킬"><span class="skill-glyph skill-art" aria-hidden="true"></span><span class="skill-cd-mask" aria-hidden="true"></span><span class="skill-lock-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8V6a4 4 0 0 1 8 0v2M4 8h12v10H4z"/></svg></span></button>
+     <button id="skill-ranged" type="button" class="skill-slot" data-slot="4" data-skill="ranged" aria-label="4번 스킬"><span class="skill-glyph skill-art" aria-hidden="true"></span><span class="skill-cd-mask" aria-hidden="true"></span><span class="skill-lock-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8V6a4 4 0 0 1 8 0v2M4 8h12v10H4z"/></svg></span></button>
+     <button id="skill-purify" type="button" class="skill-slot" data-slot="5" data-skill="purify" aria-label="5번 스킬"><span class="skill-glyph skill-art" aria-hidden="true"></span><span class="skill-cd-mask" aria-hidden="true"></span><span class="skill-lock-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8V6a4 4 0 0 1 8 0v2M4 8h12v10H4z"/></svg></span></button>
+     <button id="skill-ultimate" type="button" class="skill-slot" data-slot="6" data-skill="ultimate" aria-label="6번 스킬"><span class="skill-glyph skill-art" aria-hidden="true"></span><span class="skill-cd-mask" aria-hidden="true"></span><span class="skill-lock-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8V6a4 4 0 0 1 8 0v2M4 8h12v10H4z"/></svg></span></button>
     </div>
    </div>
    <div class="touch-pad" aria-label="터치 이동"><button data-direction="up" aria-label="위로 이동">↑</button><button data-direction="left" aria-label="왼쪽 이동">←</button><button data-direction="down" aria-label="아래로 이동">↓</button><button data-direction="right" aria-label="오른쪽 이동">→</button></div>
@@ -217,13 +157,24 @@
    <p class="panel-note">보유한 소모품을 눌러 사용하세요.</p>
   </section>
   <section data-view="skills" hidden>
+   <div class="hotbar-editor" aria-label="스킬 단축키 설정">
+    <div class="hotbar-editor-heading"><h3>스킬 키 설정</h3><span>1~6 · 클릭 또는 드래그</span></div>
+    <div id="hotbar-editor-slots" class="hotbar-editor-slots" role="group" aria-label="스킬 배치 슬롯">
+     <button type="button" class="hotbar-editor-slot" data-assign-slot="1" aria-pressed="false"><kbd>1</kbd><span class="skill-art" aria-hidden="true"></span></button>
+     <button type="button" class="hotbar-editor-slot" data-assign-slot="2" aria-pressed="false"><kbd>2</kbd><span class="skill-art" aria-hidden="true"></span></button>
+     <button type="button" class="hotbar-editor-slot" data-assign-slot="3" aria-pressed="false"><kbd>3</kbd><span class="skill-art" aria-hidden="true"></span></button>
+     <button type="button" class="hotbar-editor-slot" data-assign-slot="4" aria-pressed="false"><kbd>4</kbd><span class="skill-art" aria-hidden="true"></span></button>
+     <button type="button" class="hotbar-editor-slot" data-assign-slot="5" aria-pressed="false"><kbd>5</kbd><span class="skill-art" aria-hidden="true"></span></button>
+     <button type="button" class="hotbar-editor-slot" data-assign-slot="6" aria-pressed="false"><kbd>6</kbd><span class="skill-art" aria-hidden="true"></span></button>
+    </div>
+    <p id="hotbar-editor-hint" role="status">스킬을 선택한 뒤 1~6번 슬롯을 누르세요.</p>
+    <small>등록된 스킬끼리는 자리가 바뀝니다. 배치는 이 브라우저에 자동 저장됩니다.</small>
+   </div>
    <div id="skills-summary" class="equip-stats-box"></div>
-   <h3 class="section-label">성별 및 종족 직업 전환 (근거리 / 원거리)</h3>
-   <div id="class-switcher" class="class-switcher"></div>
-   <h3 class="section-label">직업별 고유 스킬 및 퀵슬롯 등록 (드래그하여 Q · R · 1 · 2 · 3 · 4 슬롯에 장착)</h3>
-   <p class="panel-note hotbar-hint-note">⚔ <strong>리니지 M 퀵슬롯 등록 안내</strong>: 습득한 스킬을 드래그하여 하단 핫바 슬롯(Q·R·1~4)에 놓거나, 각 스킬 카드의 <code>[슬롯 등록]</code> 버튼을 클릭하여 원하는 단축키 슬롯에 즉시 장착할 수 있습니다.</p>
+   <details class="skill-class-options"><summary>직업·성별 설정</summary><div id="class-switcher" class="class-switcher"></div></details>
+   <h3 class="section-label">보유 스킬 · 사용할 스킬을 선택하세요</h3>
    <div id="skills-list" class="equip-gear-list"></div>
-   <p class="panel-note">기본 스킬(Q·R)은 Lv.1부터 즉시 사용 가능하며, 상위 스킬(1·2·3·4)은 요구 레벨(Lv.3 / 5 / 8 / 12) 달성 후 몬스터에게서 낮은 확률(4%~8.5%)로 드랍되는 <strong>📖 고대 스킬북</strong>을 소모해 해금합니다.</p>
+   <p class="panel-note">기본 전투·회복 스킬은 Lv.1부터 즉시 사용 가능하며, 상위 스킬은 요구 레벨(Lv.3 / 5 / 8 / 12) 달성 후 몬스터에게서 낮은 확률(4%~8.5%)로 드랍되는 <strong>📖 고대 스킬북</strong>을 소모해 해금합니다.</p>
   </section>
   <section data-view="equip" hidden>
    <div id="equip-stats-summary" class="equip-stats-box"></div>
@@ -320,8 +271,7 @@
      <div class="controls-card"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>캐릭터 4방향 이동</span></div>
      <div class="controls-card"><kbd>Shift</kbd><span>달리기 / 걷기 토글</span></div>
      <div class="controls-card"><kbd>Space</kbd><span>가장 가까운 적 자동 공격</span></div>
-     <div class="controls-card"><kbd>Q</kbd><kbd>R</kbd><span>기본 전투 / 회복 스킬</span></div>
-     <div class="controls-card"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><span>스킬북 해금 직업 기술</span></div>
+     <div class="controls-card"><kbd>1~6</kbd><span>배치한 스킬 사용 · K에서 키 설정</span></div>
      <div class="controls-card"><kbd>E</kbd><span>오브젝트 내용물 확인 및 선택 파밍</span></div>
      <div class="controls-card"><kbd>F</kbd><span>몬스터 드랍 전리품 루팅</span></div>
      <div class="controls-card"><kbd>G</kbd><span>자동사냥 토글</span></div>
@@ -343,5 +293,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261028-movement1"></script><script src="/app.js?v=20261028-movement1" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261028-movement1"></script><script src="/app.js?v=20261028-hotbar1" type="module"></script>
 </body></html>

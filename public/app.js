@@ -422,7 +422,7 @@ function openPanel(name,opener=null){
  updateSubnav(name);
  $('menu-context').textContent=campPanels.has(name)?'⌂ 아지트 안 · 벗어나면 이 메뉴는 닫힙니다.':'Esc로 닫기 · 메뉴를 연 동안에도 월드 시간은 흐릅니다.';
  if(!$('menu-dialog').open)$('menu-dialog').show();
- renderInventory();renderRecipe();$('menu-title').focus({preventScroll:true});return true;
+ renderInventory();renderRecipe();if(name==='skills'){renderSkillsMenu();renderHotbarEditor();}$('menu-title').focus({preventScroll:true});return true;
 }
 function updateContext(){
  const {player:p}=state.world,atCamp=canUseCamp();
@@ -590,31 +590,75 @@ function renderInventory(){
 }
 $('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){if(selectedItem==='skillbook'){openPanel('skills');return;}const g=gearItem(selectedItem);if(g)manualAction(state.world.equipment[g.slot]===g.id?'unequip':'equip',{item:g.id,slot:g.slot});else manualAction('consume',{item:selectedItem});}};
 const SKILL_IDS=['sweep','recover','strike','ranged','purify','ultimate'];
-const HOTBAR_KEYS=['q','r','1','2','3','4'];
-const DEFAULT_HOTBAR={q:'sweep',r:'recover','1':'strike','2':'ranged','3':'purify','4':'ultimate'};
-let hotbarMap={...DEFAULT_HOTBAR};
+const HOTBAR_KEYS=['1','2','3','4','5','6'];
+const DEFAULT_HOTBAR=Object.fromEntries(HOTBAR_KEYS.map((key,i)=>[key,SKILL_IDS[i]]));
+let hotbarMap={...DEFAULT_HOTBAR},selectedAssignSkill=null,selectedAssignSlot=null,skillsLayout='';
 try{
- const saved=JSON.parse(localStorage.getItem('bloodfall_hotbar_v2')||'{}');
- if(saved&&typeof saved==='object'){
-  for(const k of HOTBAR_KEYS){
-   if(saved[k]&&SKILL_IDS.includes(saved[k]))hotbarMap[k]=saved[k];
-  }
+ const current=localStorage.getItem('bloodfall_hotbar_v3');
+ const saved=JSON.parse(current||localStorage.getItem('bloodfall_hotbar_v2')||'null');
+ if(saved&&typeof saved==='object'&&!Array.isArray(saved)){
+  const oldKeys=current?HOTBAR_KEYS:['q','r','1','2','3','4'],used=new Set(),restored={};
+  HOTBAR_KEYS.forEach((key,i)=>{const id=saved[oldKeys[i]];if(SKILL_IDS.includes(id)&&!used.has(id)){restored[key]=id;used.add(id);}});
+  const unused=SKILL_IDS.filter(id=>!used.has(id));
+  HOTBAR_KEYS.forEach(key=>{if(!restored[key])restored[key]=unused.shift();});
+  hotbarMap=restored;
  }
+ saveHotbar();
 }catch(e){}
 function saveHotbar(){
- try{localStorage.setItem('bloodfall_hotbar_v2',JSON.stringify(hotbarMap));}catch(e){}
+ try{localStorage.setItem('bloodfall_hotbar_v3',JSON.stringify(hotbarMap));}catch(e){}
+}
+// Original vector icons, shared by the field bar, skill list and assignment slots.
+const SKILL_ART={
+ sweep:'<path d="M9 24C12 8 31 5 40 12C26 9 19 19 17 31"/><path d="m15 30 6-5M8 36c10 6 24 3 31-8"/>',
+ recover:'<path d="M20 9h8v11h11v8H28v11h-8V28H9v-8h11z"/><path d="m7 9 2-4 2 4M37 39l2 4 2-4"/>',
+ strike:'<path d="m11 7 7 3 17 24-5 4L13 14zM37 7l-7 3-17 24 5 4 17-24z"/><path d="m8 31 11 8m10 0 11-8M11 40l-3 4m29-4 3 4"/>',
+ ranged:'<circle cx="24" cy="24" r="13"/><circle cx="24" cy="24" r="4"/><path d="M24 5v10m0 18v10M5 24h10m18 0h10"/>',
+ purify:'<path d="m24 5 5 13 13 6-13 6-5 13-5-13-13-6 13-6z"/><path d="m7 7 5 5m24 24 5 5M7 41l5-5m24-24 5-5"/>',
+ ultimate:'<path d="m27 5-7 14 6-1-5 12 13-17-8 2z"/><path d="M12 14C2 27 15 44 29 40c10-3 14-14 8-22M8 29c9 9 21 6 27-2M17 38l-5 4"/>'
+};
+function skillIconMarkup(id){return `<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${SKILL_ART[id]||''}</svg>`;}
+function skillIcon(id){const icon=span('skill-art','');icon.dataset.icon=id;icon.innerHTML=skillIconMarkup(id);return icon;}
+function renderHotbarEditor(){
+ if(!state||activePanel!=='skills')return;
+ if(selectedAssignSkill&&!skillStatus(selectedAssignSkill).unlocked)selectedAssignSkill=null;
+ for(const button of document.querySelectorAll('[data-assign-slot]')){
+  const key=button.dataset.assignSlot,id=hotbarMap[key],spec=activeSkillSpec(id),name=skillNameFor(spec,state.world.player.species,state.world.player.job||'warrior');
+  const icon=button.querySelector('.skill-art');
+  if(icon.dataset.icon!==id){icon.dataset.icon=id;icon.innerHTML=skillIconMarkup(id);}
+  button.dataset.skill=id;
+  button.setAttribute('aria-label',`${key}번 슬롯: ${name}. 선택한 스킬 배치`);
+  button.setAttribute('aria-pressed',String(selectedAssignSlot===key));
+  button.title=`${key} · ${name}`;
+  button.classList.toggle('slot-locked',!skillStatus(id).unlocked);
+ }
+ document.querySelectorAll('[data-select-skill]').forEach(button=>button.setAttribute('aria-pressed',String(selectedAssignSkill===button.dataset.selectSkill)));
+ const hint=selectedAssignSkill?`${skillNameFor(activeSkillSpec(selectedAssignSkill),state.world.player.species,state.world.player.job||'warrior')} 선택됨 · 배치할 1~6번 슬롯을 누르세요.`:selectedAssignSlot?`${selectedAssignSlot}번 슬롯 선택됨 · 아래에서 배치할 스킬을 선택하세요.`:'스킬을 선택한 뒤 1~6번 슬롯을 누르세요. 드래그로도 배치할 수 있습니다.';
+ if($('hotbar-editor-hint').textContent!==hint)$('hotbar-editor-hint').textContent=hint;
+}
+function selectAssignmentSkill(id){
+ if(!skillStatus(id).unlocked)return;
+ if(selectedAssignSlot){assignSkillToSlot(selectedAssignSlot,id);return;}
+ selectedAssignSkill=selectedAssignSkill===id?null:id;renderHotbarEditor();
+}
+for(const button of document.querySelectorAll('[data-assign-slot]')){
+ button.onclick=()=>{const key=button.dataset.assignSlot;if(selectedAssignSkill)assignSkillToSlot(key,selectedAssignSkill);else{selectedAssignSlot=selectedAssignSlot===key?null:key;renderHotbarEditor();}};
+ button.addEventListener('dragover',e=>{e.preventDefault();button.classList.add('drag-over');});
+ button.addEventListener('dragleave',()=>button.classList.remove('drag-over'));
+ button.addEventListener('drop',e=>{e.preventDefault();button.classList.remove('drag-over');assignSkillToSlot(button.dataset.assignSlot,e.dataTransfer.getData('text/plain'));});
 }
 function getSlotForSkill(skillId){
  return Object.keys(hotbarMap).find(k=>hotbarMap[k]===skillId)||null;
 }
 function assignSkillToSlot(slotKey,targetSkillId){
- if(!HOTBAR_KEYS.includes(slotKey)||!SKILL_IDS.includes(targetSkillId))return;
+ if(!HOTBAR_KEYS.includes(slotKey)||!SKILL_IDS.includes(targetSkillId)||!state||!skillStatus(targetSkillId).unlocked)return;
  const prevSlot=getSlotForSkill(targetSkillId);
  const currentSkillInSlot=hotbarMap[slotKey];
  if(prevSlot&&prevSlot!==slotKey){
   hotbarMap[prevSlot]=currentSkillInSlot;
  }
  hotbarMap[slotKey]=targetSkillId;
+ selectedAssignSlot=null;selectedAssignSkill=null;
  saveHotbar();
  renderHotbarSlots();
  updateSkills();
@@ -640,7 +684,7 @@ function renderHotbarSlots(){
    btn.dataset.skill=skillId;
    const kbd=btn.querySelector?.('.slot-key');
    if(kbd)kbd.textContent=slotKey.toUpperCase();
-   track.appendChild?.(btn);
+   if(track.children?.[HOTBAR_KEYS.indexOf(slotKey)]!==btn)track.appendChild?.(btn);
   }
  }
 }
@@ -654,11 +698,11 @@ function setupHotbarDragDrop(){
    e.dataTransfer.setData('text/plain',btn.dataset.skill);
    e.dataTransfer.effectAllowed='copyMove';
    btn.classList.add('dragging');
-   document.querySelectorAll('.skill-slot').forEach(s=>s.classList.add('drag-active'));
+   document.querySelectorAll('.skill-slot, [data-assign-slot]').forEach(s=>s.classList.add('drag-active'));
   });
   btn.addEventListener('dragend',()=>{
    btn.classList.remove('dragging');
-   document.querySelectorAll('.skill-slot').forEach(s=>s.classList.remove('drag-active','drag-over'));
+   document.querySelectorAll('.skill-slot, [data-assign-slot]').forEach(s=>s.classList.remove('drag-active','drag-over'));
   });
   btn.addEventListener('dragover',e=>{
    e.preventDefault();
@@ -719,10 +763,13 @@ function skillStatus(id){
  return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,levelMet,learned,bookCost,booksHave,canLearn,isHeal,effRange};
 }
 function renderSkillsMenu(){
- if(!state||!$('skills-list'))return;
+ if(!state||activePanel!=='skills'||!$('skills-list'))return;
  const w=state.world,p=w.player,isVamp=p.species==='vampire',job=p.job||'warrior',gender=p.gender||'male',lvl=p.combat_level||1;
  const cls=classInfo(p.species,job),gName=genderName(gender),booksHave=w.inventory?.skillbook||0;
  const wepPow=gearItem(w.equipment?.weapon)?.power||0,lvlAtk=(lvl-1)*3,enhMult=1+(p.level||0)*.02;
+ const layout=JSON.stringify([p.species,job,gender,lvl,p.level,wepPow,booksHave,p.learned_skills,connected,w.paused,hotbarMap]);
+ if(layout===skillsLayout)return;
+ skillsLayout=layout;
  const learnedCount=SKILL_IDS.filter(id=>skillStatus(id).unlocked).length;
  $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어':'☀ 인간'} · ${gName} [${cls.style}] ${cls.name} (${cls.weapon_type} · 기본 사거리 ${cls.attack_range}) · 전투 Lv.${lvl} · 습득 스킬 ${learnedCount}/${SKILL_IDS.length}개 · 📖 보유 고대 스킬북: ${booksHave}권 (몬스터 처치 시 낮은 확률 드랍)`;
  if($('class-switcher')){
@@ -764,15 +811,15 @@ function renderSkillsMenu(){
     e.dataTransfer.setData('text/plain',id);
     e.dataTransfer.effectAllowed='copyMove';
     card.classList.add('dragging');
-    document.querySelectorAll('.skill-slot').forEach(s=>s.classList.add('drag-active'));
+    document.querySelectorAll('.skill-slot, [data-assign-slot]').forEach(s=>s.classList.add('drag-active'));
    });
    card.addEventListener('dragend',()=>{
     card.classList.remove('dragging');
-    document.querySelectorAll('.skill-slot').forEach(s=>s.classList.remove('drag-active','drag-over'));
+    document.querySelectorAll('.skill-slot, [data-assign-slot]').forEach(s=>s.classList.remove('drag-active','drag-over'));
    });
   }
   const left=document.createElement('div');left.className='equip-gear-info';
-  const glyph=document.createElement('div');glyph.className='skill-glyph-box';glyph.textContent=spec.glyph||'✦';
+  const glyph=document.createElement('div');glyph.className='skill-glyph-box';glyph.append(skillIcon(id));
   if(unlocked){
    glyph.draggable=true;
    glyph.addEventListener('dragstart',e=>{
@@ -780,12 +827,12 @@ function renderSkillsMenu(){
     e.dataTransfer.setData('text/plain',id);
     e.dataTransfer.effectAllowed='copyMove';
     card.classList.add('dragging');
-    document.querySelectorAll('.skill-slot').forEach(s=>s.classList.add('drag-active'));
+    document.querySelectorAll('.skill-slot, [data-assign-slot]').forEach(s=>s.classList.add('drag-active'));
    });
   }
   const txt=document.createElement('div');txt.className='equip-gear-text';
   const head=document.createElement('div');head.className='skill-card-head';
-  const title=document.createElement('strong');title.textContent=`[${spec.key||id.toUpperCase()}] ${name}`;
+  const title=document.createElement('strong');title.textContent=name;
   const badgeText=unlocked?(bookCost>0?`✓ 습득 완료 (Lv.${unlockLevel})`:`✓ 기본 직업 스킬`):!levelMet?`🔒 Lv.${unlockLevel} + 📖 스킬북 ${bookCost}권 필요`:`📖 스킬북 ${bookCost}권으로 해금 가능 (보유 ${booksHave}/${bookCost})`;
   const badge=span('skill-badge'+(unlocked?'':' locked'),badgeText);
   head.append(title,badge);
@@ -794,18 +841,10 @@ function renderSkillsMenu(){
   sub.textContent=`${effectText} · 쿨타임 ${spec.cooldown}초 · 소모: ${costText}`;
   const descEl=document.createElement('small');descEl.textContent=(desc?desc+' ':'')+`(${altJobCls.name} 전직 시: ${altJobName})`;
   const assignBar=document.createElement('div');assignBar.className='skill-assign-bar';
-  const assignLabel=document.createElement('span');assignLabel.textContent='퀵슬롯:';
-  assignBar.append(assignLabel);
-  for(const k of HOTBAR_KEYS){
-   const isCur=hotbarMap[k]===id;
-   const ab=document.createElement('button');ab.type='button';
-   ab.className='slot-assign-btn'+(isCur?' current':'');
-   ab.textContent=k.toUpperCase()+(isCur?'✓':'');
-   ab.title=`[${k.toUpperCase()}] 핫바 슬롯에 등록`;
-   ab.disabled=!unlocked;
-   ab.onclick=(ev)=>{ev.stopPropagation();assignSkillToSlot(k,id);};
-   assignBar.append(ab);
-  }
+  const assign=document.createElement('button');assign.type='button';assign.className='skill-select-button';assign.dataset.selectSkill=id;
+  assign.textContent='슬롯에 배치';assign.disabled=!unlocked;
+  assign.setAttribute('aria-pressed',String(selectedAssignSkill===id));assign.onclick=()=>selectAssignmentSkill(id);
+  assignBar.append(assign,span('skill-assignment-label',`${getSlotForSkill(id)}번에 배치됨`));
   txt.append(head,sub,descEl,assignBar);left.append(glyph,txt);
   const btn=document.createElement('button');btn.type='button';
   if(!learned){
@@ -815,7 +854,7 @@ function renderSkillsMenu(){
    btn.onclick=()=>manualAction('learn_skill',{skill:id});
   }else{
    btn.className=!reason?'accent':'';
-   btn.textContent=reason?reason:`시전 (${spec.key||id.toUpperCase()})`;
+   btn.dataset.skillCast=id;btn.textContent=reason?reason:`시전 (${getSlotForSkill(id)})`;
    btn.disabled=Boolean(reason);
    btn.onclick=()=>useSkill(id);
   }
@@ -829,23 +868,19 @@ function updateSkills(){
   const el=$('skill-'+id);if(!el)continue;
   const {reason,spec,mpCost,hpCost,unlocked,unlockLevel,levelMet,learned,bookCost,canLearn,effRange,remaining}=skillStatus(id);if(!spec)continue;
   const name=skillNameFor(spec,p.species,job);
+  const glyph=el.querySelector?.('.skill-glyph');
+  if(glyph&&glyph.dataset.icon!==id){glyph.dataset.icon=id;glyph.innerHTML=skillIconMarkup(id);}
+  el.setAttribute('aria-label',`${getSlotForSkill(id)}번 ${name}${reason?' · '+reason:''}`);
   const costText=isVamp?`HP ${hpCost} 소모`:`MP ${mpCost}`;
-  const nameEl=$('skill-'+id+'-name');
-  if(nameEl)nameEl.textContent=name;
-  const statusEl=$('skill-'+id+'-status');
-  if(statusEl)statusEl.textContent=!levelMet?`🔒 Lv.${unlockLevel} 해금`:!learned?(canLearn?`📖 클릭해 해금!`:`📖 스킬북 ${bookCost}권`):reason||(spec.damage?`피해 ${spec.damage}${isVamp?'+흡혈':''}`:`회복 +${spec.heal}`)+' · '+costText;
   const maskEl=el.querySelector?.('.skill-cd-mask');
-  const cdNumEl=el.querySelector?.('.skill-cd-num');
   const lockIcon=el.querySelector?.('.skill-lock-icon');
   if(remaining>0&&unlocked){
    const maxCd=spec.cooldown||1;
    const pct=Math.min(100,Math.max(0,(remaining/maxCd)*100));
    if(maskEl)maskEl.style.height=pct+'%';
-   if(cdNumEl)cdNumEl.textContent=remaining.toFixed(1);
    el.classList.add('in-cooldown');
   }else{
    if(maskEl)maskEl.style.height=unlocked?'0%':'100%';
-   if(cdNumEl)cdNumEl.textContent='';
    el.classList.remove('in-cooldown');
   }
   if(lockIcon)lockIcon.hidden=unlocked;
@@ -855,7 +890,11 @@ function updateSkills(){
  }
  renderHotbarSlots();
  setupHotbarDragDrop();
- renderSkillsMenu();
+ renderSkillsMenu();renderHotbarEditor();
+ for(const button of document.querySelectorAll('[data-skill-cast]')){
+  const id=button.dataset.skillCast,{reason}=skillStatus(id);
+  button.disabled=Boolean(reason);button.textContent=reason||`시전 (${getSlotForSkill(id)})`;
+ }
 }
 function useSkill(id){
  const {reason,unlocked,unlockLevel,levelMet,learned,bookCost,canLearn}=skillStatus(id);
@@ -1073,8 +1112,8 @@ window.addEventListener('keydown',e=>{
  if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closeLootBox();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
  const shortcut={h:'survival',k:'skills',c:'equip',i:'bag',j:'journal',u:'account',b:'camp'}[k];
  if(shortcut){e.preventDefault();if(activePanel===shortcut)closePanel();else openPanel(shortcut);}
- const skillKey=hotbarMap[k];
- if(skillKey){e.preventDefault();if(state?.world.player.chosen)useSkill(skillKey);}
+ const skillKey=HOTBAR_KEYS.includes(k)?hotbarMap[k]:null;
+ if(skillKey&&!activePanel){e.preventDefault();if(state?.world.player.chosen)useSkill(skillKey);}
  if(k==='e'){e.preventDefault();interact();}
  if(k==='f'){e.preventDefault();quickLoot();}
  if(k==='g'){e.preventDefault();if(state?.world.player.chosen&&!state.world.paused){closePanel(false);closeLootBox();setAutoHunt(!autoHunt);if(autoHunt)stepMovement();}}

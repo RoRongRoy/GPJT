@@ -1514,3 +1514,43 @@ main{
 #focus-view{
  display:none !important;
 }
+
+/* Numbered assignment slots belong to the skills window; field controls use icons. */
+.hotbar-editor{position:sticky;top:0;z-index:3;padding:14px;margin-bottom:18px;background:linear-gradient(145deg,#24202b,#111820);border:1px solid #967147;border-radius:10px;box-shadow:0 8px 24px #0007}
+#menu-dialog[data-panel=skills] .menu-body{max-height:none !important;scroll-padding-top:215px}
+.skill-class-options{margin:10px 0;color:#c7bdaf;font-size:12px}
+.skill-class-options summary{cursor:pointer;padding:8px 0}
+.hotbar-editor-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.hotbar-editor-heading h3{margin:0;font-size:14px;color:#f3d49e}
+.hotbar-editor-heading>span,.hotbar-editor>small{font-size:10px;color:#b8ac9c}
+.hotbar-editor-slots{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;max-width:480px;margin:auto}
+.hotbar-editor-slot{position:relative;aspect-ratio:1;padding:12px;border:1px solid #7c6546;border-radius:6px;background:radial-gradient(ellipse at top,#373142,#10151e);box-shadow:inset 0 0 12px #0008;min-width:0;cursor:pointer}
+.hotbar-editor-slot kbd{position:absolute;left:6px;top:4px;background:none;border:0;padding:0;color:#f1d69f;font-size:12px;font-weight:800}
+.hotbar-editor-slot[aria-pressed=true],.hotbar-editor-slot.drag-over{outline:2px solid #f4d28e;outline-offset:2px;background:#3b3028}
+.hotbar-editor-slot.slot-locked .skill-art{opacity:.4;filter:grayscale(.7)}
+#hotbar-editor-hint{margin:12px 0 5px;font-size:12px;line-height:1.5;color:#e8d4af;min-height:18px}
+.skill-art{display:block;width:100%;height:100%;color:#dec39b;pointer-events:none}
+.skill-art svg{display:block;width:100%;height:100%;filter:drop-shadow(0 0 5px currentColor)}
+[data-icon=sweep]{color:#ee858d}[data-icon=recover]{color:#86dfb1}[data-icon=strike]{color:#edc980}[data-icon=ranged]{color:#85cdef}[data-icon=purify]{color:#c8a2f0}[data-icon=ultimate]{color:#ff9c78}
+.skill-glyph-box .skill-art{width:38px;height:38px}
+.skill-select-button{padding:7px 10px;font-size:11px;border:1px solid #8b7250;background:#252634;color:#efd7b0;border-radius:5px}
+.skill-select-button[aria-pressed=true]{background:#493720;outline:2px solid #edce91}
+.skill-assignment-label{font-size:10px;color:#acb6bf}
+#skill-bar .skill-slot{padding:0 !important;overflow:hidden;border-radius:5px !important}
+#skill-bar .skill-glyph{position:static !important;inset:auto !important;width:32px;height:32px;transform:none !important}
+#skill-bar .skill-lock-icon{width:12px;height:12px;color:#e0d4bd}
+#skill-bar .skill-lock-icon svg{width:100%;height:100%}
+#skill-bar[hidden]{display:none !important}
+.hotbar-editor-slot:focus-visible,.skill-select-button:focus-visible,#skill-bar button:focus-visible{outline:2px solid #ffe6ad;outline-offset:2px}
+@media(max-width:768px){
+ .hotbar-editor{padding:10px;margin-bottom:12px}
+ .hotbar-editor-heading>span{font-size:9px}
+ .hotbar-editor-slots{gap:5px}
+ .hotbar-editor-slot{padding:13px 5px 5px}
+ .hotbar-editor-slot kbd{left:4px;top:3px;font-size:10px}
+ #hotbar-editor-hint{font-size:11px}
+ #skill-bar.lineage-hotbar:not([hidden]){display:flex !important;left:auto !important;right:8px !important;bottom:190px !important;width:164px !important;max-width:none !important;padding:6px !important}
+ #skill-bar .hotbar-slots-track{display:grid !important;grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:5px !important}
+ #skill-bar .skill-slot{width:44px !important;min-width:44px !important;max-width:44px !important;height:44px !important}
+ #skill-bar .skill-glyph{width:30px;height:30px}
+}
