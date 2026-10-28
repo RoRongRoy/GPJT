@@ -2,7 +2,7 @@
 import math
 import random
 
-from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at
+from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at, TOWNS, MERCHANTS
 
 from .equipment import RARITIES, roll_equipment, equipment_power
 
@@ -14,8 +14,44 @@ RECIPES = {
 FACILITIES = {'kitchen': '주방', 'alchemy': '연금대', 'medical': '의료실', 'storage': '저장고'}
 ITEMS = {'wood': '목재', 'water': '식수', 'crop': '작물', 'herb': '약초', 'blood': '원혈',
          'metal': '부품', 'scroll': '강화 주문서', 'skillbook': '고대 스킬북',
-         'soup': '채소 수프', 'elixir': '안정화 혈액', 'medicine': '치료제'}
+         'soup': '채소 수프', 'elixir': '안정화 혈액', 'medicine': '치료제', 'gold': '골드'}
 SKILLBOOK_DROP_CHANCE = 0.04
+
+SHOP_BUY_CATALOG = {
+    'human': [
+        {'item': 'soup', 'name': '채소 수프', 'price': 10, 'desc': '인간 소모품 · 포만도 +45 · 수분 +15'},
+        {'item': 'water', 'name': '정제된 식수', 'price': 4, 'desc': '인간 소모품 · 수분 +40'},
+        {'item': 'crop', 'name': '신선한 작물', 'price': 4, 'desc': '식재료 · 요리 및 파견'},
+        {'item': 'wood', 'name': '벌목 목재', 'price': 3, 'desc': '건축 자재 · 시설 건설 및 개선'},
+        {'item': 'metal', 'name': '정밀 부품', 'price': 4, 'desc': '기계 부품 · 시설 및 연구'},
+        {'item': 'medicine', 'name': '치료제', 'price': 15, 'desc': '공용 소모품 · 체력 +40 · 감염 −60'},
+        {'item': 'scroll', 'name': '강화 주문서', 'price': 25, 'desc': '강화 재료 · 무기 공격력 강화'},
+        {'item': 'skillbook', 'name': '고대 스킬북', 'price': 80, 'desc': '비전서 · 상위 직업 스킬 해금'},
+    ],
+    'vampire': [
+        {'item': 'elixir', 'name': '안정화 혈액', 'price': 10, 'desc': '혈족 소모품 · 혈액량 +40 · 안정도 +45'},
+        {'item': 'blood', 'name': '농축 원혈', 'price': 4, 'desc': '혈족 소모품 · 혈액량 +30'},
+        {'item': 'herb', 'name': '정화 약초', 'price': 4, 'desc': '연금 재료 · 치료제 및 안정화'},
+        {'item': 'wood', 'name': '벌목 목재', 'price': 3, 'desc': '건축 자재 · 시설 건설 및 개선'},
+        {'item': 'metal', 'name': '정밀 부품', 'price': 4, 'desc': '기계 부품 · 시설 및 연구'},
+        {'item': 'medicine', 'name': '치료제', 'price': 15, 'desc': '공용 소모품 · 체력 +40 · 감염 −60'},
+        {'item': 'scroll', 'name': '강화 주문서', 'price': 25, 'desc': '강화 재료 · 무기 공격력 강화'},
+        {'item': 'skillbook', 'name': '고대 스킬북', 'price': 80, 'desc': '비전서 · 상위 직업 스킬 해금'},
+    ],
+}
+
+SHOP_SELL_PRICES = {
+    'wood': 1, 'metal': 2, 'crop': 2, 'herb': 2, 'blood': 2, 'water': 2,
+    'scroll': 10, 'soup': 5, 'elixir': 5, 'medicine': 7, 'skillbook': 30,
+}
+
+
+def in_safe_town(p, species=None):
+    sp = species or p.get('species', 'human')
+    town = TOWNS.get(sp)
+    if not town:
+        return False
+    return math.hypot(p['x'] - town['x'], p['y'] - town['y']) <= town['radius']
 
 
 GENDERS = {
@@ -337,7 +373,7 @@ def bag_capacity(w):
 
 
 def bag_used(w):
-    return sum(w['inventory'].values()) + len(w.get('gear', [])) * 4
+    return sum(v for k, v in w['inventory'].items() if k != 'gold') + len(w.get('gear', [])) * 4
 
 
 def bag_full(w):
@@ -364,7 +400,7 @@ def damage_enemy(w, enemy, damage, rng=random.random):
         tier_bonus = max(0, (enemy.get('level', 1) - 1) // 3)
         scroll_drop = 3 + (2 if enemy.get('level', 1) >= 8 else 0)
         metal_drop = 2 + tier_bonus
-        drop_items = {'scroll': scroll_drop, 'metal': metal_drop}
+        drop_items = {'scroll': scroll_drop, 'metal': metal_drop, 'gold': 4 + enemy.get('level', 1) * 2}
         if tier_bonus >= 1:
             supply_key = 'herb' if tier_bonus == 1 else 'blood' if tier_bonus == 2 else 'elixir'
             drop_items[supply_key] = tier_bonus
@@ -407,7 +443,7 @@ def new_world():
                        'unlocks': {'human': 0, 'vampire': 0}},
             'base': {'x': START_BASE[0], 'y': START_BASE[1], 'facilities': dict.fromkeys(FACILITIES, 0)},
             'inventory': {'wood': 12, 'water': 12, 'crop': 8, 'herb': 8, 'blood': 8,
-                          'metal': 6, 'scroll': 15, 'skillbook': 0, 'soup': 2, 'elixir': 2, 'medicine': 1},
+                          'metal': 6, 'scroll': 15, 'skillbook': 0, 'soup': 2, 'elixir': 2, 'medicine': 1, 'gold': 50},
             'gear': [], 'equipment': {'weapon': None, 'armor': None}, 'next_gear_id': 1,
             'npcs': new_npcs(), 'encounter_version': 1,
             'milestones': [], 'cooldowns': {}, 'dispatch': None, 'quest': {'collected': 0, 'round': 0},
@@ -470,19 +506,25 @@ def act(w, command, rng=random.random):
             for k in ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch', 'log'):
                 w[k] = fresh[k]
             p = w['player']
-            p['x'] = float(w['base']['x'])
-            p['y'] = float(w['base']['y'] + 1)
         p['species'] = p['origin'] = command['species']
         p['gender'] = gender
         p['job'] = job
         p['chosen'] = True
+        if not w['base'].get('established') or w['base'].get('x') is None:
+            town_spawn = TOWNS[p['species']]['spawn']
+            p['x'] = float(town_spawn[0])
+            p['y'] = float(town_spawn[1])
+        elif p.get('chosen'):
+            p['x'] = float(w['base']['x'])
+            p['y'] = float(w['base']['y'] + 1)
         ensure_starter_gear(w)
         sync_starter_gear_names(w)
         cls = CLASSES[p['species']][job]
         g_name = GENDERS[gender]['name']
         sp_name = '인간' if p['species'] == 'human' else '뱀파이어'
         trait = 'MP 활성' if p['species'] == 'human' else '흡혈/체력재생 활성'
-        note(w, f"{sp_name} {g_name} · [{cls['style']}] {cls['name']}({cls['weapon_type']})로 시작합니다. ({cls['starter_weapon']} 착용 · {trait})")
+        town_name = TOWNS[p['species']]['name']
+        note(w, f"{sp_name} {g_name} · [{town_name}]에서 [{cls['style']}] {cls['name']}({cls['weapon_type']})로 시작합니다. ({cls['starter_weapon']} 착용 · {trait})")
         return
     require(p['chosen'], '먼저 시작 종족을 선택하세요.')
     if action == 'change_class':
@@ -718,7 +760,8 @@ def act(w, command, rng=random.random):
         else:
             cls = CLASSES.get(p['species'], CLASSES['human']).get(job, CLASSES['human']['warrior'])
             eff_range = cls['attack_range'] if action == 'attack' else spec['range']
-            enemies = [e for e in w['enemies'] if e['hp'] > 0 and dist(p, e) <= eff_range]
+            is_hostile = lambda e: e.get('faction', 'infected') != p.get('species', 'human')
+            enemies = [e for e in w['enemies'] if e['hp'] > 0 and is_hostile(e) and dist(p, e) <= eff_range]
             require(enemies or skill == 'attack', '가까운 공격 대상이 없습니다.')
             if action == 'skill':
                 cooldown(w, 'skill:' + skill, spec['cooldown'])
@@ -781,6 +824,43 @@ def act(w, command, rng=random.random):
         require(p['hp'] <= 30 or p['infection'] >= 60, '위급할 때 이용할 수 있습니다.')
         p.update(x=float(w['base']['x']), y=float(w['base']['y']+1), hp=70., infection=0., mounted=False)
         note(w, '중립 치료소 구조 · 자산 유지 (프로토타입 복구 지원)')
+    elif action == 'shop_buy':
+        near_merchant = any(math.hypot(p['x']-m['x'], p['y']-m['y']) <= 5.0 for m in MERCHANTS)
+        require(near_merchant or in_safe_town(p), '마을 상인 가까이에서 상점을 이용하세요.')
+        item = command.get('item')
+        count = max(1, int(command.get('count', 1)))
+        catalog = SHOP_BUY_CATALOG.get(p.get('species', 'human'), SHOP_BUY_CATALOG['human'])
+        entry = next((e for e in catalog if e['item'] == item), None)
+        require(entry, '상인에게서 구매할 수 없는 품목입니다.')
+        total = entry['price'] * count
+        require(w['inventory'].get('gold', 0) >= total, f'골드가 부족합니다. (필요: {total} G / 보유: {w["inventory"].get("gold", 0)} G)')
+        require(bag_used(w) + count <= bag_capacity(w), '가방 용량이 가득 찼습니다.')
+        w['inventory']['gold'] -= total
+        w['inventory'][item] = w['inventory'].get(item, 0) + count
+        note(w, f"💰 [{entry['name']}] {count}개를 {total} 골드에 구매했습니다. (잔여 골드: {w['inventory']['gold']} G)")
+    elif action == 'shop_sell':
+        near_merchant = any(math.hypot(p['x']-m['x'], p['y']-m['y']) <= 5.0 for m in MERCHANTS)
+        require(near_merchant or in_safe_town(p), '마을 상인 가까이에서 상점을 이용하세요.')
+        if command.get('gear_id'):
+            gear_id = command.get('gear_id')
+            g = next((x for x in w.get('gear', []) if x['id'] == gear_id), None)
+            require(g, '보유하지 않은 장비입니다.')
+            require(w.get('equipment', {}).get(g['slot']) != gear_id, '현재 착용 중인 장비는 판매할 수 없습니다. 착용을 해제하세요.')
+            gear_val = 15 + g.get('power', 1) * 5
+            w['gear'].remove(g)
+            w['inventory']['gold'] = w['inventory'].get('gold', 0) + gear_val
+            note(w, f"💰 [{g['name']}]을(를) 판매하여 {gear_val} 골드를 획득했습니다. (보유 골드: {w['inventory']['gold']} G)")
+        else:
+            item = command.get('item')
+            count = max(1, int(command.get('count', 1)))
+            require(item and item != 'gold', '판매할 수 없는 아이템입니다.')
+            require(w['inventory'].get(item, 0) >= count, '판매할 아이템 수량이 부족합니다.')
+            unit_price = SHOP_SELL_PRICES.get(item, 1)
+            total_gain = unit_price * count
+            w['inventory'][item] -= count
+            w['inventory']['gold'] = w['inventory'].get('gold', 0) + total_gain
+            item_name = ITEMS.get(item, item)
+            note(w, f"💰 [{item_name}] {count}개를 판매하여 {total_gain} 골드를 획득했습니다. (보유 골드: {w['inventory']['gold']} G)")
     else:
         raise RuleError('알 수 없는 명령입니다.')
 
@@ -796,8 +876,9 @@ def _tick_actor(w, prof, dt):
     if not p.get('chosen'):
         return
     keys = ('food', 'water') if p['species'] == 'human' else ('blood', 'stability')
-    for key in keys:
-        p[key] = max(0, p[key] - dt * .035)
+    if not in_safe_town(p):
+        for key in keys:
+            p[key] = max(0, p[key] - dt * .035)
     if p['species'] == 'human':
         p['mp'] = min(100.0, p.get('mp', 100.0) + dt * 1.8)
     elif p['hp'] > 0 and p.get('blood', 0) > 0:
@@ -836,11 +917,6 @@ def tick(w, dt, extra_profiles=None):
             if w['elapsed'] >= e['respawn']:
                 e.update(hp=e['max_hp'], x=home['x'], y=home['y'], returning=False)
             continue
-        target_prof = min(chosen_profiles, key=lambda prof: dist(e, prof['player']))
-        p = target_prof['player']
-        d = dist(e, p)
-        target_base = target_prof.get('base', w['base'])
-        protected = bool(target_base.get('established', True) and target_base.get('x') is not None) and dist(p, target_base) <= BASE_USE_RADIUS
         if dist(e, home) > 10:
             e['returning'] = True
         if e['returning']:
@@ -848,28 +924,111 @@ def tick(w, dt, extra_profiles=None):
             if dist(e, home) < .2:
                 e['returning'] = False
             continue
-        if protected or d >= 4.8:
+
+        e_fac = e.get('faction', 'infected')
+
+        # 1. Hostile players
+        hostile_profs = []
+        for prof in chosen_profiles:
+            p = prof['player']
+            p_spec = p.get('species', 'human')
+            if e_fac == p_spec:
+                continue
+            target_base = prof.get('base', w['base'])
+            protected = (bool(target_base.get('established', True) and target_base.get('x') is not None) and dist(p, target_base) <= BASE_USE_RADIUS) or in_safe_town(p)
+            d = dist(e, p)
+            if not protected and d <= 4.8:
+                hostile_profs.append((d, prof))
+
+        # 2. Hostile other living enemies
+        hostile_enemies = []
+        for oe in w['enemies']:
+            if oe['id'] == e['id'] or oe['hp'] <= 0 or oe.get('returning'):
+                continue
+            oe_fac = oe.get('faction', 'infected')
+            if e_fac == oe_fac:
+                continue
+            d = dist(e, oe)
+            if d <= 5.5:
+                hostile_enemies.append((d, oe))
+
+        best_target = None
+        target_type = None
+
+        if hostile_profs and hostile_enemies:
+            min_p_dist, min_p = min(hostile_profs, key=lambda x: x[0])
+            min_e_dist, min_e = min(hostile_enemies, key=lambda x: x[0])
+            if min_p_dist <= min_e_dist:
+                best_target = min_p
+                target_type = 'player'
+            else:
+                best_target = min_e
+                target_type = 'enemy'
+        elif hostile_profs:
+            best_target = min(hostile_profs, key=lambda x: x[0])[1]
+            target_type = 'player'
+        elif hostile_enemies:
+            best_target = min(hostile_enemies, key=lambda x: x[0])[1]
+            target_type = 'enemy'
+
+        if not best_target:
             if dist(e, home) > 3.5:
                 move_toward(e, home, dt*.65)
             else:
                 patrol(e, home, w['elapsed'], e['id'], 3, dt)
             continue
-        if d > 1:
-            move_toward(e, p, dt*.8)
-        if d <= 1.3 and w['elapsed'] >= e['attack']:
-            e['attack'] = w['elapsed'] + 2.5
-            armor = _profile_armor(target_prof)
-            p['hp'] = max(0, p['hp'] - max(1, e['damage'] - armor - (p.get('combat_level', 1) - 1) // 2))
-            p['infection'] = min(100, p['infection'] + 5)
-            note(target_prof, f"{e['name']} Lv.{e['level']}의 공격 · 치료제를 준비하세요.")
+
+        if target_type == 'player':
+            target_prof = best_target
+            p = target_prof['player']
+            d = dist(e, p)
+            if d > 1:
+                move_toward(e, p, dt*.8)
+            if d <= 1.3 and w['elapsed'] >= e['attack']:
+                e['attack'] = w['elapsed'] + 2.5
+                armor = _profile_armor(target_prof)
+                p['hp'] = max(0, p['hp'] - max(1, e['damage'] - armor - (p.get('combat_level', 1) - 1) // 2))
+                p['infection'] = min(100, p['infection'] + 5)
+                note(target_prof, f"{e['name']} Lv.{e['level']}의 공격 · 치료제를 준비하세요.")
+        elif target_type == 'enemy':
+            oe = best_target
+            d = dist(e, oe)
+            if d > 1:
+                move_toward(e, oe, dt*.8)
+            if d <= 1.4 and w['elapsed'] >= e['attack']:
+                e['attack'] = w['elapsed'] + 2.2
+                oe['hp'] = max(0, oe['hp'] - max(1, e['damage'] - oe.get('level', 1)))
+                if oe['hp'] <= 0:
+                    oe['respawn'] = w['elapsed'] + 15.0
+                    drop_items = {'gold': random.randint(4, 9) + oe.get('level', 1) * 2}
+                    if oe.get('faction') == 'vampire':
+                        drop_items['blood'] = random.randint(1, 2)
+                    elif oe.get('faction') == 'human':
+                        drop_items['metal'] = random.randint(1, 2)
+                    drop_id = f"drop:skirmish-{int(w['elapsed'])}-{oe['id']}"
+                    w.setdefault('drops', []).append({
+                        'id': drop_id,
+                        'x': round(oe['x'], 2),
+                        'y': round(oe['y'], 2),
+                        'items': drop_items,
+                        'gear': [],
+                        'label': f"{oe['name']} 전리품"
+                    })
+                    note(w, f"⚔ [{e['name']}]이(가) 적대 진영 [{oe['name']}]을(를) 격퇴했습니다!")
     for prof in chosen_profiles:
         p = prof['player']
         if p['hp'] <= 0 or p['infection'] >= 100:
             respawn_base = prof.get('base', w['base'])
-            rx = float(respawn_base['x']) if respawn_base.get('established', True) and respawn_base.get('x') is not None else float(START_BASE[0])
-            ry = float(respawn_base['y']+1) if respawn_base.get('established', True) and respawn_base.get('y') is not None else float(START_BASE[1]+1)
+            if respawn_base.get('established', True) and respawn_base.get('x') is not None:
+                rx = float(respawn_base['x'])
+                ry = float(respawn_base['y']+1)
+            else:
+                sp = p.get('species', 'human')
+                town_spawn = TOWNS.get(sp, TOWNS['human'])['spawn']
+                rx = float(town_spawn[0])
+                ry = float(town_spawn[1])
             p.update(x=rx, y=ry, hp=65., infection=0., mounted=False)
-            note(prof, '감염/전투 불능 · 치료소에서 복구 (감염체 시체는 후속 구현)')
+            note(prof, '감염/전투 불능 · 거점 및 진영 마을에서 복구되었습니다.')
 
 
 def move_toward(actor, target, step):

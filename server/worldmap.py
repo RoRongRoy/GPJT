@@ -37,8 +37,52 @@ ROADS = [
     [[32, 83], [49, 88], [65, 80], [83, 92], [106, 98], [119, 108]],
     [[89, 34], [82, 51], [93, 67], [83, 92]],
 ]
+TOWNS = {
+    'human': {
+        'id': 'lumina',
+        'name': '루미나 성채',
+        'subtitle': '인간 연합 요새 마을 · 안전지대',
+        'faction': 'human',
+        'x': 18.0,
+        'y': 18.0,
+        'radius': 8.5,
+        'color': '#38bdf8',
+        'spawn': (18.0, 19.0),
+        'merchant': {
+            'id': 'merchant_human',
+            'name': '루미나 보급 상인',
+            'label': '루미나 보급 상인',
+            'kind': 'merchant',
+            'faction': 'human',
+            'x': 14.0,
+            'y': 16.0,
+        }
+    },
+    'vampire': {
+        'id': 'sanguis',
+        'name': '생귀스 성채',
+        'subtitle': '진홍빛 혈족 안식처 마을 · 안전지대',
+        'faction': 'vampire',
+        'x': 88.0,
+        'y': 22.0,
+        'radius': 8.5,
+        'color': '#e11d48',
+        'spawn': (88.0, 23.0),
+        'merchant': {
+            'id': 'merchant_vampire',
+            'name': '암시장 밀거래 상인',
+            'label': '암시장 밀거래 상인',
+            'kind': 'merchant',
+            'faction': 'vampire',
+            'x': 84.0,
+            'y': 20.0,
+        }
+    }
+}
+MERCHANTS = [TOWNS['human']['merchant'], TOWNS['vampire']['merchant']]
 WORLD_MAP = {'size': SIZE, 'layout_version': LAYOUT_VERSION, 'regions': REGIONS, 'roads': ROADS,
-             'movement': MOVEMENT, 'base_radius': BASE_USE_RADIUS, 'base_clear_radius': BASE_CLEAR_RADIUS}
+             'movement': MOVEMENT, 'base_radius': BASE_USE_RADIUS, 'base_clear_radius': BASE_CLEAR_RADIUS,
+             'towns': TOWNS, 'merchants': MERCHANTS}
 
 
 def region_at(x, y):
@@ -84,8 +128,22 @@ _START_NODES = {'grove': (10, 26), 'well': (30, 12), 'garden': (17, 38),
 for node in POIS:
     if node['id'] in _START_NODES:
         node['x'], node['y'] = _START_NODES[node['id']]
-ENEMY_SPAWNS = [(42, 12), (56, 39), (25, 55), (59, 63), (87, 39), (112, 58),
+ENEMY_SPAWNS = [(42, 12), (54, 36), (25, 55), (59, 63), (72, 36), (112, 58),
                 (12, 85), (49, 105), (81, 73), (106, 94), (111, 115)]
+
+ENEMY_PROFILES = [
+    {'faction': 'infected', 'name': '배회하는 감염자'},      # 0: (42, 12)  - outskirts
+    {'faction': 'infected', 'name': '부패한 변이체'},        # 1: (54, 36)  - border
+    {'faction': 'infected', 'name': '어둠의 혈마법사 변이체'},# 2: (25, 55)  - outskirts/marsh
+    {'faction': 'infected', 'name': '심연의 배회자'},        # 3: (59, 63)  - central
+    {'faction': 'human',    'name': '인간 토벌대 성기사'},    # 4: (72, 36)  - border (Human faction combatant)
+    {'faction': 'vampire',  'name': '진홍빛 혈기사'},        # 5: (112, 58) - forest (Vampire faction combatant)
+    {'faction': 'infected', 'name': '맹독 늪지 변이체'},    # 6: (12, 85)  - marsh
+    {'faction': 'human',    'name': '빛의 결계 수호병'},      # 7: (49, 105) - marsh border (Human)
+    {'faction': 'vampire',  'name': '심연의 혈족 장로'},      # 8: (81, 73)  - works border (Vampire)
+    {'faction': 'human',    'name': '최후의 중장갑 토벌대원'}, # 9: (106, 94) - works (Human)
+    {'faction': 'vampire',  'name': '밤의 혈족 암살자'},      # 10: (111, 115) - deep works (Vampire)
+]
 
 
 def new_enemy(index):
@@ -95,9 +153,11 @@ def new_enemy(index):
     tier_mult = {'outskirts': 1, 'forest': 2, 'marsh': 4, 'works': 7}[region['id']]
     hp = 60 + (level-1)*18*tier_mult
     damage = 8 + (level-1)*(2 if region['id'] == 'outskirts' else 4)
-    names = {'outskirts': '배회하는 감염자', 'forest': '숲의 포식자', 'marsh': '맹독 늪지 변이체', 'works': '심연의 철갑 파괴자'}
+    prof = ENEMY_PROFILES[index % len(ENEMY_PROFILES)]
+    faction = prof['faction']
+    name = prof['name']
     return {'id': index, 'x': x, 'y': y, 'hp': hp, 'max_hp': hp, 'level': level,
-            'name': names[region['id']], 'region': region['id'], 'damage': damage,
+            'name': name, 'region': region['id'], 'damage': damage, 'faction': faction,
             'xp': 12+level*4*tier_mult, 'respawn': 0, 'attack': 0, 'returning': False}
 
 

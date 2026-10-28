@@ -193,6 +193,20 @@ class WorldView {
    for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++)tile(x,y,palettes[this.region(state,x,y).id]);
   }
   for(const pond of this.ponds){if(!visible(pond.x,pond.y)||!outsideCamp(pond))continue;const [sx,sy]=project(pond.x,pond.y);ellipse(sx,sy,22,9,'#253842');ellipse(sx+3*scale,sy,14,4,'#93a8b02c');}
+  const towns=state.map?.towns?Object.values(state.map.towns):[];
+  for(const town of towns){
+   if(!visible(town.x,town.y))continue;
+   const [tx,ty]=project(town.x,town.y);
+   c.save();
+   c.strokeStyle=town.faction==='vampire'?'#e11d4866':'#38bdf866';
+   c.lineWidth=2.2*scale;
+   c.beginPath();
+   c.ellipse(tx,ty,town.radius*tw*.95,town.radius*th*.95,0,0,Math.PI*2);
+   c.stroke();
+   c.fillStyle=town.faction==='vampire'?'#e11d4814':'#38bdf814';
+   c.fill();
+   c.restore();
+  }
   if(hasBase&&!art.campGround(w.base.x,w.base.y,this.projection,state.map.base_radius))for(let x=-2;x<=2;x++)for(let y=-2;y<=2;y++)tile(w.base.x+x,w.base.y+y,'#5c5757');
   if(target){
    const [tx,ty]=project(target.x,target.y),[px,py]=project(this.player.x,this.player.y);
@@ -204,8 +218,9 @@ class WorldView {
   const smooth=(e,key)=>{let v=this.entityPositions.get(key);if(!v||Math.hypot(v.x-e.x,v.y-e.y)>5||w.paused)v={x:e.x,y:e.y};
    const follow=1-Math.exp(-12*dt);v.x+=(e.x-v.x)*follow;v.y+=(e.y-v.y)*follow;this.entityPositions.set(key,v);return {...e,...v};};
   const otherBases=(state.other_bases||[]).map(b=>({...b,type:'other_base'}));
+  const merchants=(state.map.merchants||[]).map(m=>({...m,type:'merchant',kind:'merchant'}));
   const baseEntity=hasBase?[{...w.base,type:'base'}]:[];
-  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...(w.drops||[]).map(d=>({...d,type:'drop'})),...baseEntity,...facilities,...otherBases,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
+  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...merchants,...(w.drops||[]).map(d=>({...d,type:'drop'})),...baseEntity,...facilities,...otherBases,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
   this.points=[];const labels=[];let playerCovered=false;
   const tree=(x,y,seed=0)=>{const [sx,sy]=project(x,y);art.tree(sx,sy,scale,seed);};
   for(const e of entities){
@@ -274,15 +289,29 @@ class WorldView {
     const halfWidth=Math.max((e.kind==='wood'?66:e.kind==='metal'?72:45)*scale,e.label.length*5.5);
     this.points.push({x:sx,y:sy-22*scale,id:e.id,left:sx-halfWidth,right:sx+halfWidth,top:sy-(e.kind==='wood'?210:e.kind==='blood'?137:110)*scale,bottom:sy+12*scale});
    }
+   if(e.type==='merchant'){
+    const isVamp=e.faction==='vampire';
+    const [hx,hy]=project(e.x,e.y);art.prop('storage',hx+22*scale,hy+6*scale,scale*.65);
+    art.character(sx,sy,scale,isVamp?'vampire':'human',false,now,{npc:true});
+    c.strokeStyle='#fbbf24aa';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy+2*scale,16*scale,8*scale,0,0,Math.PI*2);c.stroke();
+    labels.push([`💰 [상인] ${e.name} [E: 상점]`,sx,sy-112*scale,'#fde047']);
+    this.points.push({x:sx,y:sy-25*scale,id:'merchant:'+e.id,left:sx-48*scale,right:sx+48*scale,top:sy-98*scale,bottom:sy+12*scale,merchant:true});
+   }
    if(e.type==='enemy'){
     const pose=art.pose('enemy:'+e.id,e.x,e.y,now,w.paused),high=(e.level||1)>=8,boss=(e.level||1)>=12;
     const eBob=pose.moving?-Math.abs(Math.sin(pose.phase))*1.8*scale:0;
+    const eFac=e.faction||'infected';
+    const isFriendly=(eFac===p.species);
+    const specForArt=(eFac==='vampire'?'vampire':'human');
     if(high){c.strokeStyle=boss?'#ff525288':'#d68c7766';c.lineWidth=boss?2:1.3;c.beginPath();c.ellipse(sx,sy+2*scale,(boss?24:19)*scale,(boss?11:9)*scale,0,0,Math.PI*2);c.stroke();}
-    art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),'human',pose.moving,now,{enemy:true,variant:high,pose});
-    c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);c.fillStyle=boss?'#ff5c5c':high?'#d9734e':'#ad5866';c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
-    const tierTag=boss?'[최상위] ':high?'[고렙] ':(e.level||1)>=4?'[중렙] ':'[저렙] ';
-    labels.push([`${tierTag}${e.name||'감염체'} Lv.${e.level||1}`,sx,sy-111*scale,boss?'#ff7b7b':(e.level||1)>(p.combat_level||1)+2?'#ff9c88':'#e4c9c1']);
-    this.points.push({x:sx,y:sy-23*scale,id:'enemy:'+e.id,left:sx-29*scale,right:sx+29*scale,top:sy-95*scale,bottom:sy+10*scale});
+    art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),specForArt,pose.moving,now,{enemy:!isFriendly,variant:high,pose,gender:'male',job:'warrior'});
+    c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);
+    c.fillStyle=isFriendly?'#38bdf8':boss?'#ff5c5c':high?'#d9734e':'#ad5866';
+    c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
+    const facTag=isFriendly?'[아군] ':eFac==='human'?'[인간·적대] ':eFac==='vampire'?'[혈족·적대] ':'[감염] ';
+    const nameColor=isFriendly?'#9ee4ff':boss?'#ff7b7b':eFac==='vampire'?'#f472b6':'#e4c9c1';
+    labels.push([`${facTag}${e.name||'몬스터'} Lv.${e.level||1}`,sx,sy-111*scale,nameColor]);
+    this.points.push({x:sx,y:sy-23*scale,id:'enemy:'+e.id,left:sx-29*scale,right:sx+29*scale,top:sy-95*scale,bottom:sy+10*scale,isFriendly});
    }
    if(e.type==='peer'){
     const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=pose.moving&&!e.mounted?-Math.abs(Math.sin(pose.phase))*1.6*scale:0;
@@ -326,8 +355,14 @@ class WorldView {
   c.strokeStyle='#c7baa466';c.lineWidth=1.3;
   for(const road of state.map.roads){c.beginPath();road.forEach(([x,y],i)=>i?c.lineTo(x*k,y*k):c.moveTo(x*k,y*k));c.stroke();}
   for(const node of state.pois){c.fillStyle=node.kind==='npc'?'#e6be89':'#d9e3bc';c.fillRect(node.x*k-1,node.y*k-1,2,2);}
+  const towns=state.map?.towns?Object.values(state.map.towns):[];
+  for(const town of towns){
+   c.strokeStyle=town.faction==='vampire'?'#e11d4888':'#38bdf888';c.lineWidth=1.2;c.beginPath();c.arc(town.x*k,town.y*k,town.radius*k,0,Math.PI*2);c.stroke();
+   c.fillStyle=town.faction==='vampire'?'#e11d48':'#38bdf8';c.fillRect(town.x*k-2.5,town.y*k-2.5,5,5);
+  }
+  for(const m of (state.map?.merchants||[])){c.fillStyle='#fbbf24';c.fillRect(m.x*k-1.5,m.y*k-1.5,3,3);}
   const w=state.world,hasBase=Boolean(w.base&&w.base.established!==false&&w.base.x!=null);
-  for(const enemy of w.enemies){if(enemy.hp>0){c.fillStyle='#eb8d78';c.fillRect(enemy.x*k-1,enemy.y*k-1,2,2);}}
+  for(const enemy of w.enemies){if(enemy.hp>0){c.fillStyle=(enemy.faction===w.player.species)?'#38bdf8':'#eb8d78';c.fillRect(enemy.x*k-1,enemy.y*k-1,2,2);}}
   for(const drop of (w.drops||[])){c.fillStyle='#ffd966';c.fillRect(drop.x*k-1.5,drop.y*k-1.5,3,3);}
   for(const peer of (state.others||[])){if(peer.chosen){c.fillStyle='#5bc0eb';c.beginPath();c.arc(peer.x*k,peer.y*k,2.5,0,Math.PI*2);c.fill();}}
   for(const ob of (state.other_bases||[])){

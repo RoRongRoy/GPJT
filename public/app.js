@@ -30,11 +30,12 @@ const panelInfo={
  dispatch:['파견','동료와 종복에게 보급 임무를 맡기세요.','COMPANIONS'],
  account:['계정 저장 · 불러오기','신규 모험자의 진행 상황을 계정/비밀번호로 서버에 저장하거나 불러오세요.','ACCOUNT & SAVE'],
  'controls-view':['조작키 안내','BLOODFALL 단축키 및 탐험·전투 기능입니다.','CONTROLS'],
+ shop:['진영 상점','마을 상인에게 물자를 구매하거나 전리품을 판매하세요.','TRADER & MERCHANT'],
 };
-const panelParents={guide:'journal',quests:'journal',log:'journal',travel:'journal',craft:'camp',build:'camp',research:'camp',dispatch:'camp','controls-view':'account'};
+const panelParents={guide:'journal',quests:'journal',log:'journal',travel:'journal',craft:'camp',build:'camp',research:'camp',dispatch:'camp','controls-view':'account',shop:'bag'};
 const categoryMap={
  equip:'character',skills:'character',survival:'character',
- bag:'bag',
+ bag:'bag',shop:'bag',
  journal:'journal',guide:'journal',quests:'journal',log:'journal',travel:'journal',
  camp:'camp',craft:'camp',build:'camp',research:'camp',dispatch:'camp',
  account:'system','controls-view':'system'
@@ -44,6 +45,10 @@ const categorySubnav={
   {panel:'equip',label:'⚔ 장착 장비',key:'C'},
   {panel:'skills',label:'✦ 종족 스킬',key:'K'},
   {panel:'survival',label:'♡ 생존 상태',key:'H',id:'menu-survival'}
+ ],
+ bag:[
+  {panel:'bag',label:'📦 인벤토리',key:'I'},
+  {panel:'shop',label:'🛒 진영 상점',id:'subnav-shop'}
  ],
  journal:[
   {panel:'guide',label:'✦ 첫 생존'},
@@ -79,7 +84,7 @@ function updateSubnav(name){
  }
 }
 const recipeDetails={soup:['♨','포만도 +45 · 수분 +15'],elixir:['⚗','혈액량 +40 · 안정도 +45'],medicine:['+','체력 +40 · 감염 −60']};
-const inventoryGroups={all:['wood','water','crop','herb','blood','metal','scroll','skillbook','soup','elixir','medicine'],materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll','skillbook'],equipment:[]};
+const inventoryGroups={all:['gold','wood','water','crop','herb','blood','metal','scroll','skillbook','soup','elixir','medicine'],materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll','skillbook','gold'],equipment:[]};
 const facilityNames = {kitchen:'주방',alchemy:'연금대',medical:'의료실',storage:'저장고'};
 const poiContents={
  wood:[['wood',3,'주요 벌목 자재'],['scroll',1,'숨겨진 고대 주문서'],['herb',1,'야생 약초']],
@@ -439,6 +444,7 @@ function handleCanvasPoint(e,allowNode=true){
  const node=allowNode?view.points.map(n=>({...n,d:Math.hypot(n.x-cx,n.y-cy)})).filter(n=>cx>=n.left&&cx<=n.right&&cy>=n.top&&cy<=n.bottom).sort((a,b)=>a.d-b.d)[0]:null;
  if(node){
   if(node.id==='base'){inspectOnArrive=false;if(canUseCamp()){openPanel('camp');return;}if(state.world.base?.x!=null)navigate(state.world.base.x,state.world.base.y);}
+  else if(node.id.startsWith('merchant:')){const mid=node.id.replace('merchant:','');const m=(state.map?.merchants||[]).find(x=>x.id===mid);if(m){if(Math.hypot(m.x-p.x,m.y-p.y)<=3.5){clearMovement();openPanel('shop');return;}inspectOnArrive=true;navigate(m.x,m.y,node.id);}}
   else if(node.id.startsWith('enemy:')){inspectOnArrive=false;const enemy=state.world.enemies.find(n=>n.id===Number(node.id.split(':')[1]));if(enemy)navigate(enemy.x,enemy.y,node.id);}
   else if(node.id.startsWith('drop:')){const drop=(state.world.drops||[]).find(d=>d.id===node.id);if(drop){if(Math.hypot(drop.x-p.x,drop.y-p.y)<=3.5){clearMovement();selected=drop.id;openLootBox({type:'drop',id:drop.id});return;}inspectOnArrive=true;navigate(drop.x,drop.y,drop.id);}}
   else{const poi=state.pois.find(n=>n.id===node.id);if(poi){if(poi.kind!=='npc'&&Math.hypot(poi.x-p.x,poi.y-p.y)<=3.5){clearMovement();selected=poi.id;openLootBox({type:'poi',id:poi.id});return;}inspectOnArrive=poi.kind!=='npc';navigate(poi.x,poi.y,poi.id);}}
@@ -606,10 +612,11 @@ function openPanel(name,opener=null){
  updateSubnav(name);
  $('menu-context').textContent=campPanels.has(name)?'⌂ 아지트 안 · 벗어나면 이 메뉴는 닫힙니다.':'Esc로 닫기 · 메뉴를 연 동안에도 월드 시간은 흐릅니다.';
  if(!$('menu-dialog').open)$('menu-dialog').show();
- renderInventory();renderRecipe();if(name==='skills'){renderSkillsMenu();renderHotbarEditor();}$('menu-title').focus({preventScroll:true});return true;
+ renderInventory();renderRecipe();if(name==='skills'){renderSkillsMenu();renderHotbarEditor();}if(name==='shop'){renderShop();}$('menu-title').focus({preventScroll:true});return true;
 }
 function updateContext(){
  const {player:p,base:b}=state.world,hasBase=Boolean(b&&b.established!==false&&b.x!=null),atCamp=canUseCamp();
+ if(activePanel==='shop')renderShop();
  const campDockItem=$('menu-camp')?.closest?.('.dock-item');
  if(!hasBase){
   $('camp-access').hidden=!p.chosen;
@@ -667,6 +674,7 @@ function updateContext(){
 }
 const itemSlots=new Map();let selectedItem=null,inventoryLayout='';
 const itemInfo={
+ gold:['화폐','진영 마을 상인과의 거래에 사용하는 골드.','마을 상점에서 물품 구매 및 판매에 사용'],
  wood:['제작 재료','시설을 건설하고 개선하는 데 쓰는 목재.','아지트 → 시설에서 사용'],
  metal:['제작 재료','시설과 이동 연구에 필요한 금속 부품.','아지트 → 시설·연구에서 사용'],
  crop:['식재료','따뜻한 수프를 만드는 기본 식재료.','아지트 → 제작 → 요리'],
@@ -793,6 +801,98 @@ function renderInventory(){
  const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent=g?(equipped?'착용 해제':'착용'):selectedItem==='skillbook'?'스킬 메뉴 열기 (K)':'1개 사용';$('item-use-reason').textContent=reason||(g?'같은 부위의 장비는 교체되며 가방에 보존됩니다.':selectedItem==='skillbook'?'스킬 메뉴에서 스킬북을 사용해 직업 스킬을 해금합니다.':'선택한 아이템 1개를 사용합니다.');
 }
 $('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){if(selectedItem==='skillbook'){openPanel('skills');return;}const g=gearItem(selectedItem);if(g)manualAction(state.world.equipment[g.slot]===g.id?'unequip':'equip',{item:g.id,slot:g.slot});else manualAction('consume',{item:selectedItem});}};
+let shopMode='buy';
+const shopCatalog={
+ human:[
+  {item:'soup',name:'채소 수프',price:10,desc:'인간 소모품 · 포만도 +45 · 수분 +15'},
+  {item:'water',name:'정제된 식수',price:4,desc:'인간 소모품 · 수분 +40'},
+  {item:'crop',name:'신선한 작물',price:4,desc:'식재료 · 요리 및 파견'},
+  {item:'wood',name:'벌목 목재',price:3,desc:'건축 자재 · 시설 건설 및 개선'},
+  {item:'metal',name:'정밀 부품',price:4,desc:'기계 부품 · 시설 및 연구'},
+  {item:'medicine',name:'치료제',price:15,desc:'공용 소모품 · 체력 +40 · 감염 −60'},
+  {item:'scroll',name:'강화 주문서',price:25,desc:'강화 재료 · 무기 공격력 강화'},
+  {item:'skillbook',name:'고대 스킬북',price:80,desc:'비전서 · 상위 직업 스킬 해금'}
+ ],
+ vampire:[
+  {item:'elixir',name:'안정화 혈액',price:10,desc:'혈족 소모품 · 혈액량 +40 · 안정도 +45'},
+  {item:'blood',name:'농축 원혈',price:4,desc:'혈족 소모품 · 혈액량 +30'},
+  {item:'herb',name:'정화 약초',price:4,desc:'연금 재료 · 치료제 및 안정화'},
+  {item:'wood',name:'벌목 목재',price:3,desc:'건축 자재 · 시설 건설 및 개선'},
+  {item:'metal',name:'정밀 부품',price:4,desc:'기계 부품 · 시설 및 연구'},
+  {item:'medicine',name:'치료제',price:15,desc:'공용 소모품 · 체력 +40 · 감염 −60'},
+  {item:'scroll',name:'강화 주문서',price:25,desc:'강화 재료 · 무기 공격력 강화'},
+  {item:'skillbook',name:'고대 스킬북',price:80,desc:'비전서 · 상위 직업 스킬 해금'}
+ ]
+};
+const shopSellPrices={wood:1,metal:2,crop:2,herb:2,blood:2,water:2,scroll:10,soup:5,elixir:5,medicine:7,skillbook:30};
+function renderShop(){
+ if(!state)return;
+ const w=state.world,p=w.player,gold=w.inventory.gold||0;
+ const goldEl=$('shop-gold-amount');if(goldEl)goldEl.textContent=`${gold} G`;
+ const buyTab=$('shop-tab-buy'),sellTab=$('shop-tab-sell'),buyView=$('shop-buy-view'),sellView=$('shop-sell-view');
+ if(buyTab&&sellTab){
+  buyTab.classList.toggle('active',shopMode==='buy');buyTab.setAttribute('aria-selected',String(shopMode==='buy'));
+  sellTab.classList.toggle('active',shopMode==='sell');sellTab.setAttribute('aria-selected',String(shopMode==='sell'));
+ }
+ if(buyView)buyView.hidden=shopMode!=='buy';
+ if(sellView)sellView.hidden=shopMode!=='sell';
+ const buyList=$('shop-buy-list');
+ if(buyList&&shopMode==='buy'){
+  const catalog=shopCatalog[p.species]||shopCatalog.human;
+  buyList.replaceChildren(...catalog.map(entry=>{
+   const card=document.createElement('div');card.className='shop-item-card';
+   const left=document.createElement('div');left.className='shop-item-left';
+   const img=document.createElement('img');img.src=`/icons/${itemIcon(entry.item)}.svg`;img.alt='';img.width=40;img.height=40;
+   const txt=document.createElement('div');txt.className='shop-item-text';
+   const title=document.createElement('strong');title.textContent=entry.name;
+   const desc=document.createElement('small');desc.textContent=`${entry.desc} · 보유: ${w.inventory[entry.item]||0}개`;
+   txt.append(title,desc);left.append(img,txt);
+   const act=document.createElement('div');act.className='shop-item-action';
+   const price=document.createElement('span');price.className='shop-price-tag';price.textContent=`💰 ${entry.price} G`;
+   const btn=document.createElement('button');btn.type='button';btn.className='shop-buy-btn';
+   btn.textContent='구매';btn.disabled=!connected||w.paused||gold<entry.price||isBagFull(w);
+   btn.onclick=()=>manualAction('shop_buy',{item:entry.item,count:1});
+   act.append(price,btn);card.append(left,act);return card;
+  }));
+ }
+ const sellList=$('shop-sell-list');
+ if(sellList&&shopMode==='sell'){
+  const sellItems=[];
+  for(const [k,v] of Object.entries(w.inventory)){
+   if(k!=='gold'&&v>0&&shopSellPrices[k]){sellItems.push({type:'item',id:k,name:itemName(k),count:v,price:shopSellPrices[k]});}
+  }
+  const gear=w.gear||[];
+  for(const g of gear){
+   if(w.equipment?.[g.slot]!==g.id){
+    const gearVal=15+(g.power||1)*5;
+    sellItems.push({type:'gear',id:g.id,name:itemName(g.id),count:1,price:gearVal,gear:g});
+   }
+  }
+  if(!sellItems.length){
+   const empty=document.createElement('p');empty.className='panel-note';empty.textContent='판매 가능한 물품이나 미착용 장비가 가방에 없습니다.';
+   sellList.replaceChildren(empty);
+  }else{
+   sellList.replaceChildren(...sellItems.map(item=>{
+    const card=document.createElement('div');card.className='shop-item-card';
+    const left=document.createElement('div');left.className='shop-item-left';
+    const img=document.createElement('img');img.src=`/icons/${item.type==='gear'?item.gear.slot:itemIcon(item.id)}.svg`;img.alt='';img.width=40;img.height=40;
+    const txt=document.createElement('div');txt.className='shop-item-text';
+    const title=document.createElement('strong');title.textContent=item.name;
+    if(item.gear){const r=gearRarity(item.gear);if(r)title.style.color=r.color;}
+    const desc=document.createElement('small');desc.textContent=item.type==='gear'?`장비 (공/방 +${item.gear.power}) · 미착용`:`보유 수량: ${item.count}개`;
+    txt.append(title,desc);left.append(img,txt);
+    const act=document.createElement('div');act.className='shop-item-action';
+    const price=document.createElement('span');price.className='shop-price-tag';price.textContent=`+${item.price} G`;
+    const btn=document.createElement('button');btn.type='button';btn.className='shop-sell-btn';
+    btn.textContent='판매';btn.disabled=!connected||w.paused;
+    btn.onclick=()=>{if(item.type==='gear')manualAction('shop_sell',{gear_id:item.id});else manualAction('shop_sell',{item:item.id,count:1});};
+    act.append(price,btn);card.append(left,act);return card;
+   }));
+  }
+ }
+}
+if($('shop-tab-buy'))$('shop-tab-buy').onclick=()=>{shopMode='buy';renderShop();};
+if($('shop-tab-sell'))$('shop-tab-sell').onclick=()=>{shopMode='sell';renderShop();};
 const SKILL_IDS=['sweep','recover','strike','ranged','purify','ultimate'];
 const HOTBAR_KEYS=['1','2','3','4','5','6'];
 const DEFAULT_HOTBAR=Object.fromEntries(HOTBAR_KEYS.map(key=>[key,null]));
@@ -937,7 +1037,7 @@ function skillStatus(id){
  const isHeal=Boolean(spec.heal);
  const effRange=isHeal?0:spec.range;
  const remaining=Math.max(0,(w.cooldowns['skill:'+id]||0)-w.elapsed,!isHeal?(w.cooldowns.attack||0)-w.elapsed:0);
- const reason=!connected?'연결 중':w.paused?'일시정지':!levelMet?`Lv.${unlockLevel} 필요`:!learned?`스킬북 ${bookCost}권 필요`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='purify'&&p.hp>=100&&(p.infection||0)<=0?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
+ const reason=!connected?'연결 중':w.paused?'일시정지':!levelMet?`Lv.${unlockLevel} 필요`:!learned?`스킬북 ${bookCost}권 필요`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='purify'&&p.hp>=100&&(p.infection||0)<=0?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&(e.faction||'infected')!==p.species&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
  return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,levelMet,learned,bookCost,booksHave,canLearn,isHeal,effRange};
 }
 function renderSkillsMenu(){
@@ -1247,6 +1347,11 @@ $('loot-all').onclick=()=>{
 function interact(){
  if(autoHunt)setAutoHunt(false,true);
  clearMovement();if(!state)return;const w=state.world,p=w.player;
+ const nearMerchant=[...(state.map?.merchants||[])].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
+ if(nearMerchant&&Math.hypot(nearMerchant.x-p.x,nearMerchant.y-p.y)<=3.5){
+  openPanel('shop');
+  return;
+ }
  const nearDrop=[...(w.drops||[])].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
  if(nearDrop&&Math.hypot(nearDrop.x-p.x,nearDrop.y-p.y)<=3.5){
   if(activeLoot?.type==='drop'&&activeLoot.id===nearDrop.id)command('loot',{id:nearDrop.id,item:'all'});
@@ -1361,7 +1466,7 @@ function stepMovement(){
    if(Math.hypot(nearDrop.x-p.x,nearDrop.y-p.y)<=2.2){command('loot',{id:nearDrop.id,item:'all'});return;}
    if(Math.hypot(nearDrop.x-p.x,nearDrop.y-p.y)<=18){target={x:nearDrop.x,y:nearDrop.y,id:nearDrop.id};selected=target.id;}
   }
-  const alive=w.enemies.filter(e=>e.hp>0);
+  const alive=w.enemies.filter(e=>e.hp>0&&(e.faction||'infected')!==p.species);
   if((!target||!target.id?.startsWith('drop:')||isBagFull(w))&&alive.length){
    const current=target?.id?.startsWith('enemy:')?alive.find(e=>'enemy:'+e.id===target.id):null;
    const nearest=alive.reduce((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)<=Math.hypot(b.x-p.x,b.y-p.y)?a:b);
@@ -1392,6 +1497,8 @@ function stepMovement(){
    }else if(id?.startsWith('drop:')){
     if(autoHunt&&!isBagFull(state.world))command('loot',{id,item:'all'});
     else openLootBox({type:'drop',id});
+   }else if(id?.startsWith('merchant:')){
+    openPanel('shop');
    }else if(id){
     const poi=state.pois.find(n=>n.id===id);
     if(poi){
@@ -1430,7 +1537,13 @@ function updateGuide(){
   $('loot-btn').disabled=w.paused||isBagFull(w);
   $('loot-btn-label').textContent=isBagFull(w)?'📦 가득':dropCount?`📦 ${dropCount}개`:'📦 루팅';
   const interactLbl=$('interact-label');
-  if(nearDrop&&Math.hypot(nearDrop.x-p.x,nearDrop.y-p.y)<=3.5){
+  const nearMerchant=[...(state.map?.merchants||[])].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
+  if(nearMerchant&&Math.hypot(nearMerchant.x-p.x,nearMerchant.y-p.y)<=3.5){
+   $('nearby-label').textContent=nearMerchant.name||'진영 상인';
+   $('interact').disabled=w.paused;
+   const shopTxt='🛒 상점';
+   if(interactLbl)interactLbl.textContent=shopTxt;else $('interact').textContent=shopTxt;
+  }else if(nearDrop&&Math.hypot(nearDrop.x-p.x,nearDrop.y-p.y)<=3.5){
    $('nearby-label').textContent=nearDrop.label||'몬스터 전리품';
    $('interact').disabled=w.paused||isBagFull(w);
    const nearTxt=isBagFull(w)?'🔍 가득':'🔍 확인';
@@ -1444,7 +1557,7 @@ function updateGuide(){
    const poiTxt=cooldown?`🔍 ${cooldown}s`:close?(nearest.kind==='npc'?'💬 보고':'🔍 파밍'):'🔍 파밍';
    if(interactLbl)interactLbl.textContent=poiTxt;else $('interact').textContent=poiTxt;
   }
- $('location-hint').textContent=autoHunt?'● 자동사냥 중'+(isBagFull(w)?' (가방 가득 참·루팅 제외)':' (자동 루팅 ON)')+' · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):canUseCamp()?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
+ $('location-hint').textContent=autoHunt?'● 자동사냥 중'+(isBagFull(w)?' (가방 가득 참·루팅 제외)':' (자동 루팅 ON)')+' · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):canUseCamp()?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&(e.faction||'infected')!==p.species&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
 }
 let pollFailures=0;
 async function poll(){
