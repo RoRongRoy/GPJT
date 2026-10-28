@@ -103,20 +103,14 @@ class WorldView {
       c.fillStyle='rgba(190,178,160,'+(0.3*(1-k)).toFixed(3)+')';c.beginPath();c.ellipse(tx+q.dx*scale*(1+k*2),ty-8*k*scale,(3+k*5)*scale,(1.6+k*2.5)*scale,0,0,Math.PI*2);c.fill();
      }
     }
-    // Lineage M stride cadence: rhythmic vertical bob, lateral hip sway, and squash/stretch elasticity
-    const cadence=(actor?.dist||0)*5.5+(activeMove?now*0.007:0);
-    const sinStep=Math.sin(cadence),cosStep=Math.cos(cadence);
-    let walkY=0,walkTilt=0,sxScale=1,syScale=1,walkX=0;
-    if(actor)actor.lean=(actor.lean||0)+(((activeMove&&!p.mounted&&!this.combat)?dirSign*(0.04+0.11*lc.run):0)-(actor.lean||0))*.2;
+    // Crisp 2D walk cadence: subtle vertical step bounce synced with stride, zero canvas tilt/stretch to keep authentic 2D sprite art sharp
+    let walkY=0;
     if(activeMove&&!p.mounted&&!this.combat){
-     const strideAmp=Math.abs(sinStep);
-     walkY=-strideAmp*(3.2+4.5*lc.run);
-     const stretch=1+(strideAmp-.5)*(0.04+0.07*lc.run);
-     syScale=stretch;sxScale=1/stretch;
-     walkTilt=actor.lean+sinStep*(0.025+0.04*lc.run);
-     walkX=cosStep*(1.4+2.2*lc.run);
+     const stepPeriod=sprinting?180:290;
+     const stepPhase=(now%stepPeriod)/stepPeriod;
+     walkY=-Math.sin(stepPhase*Math.PI)*(sprinting?2.2:1.4)*scale;
     }
-    const body=this.combat?.body(now)||{x:walkX,y:walkY,tilt:walkTilt};
+    const body=this.combat?.body(now)||{x:0,y:walkY,tilt:0};
    if(activeMove){
     c.save();
     // Footstep dust puffs & sprint shockwave / speed lines
@@ -136,7 +130,7 @@ class WorldView {
      }
      c.restore();
    }
-   c.save();c.translate(sx+body.x*scale,sy+body.y*scale);c.rotate(body.tilt);c.scale(sxScale,syScale);
+   c.save();c.translate(sx+(body.x||0)*scale,sy+(body.y||0));if(body.tilt)c.rotate(body.tilt);
    art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose,gender:p.gender||'male',job:p.job||'warrior'});
    c.restore();
   };
