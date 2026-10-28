@@ -74,11 +74,6 @@
     ws.onclose=()=>{
      const wasConnected=this.connected;
      this.connected=false;this.ws=null;
-     clearInterval(this.pingTimer);this.pingTimer=null;
-     for(const [ackId,cb] of this.acks.entries()){
-      this.acks.delete(ackId);
-      try{cb({ok:false,error:'연결이 재설정되었습니다.',status:503});}catch{}
-     }
      if(wasConnected)this._fire('disconnect','transport close');
      if(!this.closed&&this.reconnection){
       setTimeout(()=>{if(!this.closed&&!this.connected)this.connect();},this.reconnectionDelay);
@@ -141,15 +136,9 @@
     try{
      const info=JSON.parse(rest);
      this.sid=info.sid;
-     clearInterval(this.pingTimer);
-     this.pingTimer=setInterval(()=>{
-      if(this.connected)this._sendEIO('3');
-     },Math.max(5000,Math.floor((info.pingInterval||15000)*0.75)));
     }catch{}
    }else if(type==='2'){
     reply('3'+rest);
-   }else if(type==='3'){
-    // pong / heartbeat ack
    }else if(type==='4'){
     this._onSIOPacket(rest);
    }else if(type==='1'){
@@ -187,18 +176,12 @@
    }
   }
   emit(event,payload,ack){
-   let ackPrefix='',ackId=0;
+   let ackPrefix='';
    if(typeof payload==='function'){ack=payload;payload={};}
    if(typeof ack==='function'){
-    ackId=this.ackSeq++;
-    const timer=setTimeout(()=>{
-     if(this.acks.has(ackId)){
-      this.acks.delete(ackId);
-      try{ack({ok:false,error:'네트워크 응답 지연',status:408});}catch{}
-     }
-    },3200);
-    this.acks.set(ackId,(...args)=>{clearTimeout(timer);ack(...args);});
-    ackPrefix=String(ackId);
+    const id=this.ackSeq++;
+    this.acks.set(id,ack);
+    ackPrefix=String(id);
    }
    const body=JSON.stringify([event,payload]);
    this._sendEIO(`42${ackPrefix}${body}`);

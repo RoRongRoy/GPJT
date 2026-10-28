@@ -34,8 +34,7 @@ class FieldArt extends GothicArt {
  sprite(key,x,y,height,frame=0,flip=false,bottom=0){
   if(!this.ready(key))return false;
   const c=this.c,img=this.images[key],rect=FIELD_SPRITES[key].frames[frame], [sx,sy,sw,sh]=rect;
-  const sheet=FIELD_SPRITES[key],fixed=sheet.ref&&rect.length>4,k=fixed?height/sheet.ref:0; // Character sheets: one scale for every frame and a torso anchor, so frames never pop in size or sway.
-   const width=fixed?sw*k:height*sw/sh,drawHeight=fixed?sh*k:height,left=fixed?-rect[4]*k:-width/2;
+  const width=height*sw/sh;
   let source=img,sourceRect=[sx,sy,sw,sh];
   if(typeof document!=='undefined'){
    const id=key+':'+frame;let raster=this.rasters.get(id);
@@ -50,7 +49,7 @@ class FieldArt extends GothicArt {
   }
   c.save();c.translate(x,y+bottom);if(flip)c.scale(-1,1);
   c.imageSmoothingEnabled=true;c.imageSmoothingQuality='low';
-  c.drawImage(source,...sourceRect,left,-drawHeight,width,drawHeight);c.restore();return true;
+  c.drawImage(source,...sourceRect,-width/2,-height,width,height);c.restore();return true;
  }
  shadow(x,y,width,scale){this.oval(x+4*scale,y+3*scale,width*scale,width*.34*scale,'#070b1080');}
  tree(x,y,scale,seed=.7){
@@ -66,63 +65,25 @@ class FieldArt extends GothicArt {
  }
  lantern(x,y,scale){if(!this.prop('lantern',x,y,scale))super.lantern(x,y,scale);this.glow(x,y-101*scale,30*scale,'#e8b26924');}
  facility(x,y,scale,id){if(!this.prop(id,x,y,scale))super.facility(x,y,scale,id);}
- // Walk cycle advances with distance travelled (feet never slide) and direction is smoothed, so diagonal jitter cannot flip the facing.
- pose(id,x,y,now,paused=false,sprint=false){
-  let a=this.actors.get(id);if(!a){a={x,y,row:0,until:0,dist:0,vx:0,vy:0};this.actors.set(id,a);}
-  const dx=x-a.x,dy=y-a.y,step=Math.hypot(dx,dy);
-  if(step>.0003){
-   a.vx=a.vx*.5+dx*.5;a.vy=a.vy*.5+dy*.5;if(Math.hypot(a.vx,a.vy)<1e-9){a.vx=dx;a.vy=dy;}
-   const right=a.vx-a.vy>=0,front=a.vx+a.vy>=0;
-   a.row=front?(right?0:1):(right?3:2);a.until=now+260;
-   if(!paused)a.dist+=Math.min(step,1.5);
+ pose(id,x,y,now,paused=false){
+  let a=this.actors.get(id);if(!a){a={x,y,row:0,until:0};this.actors.set(id,a);}
+  const dx=x-a.x,dy=y-a.y;
+  if(Math.hypot(dx,dy)>.0003){
+   const right=dx-dy>=0,front=dx+dy>=0;
+   a.row=front?(right?0:1):(right?3:2);a.until=now+440;
   }
-  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(a.dist/(sprint?.9:.85))%4:0};
+  a.x=x;a.y=y;return {row:a.row,frame:!paused&&now<a.until?Math.floor(now/145)%4:0};
  }
- // Base sheets: human = female, vampire = male. The opposite gender uses its own sheet.
- actorKey(species,options){const g=options.gender;if(options.npc||!g)return species;const female=g==='female';return species==='human'?(female?'human':'human-male'):(female?'vampire-female':'vampire');}
  character(x,y,scale,species,moving,now,options={}){
   if(options.mounted)return super.character(x,y,scale,species,moving,now,options);
-  const key=options.enemy?(options.variant?'brute':'ghoul'):this.actorKey(species,options);
+  const key=options.enemy?(options.variant?'brute':'ghoul'):species;
   const pose=options.pose||{row:0,frame:0};
   // Human/ghoul sheets repeat the back-right view: mirror it for back-left.
-  const repeated=['human','human-male','ghoul'].includes(key)&&pose.row>=2;
+  const repeated=['human','ghoul'].includes(key)&&pose.row>=2;
   const mirror=repeated&&pose.row===2;
   const row=repeated?2:pose.row,h=(key==='brute'?89:key==='ghoul'?78:87)*scale;
   this.shadow(x,y,options.enemy?18:15,scale);
-  if(!this.sprite(key,x,y,h,row*4+pose.frame,mirror))return super.character(x,y,scale,species,moving,now,options);
-  if(!options.enemy&&!options.npc){
-   const dir=(pose.row===0||pose.row===3)?1:-1,vamp=species==='vampire',ranged=options.job==='ranged',female=options.gender==='female';
-   this.frame(x,y,scale,()=>{
-    if(female){
-     this.oval(-dir*3,-68,3.2,2.2,vamp?'#ff4d6d':'#ffd166');
-     this.line([[-dir*4,-65],[-dir*9,-52]],vamp?'#4a1535':'#5e3b28',2.5);
-    }
-    const hx=dir*13,hy=-31;
-    if(!vamp&&ranged){
-     // Human Gunner firearm barrel & laser sight
-     this.line([[hx-dir*3,hy+2],[hx+dir*11,hy-2]],'#4b5663',3.4);
-     this.line([[hx+dir*2,hy],[hx+dir*16,hy-3]],'#b8c7d6',2.1);
-     this.glow(hx+dir*16,hy-3,9,'#7ce8ff55');
-    }else if(vamp&&!ranged){
-     // Vampire Warrior dual crimson claws
-     for(const [cx,cy,s] of [[hx,hy,dir],[-hx*.75,hy+2,-dir]]){
-      this.line([[cx,cy],[cx+s*7,cy+5]],'#ff2e55',1.8);
-      this.line([[cx,cy+2],[cx+s*8,cy+8]],'#ff7597',1.5);
-      this.line([[cx,cy+4],[cx+s*6,cy+10]],'#d91e41',1.4);
-     }
-    }else if(vamp&&ranged){
-     // Vampire Blood Mage crimson staff & blood orb
-     this.line([[hx-dir*2,hy+18],[hx+dir*5,hy-26]],'#4a2533',2.6);
-     this.oval(hx+dir*5,hy-28,4.5,5.5,'#ff1e4d');
-     this.oval(hx+dir*5,hy-28,2.2,2.8,'#ffd1dc');
-     this.glow(hx+dir*5,hy-28,16,'#ff2e5566');
-    }else{
-     // Human Warrior blade gleam
-     this.line([[hx,hy],[hx+dir*10,hy-15]],'#d8dce3',2.4);
-     this.line([[hx-dir*2,hy+1],[hx+dir*3,hy-2]],'#d4b27c',2.2);
-    }
-   });
-  }
+  if(!this.sprite(key,x,y,h,row*4+pose.frame,mirror))super.character(x,y,scale,species,moving,now,options);
  }
  ground(state,projection){
   if(!this.ready('earth')||!this.ready('stone')||typeof DOMMatrix==='undefined')return false;

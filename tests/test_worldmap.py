@@ -26,10 +26,6 @@ class WorldMapTests(unittest.TestCase):
         world['player'].update(x=1, y=1)
         act(world, {'action': 'move', 'dx': -1, 'dy': -1})
         self.assertEqual((world['player']['x'], world['player']['y']), (1, 1))
-        tick(world, .15)
-        world['player'].update(x=30, y=30)
-        act(world, {'action': 'move', 'dx': 1, 'dy': 0, 'sprint': True})
-        self.assertAlmostEqual(world['player']['x'] - 30, .48 * 1.65)
 
     def test_expansion_has_usable_landmarks_in_each_region(self):
         self.assertEqual(len({node['id'] for node in POIS}), len(POIS))

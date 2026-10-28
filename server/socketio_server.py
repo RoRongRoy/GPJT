@@ -58,7 +58,6 @@ class SocketIOHub:
         self.access_key = access_key
         self.clients = {}
         self.lock = threading.Lock()
-        self.last_broadcast_at = 0.0
 
     def valid_key(self, key):
         if not key:
@@ -95,12 +94,8 @@ class SocketIOHub:
                 if not c.closed and c.authenticated and c.session_id and now - c.last_seen < 30
             }
 
-    def broadcast_state(self, exclude_sid=None, throttle=0.0):
-        now = time.monotonic()
+    def broadcast_state(self, exclude_sid=None):
         with self.lock:
-            if throttle > 0 and now - self.last_broadcast_at < throttle:
-                return
-            self.last_broadcast_at = now
             targets = [c for c in self.clients.values() if not c.closed and c.authenticated and c.sid != exclude_sid]
         for client in targets:
             with self.runtime.lock:
@@ -205,8 +200,7 @@ class SocketIOHub:
                     client.ack(ack_id, {'ok': True, 'state': result})
                 else:
                     client.emit('state', result)
-                is_move = payload['command'].get('action') == 'move'
-                self.broadcast_state(exclude_sid=client.sid, throttle=0.075 if is_move else 0.0)
+                self.broadcast_state(exclude_sid=client.sid)
             else:
                 if ack_id:
                     client.ack(ack_id, {'ok': False, 'error': result.get('error', '오류'), 'status': status})
@@ -288,12 +282,7 @@ class SocketIOHub:
         handler.end_headers()
 
         conn = handler.connection
-        conn.settimeout(45.0)
-        try:
-            import socket as _sock
-            conn.setsockopt(_sock.IPPROTO_TCP, _sock.TCP_NODELAY, 1)
-        except OSError:
-            pass
+        conn.settimeout(30.0)
 
         is_new = False
         client = self.get_client(sid) if sid else None
@@ -318,28 +307,14 @@ class SocketIOHub:
                 conn.sendall(header + payload)
 
         client.ws_writer = write_ws_text
-        stop_ping = threading.Event()
-
-        def ping_loop():
-            while not stop_ping.wait(15.0):
-                if client.closed:
-                    break
-                try:
-                    write_ws_text('2')
-                except OSError:
-                    client.closed = True
-                    break
-
-        ping_thread = threading.Thread(target=ping_loop, daemon=True)
-        ping_thread.start()
 
         try:
             if is_new:
                 open_payload = json.dumps({
                     'sid': client.sid,
                     'upgrades': [],
-                    'pingInterval': 15000,
-                    'pingTimeout': 30000,
+                    'pingInterval': 25000,
+                    'pingTimeout': 20000,
                     'maxPayload': 1000000,
                 })
                 write_ws_text('0' + open_payload)
@@ -352,14 +327,7 @@ class SocketIOHub:
                     self.broadcast_state(exclude_sid=client.sid)
 
             while not client.closed:
-                try:
-                    frame = _read_ws_frame(conn)
-                except TimeoutError:
-                    try:
-                        write_ws_text('2')
-                        continue
-                    except OSError:
-                        break
+                frame = _read_ws_frame(conn)
                 if frame is None:
                     break
                 opcode, payload = frame
@@ -368,9 +336,6 @@ class SocketIOHub:
                 if opcode == 0x9:  # ping
                     with client.ws_lock:
                         conn.sendall(bytes([0x8A, len(payload)]) + payload)
-                    continue
-                if opcode == 0xA:  # pong
-                    client.last_seen = time.monotonic()
                     continue
                 if opcode == 0x1:  # text
                     text = payload.decode('utf-8', errors='replace')
@@ -381,7 +346,6 @@ class SocketIOHub:
         except OSError:
             pass
         finally:
-            stop_ping.set()
             self.remove_client(client.sid)
             self.broadcast_state()
 

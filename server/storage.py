@@ -18,8 +18,7 @@ class Store:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute('PRAGMA journal_mode=WAL')
-        self.db.execute('PRAGMA synchronous=NORMAL')
-        self.db.execute('PRAGMA busy_timeout=5000')
+        self.db.execute('PRAGMA synchronous=FULL')
         self.db.execute('CREATE TABLE IF NOT EXISTS world (id INTEGER PRIMARY KEY, value TEXT NOT NULL)')
         self.db.execute('CREATE TABLE IF NOT EXISTS peers (session TEXT PRIMARY KEY, value TEXT NOT NULL)')
         self.db.execute(

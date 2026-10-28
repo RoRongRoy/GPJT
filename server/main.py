@@ -16,13 +16,13 @@ if __name__ == '__main__' and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     __package__ = 'server'
 
-from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, JOB_SKILLS, CLASSES, GENDERS, live_pois, RARITIES
+from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, live_pois, RARITIES
 from .socketio_server import SocketIOHub
 from .storage import Store
 from .worldmap import WORLD_MAP
 
 ROOT = Path(__file__).resolve().parent.parent
-PROFILE_KEYS = ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch', 'log')
+PROFILE_KEYS = ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch')
 
 
 class Runtime:
@@ -31,16 +31,9 @@ class Runtime:
         self.world = self.store.load()
         if self.world['player'].get('chosen') and ensure_starter_gear(self.world):
             self.store.save(self.world)
-        self.world['player'].setdefault('learned_skills', ['sweep', 'recover'])
-        self.world.setdefault('inventory', {}).setdefault('skillbook', 0)
         self.peers = self.store.load_peers()
         for sess_tok, peer_prof in self.peers.items():
-            missing_log = 'log' not in peer_prof
-            peer_prof.setdefault('log', [])
-            peer_prof.get('player', {}).setdefault('learned_skills', ['sweep', 'recover'])
-            peer_prof.setdefault('inventory', {}).setdefault('skillbook', 0)
-            gear_changed = peer_prof.get('player', {}).get('chosen') and ensure_starter_gear(peer_prof)
-            if missing_log or gear_changed:
+            if peer_prof.get('player', {}).get('chosen') and ensure_starter_gear(peer_prof):
                 self.store.save_peer(sess_tok, peer_prof)
         self.lock = threading.Lock()
         self.session = None
@@ -112,7 +105,6 @@ class Runtime:
             saved_prof = self.store.load_account(username, password)
             if not saved_prof:
                 raise RuleError('계정 아이디 또는 비밀번호가 일치하지 않습니다.')
-            candidate['log'] = []  # Old accounts have no personal history to restore.
             for k in PROFILE_KEYS:
                 if k in saved_prof:
                     candidate[k] = copy.deepcopy(saved_prof[k])
@@ -124,10 +116,6 @@ class Runtime:
             candidate['player']['chosen'] = True
             candidate['player']['account'] = username
             candidate['player'].setdefault('mp', 100.0)
-            candidate['player'].setdefault('gender', 'male')
-            candidate['player'].setdefault('job', 'warrior')
-            candidate['player'].setdefault('learned_skills', ['sweep', 'recover'])
-            candidate.setdefault('inventory', {}).setdefault('skillbook', 0)
             ensure_starter_gear(candidate)
             candidate['cooldowns'] = {
                 ck: cv for ck, cv in candidate.get('cooldowns', {}).items() if cv <= candidate['elapsed'] + 60
@@ -141,12 +129,7 @@ class Runtime:
                 candidate[k] = copy.deepcopy(fresh[k])
             species = command.get('species')
             if species in ('human', 'vampire'):
-                act(candidate, {
-                    'action': 'choose',
-                    'species': species,
-                    'gender': command.get('gender', 'male'),
-                    'job': command.get('job', 'warrior'),
-                })
+                act(candidate, {'action': 'choose', 'species': species})
             candidate['log'] = ['신규 모험자로 새로운 여정을 시작합니다. 언제든 계정을 생성해 저장할 수 있습니다.'] + candidate['log'][:7]
             return True
         return False
@@ -158,11 +141,9 @@ class Runtime:
                 now = time.monotonic()
                 sess_info = self.sessions[token]
                 last_cmd = self.last_command if token == self.session else sess_info['last_command']
-                is_move_cmd = isinstance(command, dict) and command.get('action') == 'move'
-                min_gap = .028 if is_move_cmd else .055
-                if last_cmd > 0 and now - last_cmd < min_gap:
+                if last_cmd > 0 and now - last_cmd < .06:
                     return 429, {'error': '입력이 너무 빠릅니다.'}
-                if not is_move_cmd and expected_revision is not None and expected_revision != self.world['revision']:
+                if expected_revision is not None and expected_revision != self.world['revision']:
                     return 409, {'error': '상태가 변경됐습니다. 새 상태에서 다시 시도하세요.'}
                 if not isinstance(command, dict):
                     raise RuleError('명령 형식 오류')
@@ -175,8 +156,7 @@ class Runtime:
                 if not self._handle_account_action(candidate, command, is_peer):
                     act(candidate, command)
                 acc_name = candidate['player'].get('account')
-                is_fast_move = isinstance(command, dict) and command.get('action') == 'move'
-                if acc_name and not is_fast_move:
+                if acc_name:
                     self.store.sync_account(
                         acc_name,
                         {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'base', 'next_gear_id') if k in candidate},
@@ -186,14 +166,12 @@ class Runtime:
                     updated_peer = {k: candidate[k] for k in PROFILE_KEYS}
                     for k in PROFILE_KEYS:
                         candidate[k] = self.world[k]
-                    if not is_fast_move:
-                        self.store.save(candidate)
-                        self.store.save_peer(token, updated_peer)
+                    self.store.save(candidate)
+                    self.store.save_peer(token, updated_peer)
                     self.world = candidate
                     self.peers[token] = updated_peer
                 else:
-                    if not is_fast_move:
-                        self.store.save(candidate)
+                    self.store.save(candidate)
                     self.world = candidate
                     self.last_command = now
                 sess_info['last_command'] = now
@@ -226,8 +204,6 @@ class Runtime:
                 'x': p['x'],
                 'y': p['y'],
                 'species': p['species'],
-                'gender': p.get('gender', 'male'),
-                'job': p.get('job', 'warrior'),
                 'chosen': p['chosen'],
                 'hp': p['hp'],
                 'combat_level': p.get('combat_level', 1),
@@ -243,9 +219,6 @@ class Runtime:
             'map': WORLD_MAP,
             'recipes': RECIPES,
             'combat': COMBAT,
-            'job_skills': {f'{sp}_{jb}': specs for (sp, jb), specs in JOB_SKILLS.items()},
-            'classes': CLASSES,
-            'genders': GENDERS,
             'rarities': RARITIES,
         }
 
@@ -311,12 +284,10 @@ def make_handler(runtime, access_key, sio=None):
                      '/art/nightfall-city.png': ('art/nightfall-city.png', 'image/png'),
                      '/art/human-warden.png': ('art/human-warden.png', 'image/png'),
                      '/art/vampire-scholar.png': ('art/vampire-scholar.png', 'image/png'),
-                     '/art/human-male-warden.png': ('art/human-male-warden.png', 'image/png'),
-                     '/art/vampire-female-scholar.png': ('art/vampire-female-scholar.png', 'image/png'),
                      '/style.css': ('style.css', 'text/css; charset=utf-8')}
             for name in ('sprite-manifest', 'sprites', 'combat', 'socket.io'):
                 files['/'+name+'.js'] = (name+'.js', 'text/javascript; charset=utf-8')
-            for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'human-male', 'vampire', 'vampire-female', 'ghoul', 'brute', 'props', 'earth', 'stone'):
+            for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'vampire', 'ghoul', 'brute', 'props', 'earth', 'stone'):
                 files['/art/gameplay/'+name+'.png'] = ('art/gameplay/'+name+'.png', 'image/png')
             for item in (*ITEMS, 'weapon', 'armor'):
                 files['/icons/'+item+'.svg'] = ('icons/'+item+'.svg', 'image/svg+xml')
