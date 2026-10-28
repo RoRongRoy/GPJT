@@ -2,7 +2,7 @@
 import math
 import random
 
-from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois
+from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES
 
 from .equipment import RARITIES, roll_equipment, equipment_power
 
@@ -816,7 +816,8 @@ def tick(w, dt, extra_profiles=None):
         target_prof = min(chosen_profiles, key=lambda prof: dist(e, prof['player']))
         p = target_prof['player']
         d = dist(e, p)
-        protected = dist(p, w['base']) <= BASE_USE_RADIUS
+        target_base = target_prof.get('base', w['base'])
+        protected = dist(p, target_base) <= BASE_USE_RADIUS
         if dist(e, home) > 10:
             e['returning'] = True
         if e['returning']:
@@ -841,7 +842,8 @@ def tick(w, dt, extra_profiles=None):
     for prof in chosen_profiles:
         p = prof['player']
         if p['hp'] <= 0 or p['infection'] >= 100:
-            p.update(x=float(w['base']['x']), y=float(w['base']['y']+1), hp=65., infection=0., mounted=False)
+            respawn_base = prof.get('base', w['base'])
+            p.update(x=float(respawn_base['x']), y=float(respawn_base['y']+1), hp=65., infection=0., mounted=False)
             note(prof, '감염/전투 불능 · 치료소에서 복구 (감염체 시체는 후속 구현)')
 
 

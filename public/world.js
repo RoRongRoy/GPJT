@@ -202,7 +202,8 @@ class WorldView {
   const facilities=Object.entries(w.base.facilities).filter(([,level])=>level).map(([id,level])=>({x:w.base.x+offsets[id][0],y:w.base.y+offsets[id][1],id,level,type:'facility'}));
   const smooth=(e,key)=>{let v=this.entityPositions.get(key);if(!v||Math.hypot(v.x-e.x,v.y-e.y)>5||w.paused)v={x:e.x,y:e.y};
    const follow=1-Math.exp(-12*dt);v.x+=(e.x-v.x)*follow;v.y+=(e.y-v.y)*follow;this.entityPositions.set(key,v);return {...e,...v};};
-  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...(w.drops||[]).map(d=>({...d,type:'drop'})),{...w.base,type:'base'},...facilities,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
+  const otherBases=(state.other_bases||[]).map(b=>({...b,type:'other_base'}));
+  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...(w.drops||[]).map(d=>({...d,type:'drop'})),{...w.base,type:'base'},...facilities,...otherBases,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
   this.points=[];const labels=[];let playerCovered=false;
   const tree=(x,y,seed=0)=>{const [sx,sy]=project(x,y);art.tree(sx,sy,scale,seed);};
   for(const e of entities){
@@ -223,8 +224,12 @@ class WorldView {
    ellipse(sx+4*scale,sy+3*scale,18,8,'#152c2955');
    if(e.type==='base'){
     art.refuge(sx,sy,scale);
-    labels.push(['아지트 · 피난처',sx,sy-250*scale,'#e2cfaa']);
+    labels.push(['내 아지트 · 피난처',sx,sy-250*scale,'#ffd166']);
     this.points.push({x:sx,y:sy-30*scale,id:'base',left:sx-115*scale,right:sx+115*scale,top:sy-245*scale,bottom:sy+35*scale});
+   }
+   if(e.type==='other_base'){
+    art.refuge(sx,sy,scale);
+    labels.push([e.name||'생존자 거점',sx,sy-250*scale,'#7dd3fc']);
    }
    if(e.type==='facility')art.facility(sx,sy,scale,e.id);
    if(e.type==='drop'){
@@ -323,6 +328,10 @@ class WorldView {
   for(const enemy of w.enemies){if(enemy.hp>0){c.fillStyle='#eb8d78';c.fillRect(enemy.x*k-1,enemy.y*k-1,2,2);}}
   for(const drop of (w.drops||[])){c.fillStyle='#ffd966';c.fillRect(drop.x*k-1.5,drop.y*k-1.5,3,3);}
   for(const peer of (state.others||[])){if(peer.chosen){c.fillStyle='#5bc0eb';c.beginPath();c.arc(peer.x*k,peer.y*k,2.5,0,Math.PI*2);c.fill();}}
+  for(const ob of (state.other_bases||[])){
+   c.strokeStyle='#38bdf855';c.lineWidth=1;c.beginPath();c.arc(ob.x*k,ob.y*k,state.map.base_radius*k,0,Math.PI*2);c.stroke();
+   c.fillStyle='#38bdf8';c.fillRect(ob.x*k-2,ob.y*k-2,4,4);
+  }
   c.strokeStyle='#e9cf8f88';c.lineWidth=1;c.beginPath();c.arc(w.base.x*k,w.base.y*k,state.map.base_radius*k,0,Math.PI*2);c.stroke();
   c.fillStyle='#ffda8d';c.fillRect(w.base.x*k-3,w.base.y*k-3,6,6);
   if(this.projection){

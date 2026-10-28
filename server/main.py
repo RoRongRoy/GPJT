@@ -16,14 +16,14 @@ if __name__ == '__main__' and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     __package__ = 'server'
 
-from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, JOB_SKILLS, CLASSES, GENDERS, live_pois, RARITIES
+from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, JOB_SKILLS, CLASSES, GENDERS, live_pois, RARITIES, FACILITIES
 from .socketio_server import SocketIOHub
 from .storage import Store
-from .worldmap import WORLD_MAP
+from .worldmap import WORLD_MAP, BASE_SPAWN_SITES, START_BASE
 from .movement import MovementInputs
 
 ROOT = Path(__file__).resolve().parent.parent
-PROFILE_KEYS = ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch', 'log')
+PROFILE_KEYS = ('player', 'inventory', 'gear', 'equipment', 'cooldowns', 'quest', 'milestones', 'dispatch', 'base', 'log')
 
 
 class Runtime:
@@ -53,10 +53,10 @@ class Runtime:
 
     def _new_peer_profile(self, index):
         fresh = new_world()
-        offsets = [(0, 1), (1, 1), (-1, 1), (1, 0), (-1, 0), (0, 2), (2, 1), (-2, 1)]
-        ox, oy = offsets[(index - 1) % len(offsets)]
-        fresh['player']['x'] = float(self.world['base']['x'] + ox)
-        fresh['player']['y'] = float(self.world['base']['y'] + oy)
+        site = BASE_SPAWN_SITES[(index - 1) % len(BASE_SPAWN_SITES)]
+        fresh['base'] = {'x': site[0], 'y': site[1], 'facilities': dict.fromkeys(FACILITIES, 0)}
+        fresh['player']['x'] = float(site[0])
+        fresh['player']['y'] = float(site[1] + 1)
         return {k: copy.deepcopy(fresh[k]) for k in PROFILE_KEYS}
 
     def authorize(self, token):
@@ -88,7 +88,7 @@ class Runtime:
             if tok != self.session and tok in self.peers and now - info['last_seen'] < 30
         ]
 
-    def _handle_account_action(self, candidate, command, is_peer):
+    def _handle_account_action(self, candidate, command, is_peer, sess_info=None):
         action = command.get('action')
         if action == 'account_save':
             if not candidate['player'].get('chosen'):
@@ -101,7 +101,7 @@ class Runtime:
             if not (current_acc == username and not password) and (len(password) < 1 or len(password) > 40):
                 raise RuleError('비밀번호는 4~40자로 입력하세요.')
             candidate['player']['account'] = username
-            account_prof = {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'base', 'next_gear_id') if k in candidate}
+            account_prof = {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'next_gear_id') if k in candidate}
             if not self.store.save_account(username, password, account_prof, current_account=current_acc):
                 raise RuleError('이미 등록된 계정 아이디이거나 비밀번호가 일치하지 않습니다.')
             candidate['log'] = [f"계정 '{username}'에 모험 데이터가 안전하게 저장되었습니다."] + candidate['log'][:7]
@@ -125,9 +125,9 @@ class Runtime:
                     candidate[k] = copy.deepcopy(saved_prof[k])
             if 'next_gear_id' in saved_prof:
                 candidate['next_gear_id'] = max(candidate.get('next_gear_id', 1), saved_prof['next_gear_id'])
-            if 'base' in saved_prof and not is_peer:
-                for fk, fv in saved_prof['base'].get('facilities', {}).items():
-                    candidate['base']['facilities'][fk] = max(candidate['base']['facilities'].get(fk, 0), fv)
+            if 'base' in saved_prof:
+                candidate['base'] = copy.deepcopy(saved_prof['base'])
+                candidate['base'].setdefault('facilities', dict.fromkeys(FACILITIES, 0))
             candidate['player']['chosen'] = True
             candidate['player']['account'] = username
             candidate['player'].setdefault('mp', 100.0)
@@ -151,9 +151,9 @@ class Runtime:
                     candidate[k] = copy.deepcopy(backup_prof[k])
             if 'next_gear_id' in backup_prof:
                 candidate['next_gear_id'] = max(candidate.get('next_gear_id', 1), backup_prof['next_gear_id'])
-            if 'base' in backup_prof and not is_peer:
-                for fk, fv in backup_prof['base'].get('facilities', {}).items():
-                    candidate['base']['facilities'][fk] = max(candidate['base']['facilities'].get(fk, 0), fv)
+            if 'base' in backup_prof:
+                candidate['base'] = copy.deepcopy(backup_prof['base'])
+                candidate['base'].setdefault('facilities', dict.fromkeys(FACILITIES, 0))
             candidate['player']['chosen'] = True
             ensure_starter_gear(candidate)
             lvl = candidate['player'].get('combat_level', 1)
@@ -162,6 +162,10 @@ class Runtime:
             return True
         if action == 'new_adventurer':
             fresh = new_world()
+            site = BASE_SPAWN_SITES[(sess_info['index'] - 1) % len(BASE_SPAWN_SITES)] if (is_peer and sess_info) else START_BASE
+            fresh['base'] = {'x': site[0], 'y': site[1], 'facilities': dict.fromkeys(FACILITIES, 0)}
+            fresh['player']['x'] = float(site[0])
+            fresh['player']['y'] = float(site[1] + 1)
             for k in PROFILE_KEYS:
                 candidate[k] = copy.deepcopy(fresh[k])
             species = command.get('species')
@@ -217,7 +221,7 @@ class Runtime:
                     peer_prof = copy.deepcopy(self.peers[token])
                     for k in PROFILE_KEYS:
                         candidate[k] = peer_prof[k]
-                if not self._handle_account_action(candidate, command, is_peer):
+                if not self._handle_account_action(candidate, command, is_peer, sess_info):
                     act(candidate, command)
                 if command.get('action') == 'move':
                     self.movement.block_after_step(token, now)
@@ -226,7 +230,7 @@ class Runtime:
                 if acc_name and not is_fast_move:
                     self.store.sync_account(
                         acc_name,
-                        {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'base', 'next_gear_id') if k in candidate},
+                        {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'next_gear_id') if k in candidate},
                     )
                 candidate['revision'] += 1
                 if is_peer:
@@ -261,6 +265,7 @@ class Runtime:
         else:
             world_view = self.world
         others = []
+        other_bases = []
         online_count = 0
         for tok, info in self.sessions.items():
             if now - info['last_seen'] >= 30:
@@ -270,9 +275,19 @@ class Runtime:
                 continue
             prof = self._profile_for(tok)
             p = prof['player']
+            acc = p.get('account') or f"생존자 #{info['index']}"
+            if 'base' in prof and p.get('chosen'):
+                b = prof['base']
+                other_bases.append({
+                    'id': tok[:8],
+                    'name': f"{acc}의 아지트",
+                    'x': b['x'],
+                    'y': b['y'],
+                    'facilities': b.get('facilities', {}),
+                })
             others.append({
                 'id': tok[:8],
-                'name': p.get('account') or f"생존자 #{info['index']}",
+                'name': acc,
                 'x': p['x'],
                 'y': p['y'],
                 'species': p['species'],
@@ -289,6 +304,7 @@ class Runtime:
             'snapshot_time': time.time(),
             'movement': self.movement.snapshot(active_token, now),
             'others': others,
+            'other_bases': other_bases,
             'online_count': max(1, online_count),
             'pois': live_pois(self.world),
             'items': ITEMS,
