@@ -24,7 +24,7 @@
    <div class="field-top"><span class="field-badge"><i></i> <span id="location-hint">안전지대 · 아지트</span></span><button id="focus-view" class="map-button" title="탐험 화면 넓히기 (V)" aria-pressed="false" hidden>⛶ <span>넓게 보기</span></button></div>
    <div class="field-vitals"><button class="hud-portrait-button" data-panel="survival" aria-label="캐릭터 상태"><img id="hud-portrait" src="/art/human-male-warden.png" alt="인간 생존자 초상"></button><span id="hud-name">생존자</span><button data-panel="survival" aria-label="생존 상태 열기"><span>HP</span><strong id="field-hp">100</strong><i><b id="field-health-bar"></b></i></button><button id="field-mp-wrap" data-panel="survival" class="mp-badge" aria-label="마나 및 종족 특성"><span id="field-mp-label">MP</span><strong id="field-mp">100</strong><i id="field-mp-track"><b id="field-mp-bar"></b></i></button><button data-panel="survival" class="level-badge" aria-label="전투 레벨 및 경험치"><strong id="field-level">Lv.1</strong><i><b id="field-exp-bar"></b></i></button><span id="field-vital"></span><span id="field-bag"></span><button id="field-equip-btn" data-panel="equip" class="equip-hud-btn" aria-label="장착 장비 열기"><span id="field-equip">⚔ 미착용 · 🛡 미착용</span></button><span id="field-infection" hidden></span></div>
    <button class="hud-quest" data-panel="guide"><span>◇ 첫 생존 <small id="hud-objective-progress">0 / 5</small></span><strong id="hud-objective">첫 자원 채집</strong><span class="quest-arrow">›</span></button>
-   <button id="camp-access" data-panel="camp" class="camp-access" hidden><span>⌂</span><strong>아지트 관리</strong><small>제작 · 시설 · 연구</small><kbd>B</kbd></button>
+   <button id="camp-access" data-panel="settlement" class="camp-access" hidden><span>⌂</span><strong>아지트 관리</strong><small>제작 · 시설 · 연구</small><kbd>B</kbd></button>
    <div class="atlas"><div class="atlas-heading"><span>격리구역</span><span id="coordinates">06 / 07</span></div><canvas id="minimap" width="320" height="320" aria-label="전체 지도. 클릭한 위치로 이동합니다." tabindex="0"></canvas><div class="atlas-caption">지도 클릭 → 이동</div></div>
    <div class="map-tools"><button id="zoom-out" class="map-button" aria-label="지도 축소">−</button><span id="zoom-level">100%</span><button id="zoom-in" class="map-button" aria-label="지도 확대">+</button><button id="go-home" class="map-button" title="아지트로 걸어가기" hidden>⌂ <span class="btn-label">아지트로</span></button></div>
    <div id="welcome">
@@ -122,7 +122,7 @@
      </div>
 
      <div class="dock-item" data-category="camp">
-      <button id="menu-camp" data-panel="camp" class="dock-major-btn camp-menu" aria-controls="menu-dialog" aria-expanded="false" title="아지트 (B)" hidden>
+      <button id="menu-camp" data-panel="settlement" class="dock-major-btn camp-menu" aria-controls="menu-dialog" aria-expanded="false" title="개인 아지트 건설 · 관리 (B)" hidden>
        <span class="dock-glyph">⌂</span><span class="dock-name">아지트</span><kbd>B</kbd>
       </button>
       <div class="dock-flyout" role="menu">
@@ -161,6 +161,14 @@
   <nav id="menu-subnav" class="menu-subnav" aria-label="중분류 탭"></nav>
  <p id="menu-description" class="menu-description"></p>
  <div class="menu-body">
+  <section data-view="settlement" hidden>
+   <div class="camp-illustration" aria-hidden="true"><div class="camp-moon"></div><div class="camp-mountain"></div><div class="camp-tent"></div><div class="camp-light"></div><span>PERSONAL OUTPOST</span></div>
+   <h3 id="settlement-owned"></h3><p id="settlement-location" class="muted"></p>
+   <p id="settlement-status" role="status"></p>
+   <button id="settlement-build" class="wide accent" type="button">현재 위치에 아지트 건설</button>
+   <button id="settlement-manage" class="wide" data-panel="camp" hidden>아지트 시설 · 제작 관리</button>
+   <p class="panel-note">최초 건설 비용 없음 · 유저별 시설과 위치를 독립적으로 관리합니다. 계정 저장으로 아지트를 보관하세요. 이전 시 기존 시설은 유지됩니다.</p>
+  </section>
   <section data-view="survival" hidden>
    <div class="survivor-heading"><span class="portrait"><img id="survivor-art" src="/art/human-warden.png" alt="인간 생존자 초상" width="1024" height="1536"></span><div><span class="eyebrow">YOUR SURVIVOR</span><h3 id="species">새로운 생존자</h3><span id="level">WEAPON +0</span></div></div>
    <div id="meters"></div>
@@ -318,7 +326,7 @@
      <div class="controls-card"><kbd>H</kbd><span>생존 상태(HP/MP) 및 음식 섭취</span></div>
      <div class="controls-card"><kbd>I</kbd><span>가방 (소지품 인벤토리)</span></div>
      <div class="controls-card"><kbd>J</kbd><span>모험 수첩 (퀘스트 / 가이드)</span></div>
-     <div class="controls-card"><kbd>B</kbd><span>아지트 관리 (제작/시설/연구)</span></div>
+     <div class="controls-card"><kbd>B</kbd><span>개인 아지트 건설 · 관리</span></div>
      <div class="controls-card"><kbd>U</kbd><span>계정 생성·저장 및 불러오기</span></div>
      <div class="controls-card"><kbd>Esc</kbd><span>열린 창 닫기 / 이동 취소</span></div>
     </div>
@@ -329,5 +337,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261029-town1"></script><script src="/app.js?v=20261029-local-key1" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261029-town1"></script><script src="/app.js?v=20261029-base-build1" type="module"></script>
 </body></html>

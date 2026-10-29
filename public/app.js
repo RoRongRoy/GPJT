@@ -18,6 +18,7 @@ let activePanel=null, panelOpener=null, inventoryFilter='all', selectedRecipe='s
 const campPanels=new Set(['camp','craft','build','research','dispatch']);
 const campActions=new Set(['craft','build','enhance','research','convert','dispatch']);
 const panelInfo={
+ settlement:['개인 아지트 건설','일반 필드의 현재 위치에 나만의 아지트를 건설하세요.','PERSONAL OUTPOST'],
  survival:['생존','내 상태를 살피고 필요한 소모품을 사용하세요.','SURVIVOR'],
  skills:['종족 스킬','전투 레벨 성장에 따라 해금되는 종족별 고유 전투·회복 기술을 확인하고 시전하세요.','SPECIES SKILLS'],
  equip:['장착 장비','현재 착용 중인 무기·방어구와 보유 장비를 확인하고 장착·해제하세요.','EQUIPMENT'],
@@ -616,19 +617,20 @@ function openPanel(name,opener=null){
  updateSubnav(name);
  $('menu-context').textContent=campPanels.has(name)?'⌂ 아지트 안 · 벗어나면 이 메뉴는 닫힙니다.':'Esc로 닫기 · 메뉴를 연 동안에도 월드 시간은 흐릅니다.';
  if(!$('menu-dialog').open)$('menu-dialog').show();
- renderInventory();renderRecipe();if(name==='skills'){renderSkillsMenu();renderHotbarEditor();}if(name==='shop'){renderShop();}$('menu-title').focus({preventScroll:true});return true;
+ renderInventory();renderRecipe();if(name==='skills'){renderSkillsMenu();renderHotbarEditor();}if(name==='shop'){renderShop();}if(name==='settlement')renderSettlement();$('menu-title').focus({preventScroll:true});return true;
 }
 function updateContext(){
  const {player:p,base:b}=state.world,hasBase=Boolean(b&&b.established!==false&&b.x!=null),atCamp=canUseCamp();
+ if(activePanel==='settlement')renderSettlement();
  if(activePanel==='shop')renderShop();
  const campDockItem=$('menu-camp')?.closest?.('.dock-item');
  if(!hasBase){
   $('camp-access').hidden=!p.chosen;
   $('camp-access').classList.add('camp-claim-prompt');
-  $('camp-access').innerHTML='<span>🚩</span><strong>아지트 선포</strong><small>안전지대에서 B로 선포</small><kbd>B</kbd>';
+  $('camp-access').innerHTML='<span>⌂</span><strong>아지트 건설</strong><small>일반 필드에 건설</small><kbd>B</kbd>';
   $('camp-access').title='현재 위치에 거점 선포 (B)';
   $('menu-camp').hidden=!p.chosen;
-  $('menu-camp').innerHTML='<span class="dock-glyph">🚩</span><span class="dock-name">아지트 선포</span><kbd>B</kbd>';
+  $('menu-camp').innerHTML='<span class="dock-glyph">🚩</span><span class="dock-name">아지트 건설</span><kbd>B</kbd>';
   if(campDockItem)campDockItem.hidden=!p.chosen;
  }else{
   $('camp-access').classList.remove('camp-claim-prompt');
@@ -636,8 +638,8 @@ function updateContext(){
   $('camp-access').title='아지트 관리 (B)';
   $('camp-access').hidden=!atCamp;
   $('menu-camp').innerHTML='<span class="dock-glyph">⌂</span><span class="dock-name">아지트</span><kbd>B</kbd>';
-  $('menu-camp').hidden=!atCamp;
-  if(campDockItem)campDockItem.hidden=!atCamp;
+  $('menu-camp').hidden=!p.chosen;
+  if(campDockItem)campDockItem.hidden=!p.chosen;
  }
  document.querySelectorAll('[data-panel]').forEach(button=>button.disabled=(!p.chosen&&button.dataset.panel!=='account')||!connected);
  $('auto-hunt').disabled=!p.chosen||!connected||state.world.paused;
@@ -1419,7 +1421,7 @@ window.addEventListener('keydown',e=>{
  if(moveKeys.includes(k)){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closePanel(false);closeLootBox();target=null;held.add(k);stepMovement();}
  if(e.repeat)return;
  if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closeLootBox();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
- const shortcut={h:'survival',k:'skills',c:'equip',i:'bag',j:'journal',u:'account',b:'camp'}[k];
+ const shortcut={h:'survival',k:'skills',c:'equip',i:'bag',j:'journal',u:'account',b:'settlement'}[k];
  if(shortcut){
   e.preventDefault();
   if(shortcut==='camp'){
@@ -1606,3 +1608,16 @@ document.querySelectorAll('.menu-body,#loot-list,#activity-messages').forEach(ma
 $('hud-pause').onclick=()=>$('pause').click();
 
 for(const b of document.querySelectorAll('[data-shop-category]'))b.onclick=()=>{shopCategory=b.dataset.shopCategory;document.querySelectorAll('[data-shop-category]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderShop();};
+
+function renderSettlement(){
+ if(!state)return;
+ const {player:p,base:b,paused}=state.world,owned=Boolean(b&&b.established!==false&&b.x!=null);
+ const town=Object.values(state.map.towns||{}).find(t=>Math.hypot(p.x-t.x,p.y-t.y)<=t.radius+state.map.base_radius);
+ $('settlement-owned').textContent=owned?`내 아지트: (${b.x.toFixed(1)}, ${b.y.toFixed(1)}) · 개인 영역 반경 ${state.map.base_radius}`:'아직 건설한 아지트가 없습니다.';
+ $('settlement-location').textContent=`현재 위치: (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`;
+ $('settlement-build').textContent=owned?'이 위치로 아지트 이전':'현재 위치에 아지트 건설';
+ $('settlement-build').disabled=!connected||!p.chosen||paused||Boolean(town);
+ $('settlement-status').textContent=town?'마을 밖 일반 필드로 이동하세요. 마을과 개인 영역이 겹치지 않아야 합니다.':paused?'일시정지를 해제하세요.':'안전한 일반 필드에 건설할 수 있습니다. 적·자원·다른 유저 영역과 겹치면 서버가 이유를 안내합니다.';
+ $('settlement-manage').hidden=!canUseCamp();
+}
+$('settlement-build').onclick=()=>manualAction('claim_base');

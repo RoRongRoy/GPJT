@@ -74,7 +74,7 @@ assert.equal(vm.runInContext('openPanel("craft")',sandbox),true);
 assert.equal(vm.runInContext('activePanel',sandbox),'craft');
 vm.runInContext('state.world.player.x=40;state.world.player.y=40;update()',sandbox);
 assert.equal(vm.runInContext('activePanel',sandbox),null);
-assert.equal(nodes.get('menu-camp').hidden,true);
+assert.equal(nodes.get('menu-camp').hidden,false,'Personal outpost construction must remain reachable in the field');
 assert.equal(vm.runInContext('openPanel("craft")',sandbox),false);
 vm.runInContext('state.world.player.x=state.world.base.x;state.world.player.y=state.world.base.y+state.map.base_radius-.01;update()',sandbox);
 assert.equal(vm.runInContext('canUseCamp()',sandbox),true);

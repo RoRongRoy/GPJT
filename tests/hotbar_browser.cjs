@@ -106,6 +106,18 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   }
   for(const selector of ['#interact','#loot-btn','#sprint-toggle','#mount-toggle','#auto-hunt','#interaction .attack-button']){const b=await page.locator(selector).boundingBox(),c=await page.locator('#interaction').boundingBox();assert.ok(b.x>=c.x-1&&b.y>=c.y-1&&b.x+b.width<=c.x+c.width+1&&b.y+b.height<=c.y+c.height+1,`${layout}: ${selector} must stay inside the combat controls`);}
   for(const [selector,panel] of [['#menu-bag','bag'],['#menu-equip','equip'],['#menu-journal','journal'],['#menu-account','account']]){await page.locator(selector).click();assert.equal(await page.locator('#menu-dialog').getAttribute('data-panel'),panel);await page.keyboard.press('Escape');}
+  fixture.world.base={x:null,y:null,established:false,facilities:{kitchen:0,alchemy:0,medical:0,storage:0}};
+  fixture.world.player.x=18;fixture.world.player.y=19;
+  await page.locator('#menu-camp').click();
+  await until(()=>page.locator('#settlement-build').isDisabled(),'Town must explain why construction is unavailable');
+  fixture.world.player.x=58;fixture.world.player.y=14;
+  await until(()=>page.locator('#settlement-build').isEnabled(),'Field construction should be reachable');
+  await page.locator('#settlement-build')[mobile?'tap':'click']();await delay(150);
+  assert.equal(commands.at(-1)?.action,'claim_base','Construction button must submit a server-owned claim');
+  fixture.world.base={x:58,y:14,established:true,facilities:{kitchen:0,alchemy:0,medical:0,storage:0}};
+  await until(()=>page.locator('#settlement-manage').isVisible(),'Construction should expose facility management');
+  await page.locator('#settlement-manage').click();assert.equal(await page.locator('#menu-dialog').getAttribute('data-panel'),'camp');
+  await page.keyboard.press('Escape');await page.keyboard.press('b');assert.equal(await page.locator('#menu-dialog').getAttribute('data-panel'),'settlement');
   assert.deepEqual(errors,[]);console.log(`Hotbar ${layout} passed: migration, assignment, empty slots, removal, 1–6 dispatch, persistence, unlocks, touch/click actions, navigation and HUD bounds.`);
   await page.unrouteAll({behavior:'ignoreErrors'});await context.close();
  }
