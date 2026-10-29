@@ -45,7 +45,7 @@ class WorldMapTests(unittest.TestCase):
                 world['player'].update(x=node['x'], y=node['y'])
                 before = world['inventory'][node['kind']]
                 act(world, {'action': 'gather', 'id': node['id']})
-                self.assertEqual(world['inventory'][node['kind']], before+3)
+                self.assertEqual(world['inventory'][node['kind']], before+node.get('loot',{}).get(node['kind'],0) if node.get('loot') else before+3)
 
     def test_old_save_keeps_assets_and_encounter_state_on_repeated_load(self):
         world = new_world()
@@ -119,7 +119,7 @@ class WorldMapTests(unittest.TestCase):
             store.save(restored);self.assertEqual(store.load(),restored);store.close()
 
     def test_spacing_and_non_grid_layout(self):
-        self.assertEqual(SIZE,256);self.assertEqual(len(POIS),29);self.assertEqual(len(ENEMY_SPAWNS),35)
+        self.assertEqual(SIZE,256);self.assertEqual(len(POIS),77);self.assertEqual(len(ENEMY_SPAWNS),35)
         for i,a in enumerate(POIS):
             for b in POIS[i+1:]:self.assertGreaterEqual(math.hypot(a['x']-b['x'],a['y']-b['y']),8)
         for i,a in enumerate(ENEMY_SPAWNS):

@@ -89,7 +89,7 @@ function updateSubnav(name){
  }
 }
 const recipeDetails={soup:['♨','포만도 +45 · 수분 +15'],elixir:['⚗','혈액량 +40 · 안정도 +45'],medicine:['+','체력 +40 · 감염 −60']};
-const inventoryGroups={all:['gold','wood','water','crop','herb','blood','metal','scroll','skillbook','soup','elixir','medicine'],materials:['wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll','skillbook','gold'],equipment:[]};
+const inventoryGroups={all:['cloth','ore','chemicals','circuits','gold','wood','water','crop','herb','blood','metal','scroll','skillbook','soup','elixir','medicine'],materials:['cloth','ore','chemicals','circuits','wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll','skillbook','gold'],equipment:[]};
 const facilityNames = {kitchen:'주방',alchemy:'연금대',medical:'의료실',storage:'저장고'};
 const poiContents={
  wood:[['wood',3,'주요 벌목 자재'],['scroll',1,'숨겨진 고대 주문서'],['herb',1,'야생 약초']],
@@ -100,6 +100,7 @@ const poiContents={
  metal:[['metal',3,'고철 금속 부품'],['scroll',1,'기계공의 주문서'],['wood',1,'폐목재']],
 };
 let activeLoot=null,lootChecks=new Set(),inspectOnArrive=false;
+function searchContents(poi){return poi?.loot?Object.entries(poi.loot).map(([id,amount])=>[id,amount,'전문 재료']):poiContents[poi?.kind]||[[poi?.kind,3,'자원']];}
 function bagCapacity(w=state?.world){const sl=(w?.base&&w.base.established!==false)?(w.base.facilities?.storage||0):0;return w?160+sl*50+((w.player.combat_level||1)-1)*10:160;}
 function bagUsed(w=state?.world){return w?Object.entries(w.inventory).reduce((sum,[id,amount])=>sum+(id==='gold'?0:amount),0)+(w.gear?.length||0)*4:0;}
 function isBagFull(w=state?.world){return !w||bagUsed(w)>=bagCapacity(w)||(w.gear?.length||0)>=20;}
@@ -388,16 +389,22 @@ function update() {
   const row=document.createElement('div'), label=document.createElement('div');label.className='meter-label';label.append(span('',name),span('',String(Math.ceil(value))));
   const track=document.createElement('div'),fill=document.createElement('div'); track.className='track'; fill.className='fill'+(name==='감염'?' danger':name.includes('MP')?' mp-fill':'');fill.style.width=`${Math.max(0,Math.min(100,value))}%`;track.append(fill);row.append(label,track);return row;
  }));
+ for(const [id,spec] of Object.entries(state.map.facilities||{}))facilityNames[id]=spec.name;
  renderInventory();updateSkills();
  for(const [id,name] of Object.entries(facilityNames)){
   if(!facilityRows.has(id)){
    const row=document.createElement('div'),info=document.createElement('div'),title=span('',''),cost=document.createElement('small'),button=document.createElement('button');
    row.className='facility';info.append(title,cost);row.append(info,button);$('facilities').append(row);
-   button.onclick=()=>manualAction('build',{facility:id});facilityRows.set(id,{title,cost,button});
+   button.onclick=()=>manualAction('build',{facility:id});facilityRows.set(id,{row,title,cost,button});
   }
-  const {title,cost,button}=facilityRows.get(id),level=w.base?.facilities?.[id]||0;
-  title.textContent=`${name} · Lv.${level}`;cost.textContent=level>=3?'최대 레벨':`목재 ${3*(level+1)} · 부품 ${2*(level+1)}`;
-  button.textContent=level?'개선':'건설';button.disabled=level>=3||w.paused||w.inventory.wood<3*(level+1)||w.inventory.metal<2*(level+1);button.title=cost.textContent;
+  const {row,title,cost,button}=facilityRows.get(id),level=w.base?.facilities?.[id]||0;
+  const spec=state.map.facilities?.[id]||{category:'생활',description:'',cost:{wood:3,metal:2}};
+  row.hidden=Boolean($('build-category').value&&$('build-category').value!==spec.category);
+  const costs=Object.entries(spec.cost).map(([key,value])=>[key,value*(level+1)]);
+  title.textContent=`${name} · Lv.${level} · ${spec.description}`;
+  cost.textContent=level>=3?'최대 레벨':costs.map(([key,value])=>`${state.items[key]} ${value}`).join(' · ');
+  button.textContent=level?'개선':'건설';button.disabled=!canUseCamp()||!connected||level>=3||w.paused||costs.some(([key,value])=>(w.inventory[key]||0)<value);button.title=cost.textContent;
+
  }
  renderActivityLog();
  $('log').replaceChildren(...w.log.slice(0,5).map(t=>{const li=document.createElement('li');li.textContent=t;return li;}));
@@ -680,6 +687,10 @@ function updateContext(){
 }
 const itemSlots=new Map();let selectedItem=null,inventoryLayout='';
 const itemInfo={
+ cloth:['가공 재료','시신·창고·서고에서 획득하는 직물.','재봉·장신구·기록 복원'],
+ ore:['광물','폐광과 무기고에서 획득하는 철광석.','대장간·장신구·부품 제련'],
+ chemicals:['약품','약국·연구실·혈액 검사소에서 획득합니다.','의약·원혈 배양·기록 복원'],
+ circuits:['전자 부품','폐차·변전소·연구실에서 획득합니다.','생산 시설 건설·스킬북 복원'],
  gold:['화폐','진영 마을 상인과의 거래에 사용하는 골드.','마을 상점에서 물품 구매 및 판매에 사용'],
  wood:['제작 재료','시설을 건설하고 개선하는 데 쓰는 목재.','아지트 → 시설에서 사용'],
  metal:['제작 재료','시설과 이동 연구에 필요한 금속 부품.','아지트 → 시설·연구에서 사용'],
@@ -1260,18 +1271,29 @@ function useSkill(id){
  manualAction('skill',{skill:id});
 }
 for(const button of document.querySelectorAll('#skill-bar [data-slot]'))button.onclick=()=>{if(button.dataset.skill)useSkill(button.dataset.skill);else{selectedAssignSkill=null;selectedAssignSlot=button.dataset.slot;openPanel('skills');}};
+let recipeChoicesKey='';
+$('build-category').onchange=()=>update();
+$('craft-category').onchange=()=>{recipeChoicesKey='';renderRecipe();};
 function renderRecipe(){
  if(!state?.recipes)return;
- const recipe=state.recipes[selectedRecipe],w=state.world,[icon,effect]=recipeDetails[selectedRecipe];
- $('recipe-icon').textContent=icon;$('recipe-name').textContent=recipe.name;$('recipe-facility').textContent=facilityNames[recipe.facility]+' Lv.1';$('recipe-effect').textContent=effect;
+ const choices=Object.entries(state.recipes).filter(([,r])=>!$('craft-category').value||state.map.facilities?.[r.facility]?.category===$('craft-category').value);
+ if(!choices.some(([id])=>id===selectedRecipe))selectedRecipe=choices[0]?.[0]||'soup';
+ const choicesKey=JSON.stringify(choices);
+ if(choicesKey!==recipeChoicesKey){recipeChoicesKey=choicesKey;$('recipe-choices').replaceChildren(...choices.map(([id,r])=>{const button=document.createElement('button');button.type='button';button.dataset.craft=id;button.textContent=r.name;button.onclick=()=>{selectedRecipe=id;renderRecipe();};return button;}));}
+ document.querySelectorAll('[data-craft]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.craft===selectedRecipe)));
+ const recipe=state.recipes[selectedRecipe],w=state.world,level=w.base?.facilities?.[recipe.facility]||0;
+ const amount=(recipe.amount||1)+Math.max(0,level-1);
+ const [icon,effect]=recipeDetails[selectedRecipe]||['⚒',recipe.gear_slot?`일반 장비 · 능력치 +${recipe.power+Math.max(0,level-1)}`:`${state.items[recipe.output]} ${amount}개 생산`];
+ const remaining=Math.max(0,Math.ceil((w.cooldowns['craft:'+selectedRecipe]||0)-w.elapsed));
+ $('recipe-icon').textContent=icon;$('recipe-name').textContent=recipe.name;$('recipe-facility').textContent=facilityNames[recipe.facility]+' Lv.'+(recipe.level||1);$('recipe-effect').textContent=effect+' · 시설 개선 시 생산량/장비 능력치 증가';$('craft-submit').textContent=recipe.gear_slot?'장비 제작':amount+'개 제작';
  let enough=true;
  $('recipe-cost').replaceChildren(...Object.entries(recipe.cost).map(([id,amount])=>{
   const have=w.inventory[id]||0,row=document.createElement('div');row.className='recipe-cost-row';
   row.append(span('',state.items[id]),span(have<amount?'missing':'',`${have} / ${amount}`));if(have<amount)enough=false;return row;
  }));
- const facility=(w.base?.facilities?.[recipe.facility]||0)>0;
- const reason=!canUseCamp()?'아지트에서 제작할 수 있습니다.':w.paused?'일시정지를 해제하면 제작할 수 있습니다.':!facility?`${facilityNames[recipe.facility]}를 먼저 건설하세요.`:!enough?'필요한 재료가 부족합니다.':'재료가 준비되었습니다.';
- $('recipe-status').textContent=reason;$('craft-submit').disabled=!canUseCamp()||w.paused||!facility||!enough;
+ const facility=level>=(recipe.level||1);
+ const reason=!canUseCamp()?'아지트에서 제작할 수 있습니다.':w.paused?'일시정지를 해제하면 제작할 수 있습니다.':!facility?`${facilityNames[recipe.facility]}를 먼저 건설하세요.`:!enough?'필요한 재료가 부족합니다.':remaining?`다음 제작까지 ${remaining}초`:'재료가 준비되었습니다.';
+ $('recipe-status').textContent=reason;$('craft-submit').disabled=!canUseCamp()||w.paused||!facility||!enough||remaining>0;
 }
 for(const button of document.querySelectorAll('[data-panel]'))button.onclick=()=>{
  const name=button.dataset.panel;
@@ -1299,7 +1321,7 @@ function openLootBox(source){
  activeLoot=source;lootChecks.clear();
  if(source.type==='poi'){
   const poi=state.pois.find(n=>n.id===source.id);
-  for(const [k] of (poiContents[poi?.kind]||[]))lootChecks.add(k);
+  for(const [k] of searchContents(poi))lootChecks.add(k);
  }else if(source.type==='drop'){
   const drop=(state.world.drops||[]).find(d=>d.id===source.id);
   if(drop){
@@ -1320,7 +1342,7 @@ function renderLootBox(){
   $('loot-eyebrow').textContent='OBJECT INSPECTION · 오브젝트 선택 파밍';
   $('loot-title').textContent=poi.label;
   $('loot-subtitle').textContent=cd?`재생성 대기 중 (${cd}초) · 내부 자원을 확인하세요`:`원하는 자원을 체크해 선택 파밍하거나 단독 파밍하세요`;
-  const contents=poiContents[poi.kind]||[[poi.kind,3,'자원']];
+  const contents=searchContents(poi);
   $('loot-list').replaceChildren(...contents.map(([k,amt,desc])=>{
    const row=document.createElement('li');row.className='loot-row';
    const left=document.createElement('label');left.className='loot-check';
@@ -1399,7 +1421,7 @@ $('loot-all').onclick=()=>{
  if(!state||!activeLoot)return;
  if(activeLoot.type==='poi'){
   const poi=state.pois.find(n=>n.id===activeLoot.id);
-  const items=(poiContents[poi?.kind]||[[poi?.kind,3]]).map(c=>c[0]);
+  const items=searchContents(poi).map(c=>c[0]);
   command('gather',{id:activeLoot.id,items});closeLootBox();
  }else if(activeLoot.type==='drop'){
   command('loot',{id:activeLoot.id,item:'all'});

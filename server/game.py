@@ -6,15 +6,19 @@ from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RA
 
 from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOTS, SLOT_NAMES, slot_type, equipped_slot, armor_power
 
+from .settlement import FACILITY_SPECS, EXTRA_RECIPES, MATERIALS
+
 RECIPES = {
     'soup': {'cost': {'crop': 2, 'water': 1}, 'facility': 'kitchen', 'name': '채소 수프'},
     'elixir': {'cost': {'blood': 2, 'herb': 1, 'water': 1}, 'facility': 'alchemy', 'name': '안정화 혈액'},
     'medicine': {'cost': {'herb': 3, 'water': 2}, 'facility': 'medical', 'name': '치료제'},
 }
-FACILITIES = {'kitchen': '주방', 'alchemy': '연금대', 'medical': '의료실', 'storage': '저장고'}
+RECIPES.update(EXTRA_RECIPES)
+FACILITIES = {key: spec['name'] for key, spec in FACILITY_SPECS.items()}
 ITEMS = {'wood': '목재', 'water': '식수', 'crop': '작물', 'herb': '약초', 'blood': '원혈',
          'metal': '부품', 'scroll': '강화 주문서', 'skillbook': '고대 스킬북',
          'soup': '채소 수프', 'elixir': '안정화 혈액', 'medicine': '치료제', 'gold': '골드'}
+ITEMS.update(MATERIALS)
 SKILLBOOK_DROP_CHANCE = 0.04
 
 SHOP_BUY_CATALOG = {
@@ -463,7 +467,7 @@ def new_world():
                        'unlocks': {'human': 0, 'vampire': 0}},
             'base': {'x': START_BASE[0], 'y': START_BASE[1], 'facilities': dict.fromkeys(FACILITIES, 0)},
             'inventory': {'wood': 12, 'water': 12, 'crop': 8, 'herb': 8, 'blood': 8,
-                          'metal': 6, 'scroll': 15, 'skillbook': 0, 'soup': 2, 'elixir': 2, 'medicine': 1, 'gold': 50},
+                          'metal': 6, 'scroll': 15, 'skillbook': 0, 'soup': 2, 'elixir': 2, 'medicine': 1, 'gold': 50, **dict.fromkeys(MATERIALS, 0)},
             'gear': [], 'equipment': {'weapon': None, 'armor': None}, 'next_gear_id': 1,
             'npcs': new_npcs(), 'encounter_version': 1,
             'milestones': [], 'cooldowns': {}, 'dispatch': None, 'quest': {'collected': 0, 'round': 0},
@@ -583,28 +587,30 @@ def act(w, command, rng=random.random):
         cooldown(w, 'move', MOVEMENT['interval'])
         move_actor(w, dx, dy, MOVEMENT['interval'], sprint)
     elif action == 'gather':
-        node = next((n for n in POIS if n['id'] == command.get('id')), None)
+        node = next((n for n in live_pois(w) if n['id'] == command.get('id')), None)
         require(node and node['kind'] != 'npc', '채집 지점 오류')
         require(dist(p, node) <= 3.5, '채집 지점 가까이 이동하세요.')
         selected = command.get('items')
+        if node.get('loot') and selected is None:
+            selected = list(node['loot'])
         if selected is not None:
             require(isinstance(selected, list) and len(selected) > 0, '파밍할 아이템을 선택하세요.')
             require(not bag_full(w), '인벤토리가 가득 찼습니다.')
-            allowed = dict(POI_CONTENTS.get(node['kind'], [(node['kind'], 3), ('scroll', 1)]))
+            allowed = dict(node.get('loot') or POI_CONTENTS.get(node['kind'], [(node['kind'], 3), ('scroll', 1)]))
             require(all(isinstance(k, str) and k in allowed for k in selected), '선택한 아이템 오류')
-            cooldown(w, node['id'], 3)
+            cooldown(w, node['id'], node.get('seconds', 3))
             gained = []
             for k in dict.fromkeys(selected):
                 space = max(0, bag_capacity(w) - bag_used(w))
-                take = min(allowed[k], space)
+                take = allowed[k] if k == 'gold' else min(allowed[k], space)
                 if take > 0:
-                    w['inventory'][k] += take
+                    w['inventory'][k] = w['inventory'].get(k, 0) + take
                     gained.append(f"{ITEMS[k]} +{take}")
             require(gained, '인벤토리가 가득 찼습니다.')
             w['quest']['collected'] += 1
             note(w, '선택 파밍 · ' + ' · '.join(gained))
         else:
-            cooldown(w, node['id'], 3)
+            cooldown(w, node['id'], node.get('seconds', 3))
             w['inventory'][node['kind']] += 3
             w['inventory']['scroll'] += 1
             w['quest']['collected'] += 1
@@ -645,7 +651,7 @@ def act(w, command, rng=random.random):
                 space = max(0, bag_capacity(w) - bag_used(w))
                 take = min(amount, space)
                 if take > 0:
-                    w['inventory'][k] += take
+                    w['inventory'][k] = w['inventory'].get(k, 0) + take
                     drop['items'][k] -= take
                     if drop['items'][k] <= 0:
                         del drop['items'][k]
@@ -677,9 +683,23 @@ def act(w, command, rng=random.random):
         at_base(w)
         recipe = RECIPES.get(command.get('recipe'))
         require(recipe, '조합식 오류')
-        require(w['base']['facilities'][recipe['facility']] > 0, '해당 시설을 먼저 건설하세요.')
+        level = w['base']['facilities'].get(recipe['facility'], 0)
+        require(level >= recipe.get('level', 1), '필요한 시설 레벨을 먼저 건설·개선하세요.')
+        require(all(w['inventory'].get(k, 0) >= v for k,v in recipe['cost'].items()), '재료가 부족합니다.')
+        amount = recipe.get('amount', 1) + level - 1
+        used_after = bag_used(w) - sum(v for k,v in recipe['cost'].items() if k != 'gold')
+        require(used_after + (4 if recipe.get('gear_slot') else amount) <= bag_capacity(w), '인벤토리가 가득 찼습니다.')
+        if recipe.get('gear_slot'):
+            require(len(w['gear']) < 20, '장비 보관 한도입니다.')
+        if recipe.get('seconds'):
+            cooldown(w, 'craft:'+command['recipe'], recipe['seconds'])
         spend(w, recipe['cost'])
-        w['inventory'][command['recipe']] += 1
+        if recipe.get('gear_slot'):
+            w['gear'].append({'id':'gear:'+str(w['next_gear_id']), 'slot':recipe['gear_slot'], 'rarity':'normal', 'name':recipe['name'], 'power':recipe['power']+level-1})
+            w['next_gear_id'] += 1
+        else:
+            output = recipe.get('output', command['recipe'])
+            w['inventory'][output] = w['inventory'].get(output, 0) + amount
         note(w, recipe['name'] + ' 제작 완료')
     elif action == 'consume':
         item = command.get('item')
@@ -702,10 +722,10 @@ def act(w, command, rng=random.random):
         at_base(w)
         name = command.get('facility')
         require(name in FACILITIES, '시설 오류')
-        level = w['base']['facilities'][name]
-        require(level < 3, '프로토타입 최대 레벨입니다.')
-        spend(w, {'wood': 3 * (level + 1), 'metal': 2 * (level + 1)})
-        w['base']['facilities'][name] += 1
+        level = w['base']['facilities'].get(name, 0)
+        require(level < 3, '시설 최대 레벨입니다.')
+        spend(w, {k:v*(level+1) for k,v in FACILITY_SPECS[name]['cost'].items()})
+        w['base']['facilities'][name] = level + 1
         note(w, f'{FACILITIES[name]} Lv.{level + 1}')
     elif action == 'relocate':
         require(not threat(w), '적이 가까이 있습니다. 안전한 곳에서 이동하세요.')

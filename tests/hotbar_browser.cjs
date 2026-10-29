@@ -168,6 +168,31 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
    await page.evaluate(()=>document.getElementById('zoom-out').click());await page.evaluate(()=>document.getElementById('zoom-out').click());await delay(400);
    await page.screenshot({path:`/tmp/town-${faction}-${layout}.png`});
   }
+  fixture.world.player.x=58;fixture.world.player.y=14;fixture.world.player.combat_level=50;
+  fixture.world.base={x:58,y:14,established:true,facilities:Object.fromEntries(Object.keys(fixture.map.facilities).map(id=>[id,1]))};
+  fixture.world.inventory=Object.fromEntries(Object.keys(fixture.items).map(id=>[id,20]));
+  await until(()=>page.locator('#coordinates').textContent().then(t=>t==='58 / 14'),'Return to own camp');
+  await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
+  await page.locator('[data-view=camp] [data-panel=build]').click();
+  assert.equal(await page.locator('#facilities .facility').count(),12);
+  await page.locator('#build-category').selectOption('장비');assert.equal(await page.locator('#facilities .facility:visible').count(),3);
+  await page.locator('#facilities .facility:visible button').first()[mobile?'tap':'click']();await delay(200);
+  assert.equal(commands.at(-1)?.action,'build');assert.equal(commands.at(-1)?.facility,'forge');
+  await page.keyboard.press('Escape');await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
+  await page.locator('[data-view=camp] [data-panel=craft]').click();
+  assert.equal(await page.locator('#recipe-choices button').count(),20);
+  await page.locator('#craft-category').selectOption('장비');assert.equal(await page.locator('#recipe-choices button').count(),7);
+  await page.locator('[data-craft=make_ring]').click();await page.locator('#craft-submit')[mobile?'tap':'click']();await delay(200);
+  assert.equal(commands.at(-1)?.recipe,'make_ring');
+  await page.screenshot({path:`/tmp/settlement-crafting-${layout}.png`});
+  await page.keyboard.press('Escape');
+  const mine=fixture.pois.find(p=>p.site_type==='mine');fixture.world.player.x=mine.x;fixture.world.player.y=mine.y;
+  await until(()=>page.locator('#coordinates').textContent().then(t=>t===`${Math.floor(mine.x)} / ${Math.floor(mine.y)}`),'Mine position must arrive');
+  await page.locator('#interact')[mobile?'tap':'click']();
+  assert.equal(await page.locator('#loot-title').textContent(),mine.label);
+  assert.ok((await page.locator('#loot-list').textContent()).includes('철광석'));
+  await page.locator('#loot-all')[mobile?'tap':'click']();await delay(200);
+  assert.equal(commands.at(-1)?.id,mine.id);assert.deepEqual(commands.at(-1)?.items,['ore','metal']);
   assert.deepEqual(errors,[]);console.log(`Hotbar ${layout} passed: migration, assignment, empty slots, removal, 1–6 dispatch, persistence, unlocks, touch/click actions, navigation and HUD bounds.`);
   await page.unrouteAll({behavior:'ignoreErrors'});await context.close();
  }

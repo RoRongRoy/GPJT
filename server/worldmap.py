@@ -1,4 +1,6 @@
 """Authored world layout shared with clients; existing landmark IDs stay stable."""
+from .settlement import FACILITY_SPECS, SEARCH_SITES
+
 SIZE = 256
 LAYOUT_VERSION = 3
 BASE_USE_RADIUS = 7.0
@@ -194,6 +196,27 @@ for offset, position in enumerate(_EXTRA_SPAWNS):
     ENEMY_PROFILES.append(profile)
 WORLD_MAP['monster_types'] = MONSTER_TYPES
 
+WORLD_MAP['facilities'] = FACILITY_SPECS
+# Deterministic, spaced scavenging landmarks: 12 types in each region.
+import math
+_candidates = [(x+math.sin(y)*3, y+math.cos(x)*3) for x in range(14,248,18) for y in range(14,248,18)]
+_candidates.sort(key=lambda xy: math.sin(xy[0]*12.3+xy[1]*7.1))
+for region in REGIONS:
+    placed = 0
+    for x,y in _candidates:
+        if placed == len(SEARCH_SITES):
+            break
+        if region_at(x,y)['id'] != region['id']:
+            continue
+        if any(math.hypot(x-t['x'],y-t['y']) < t['radius']+6 for t in TOWNS.values()):
+            continue
+        if any(math.hypot(x-n['x'],y-n['y']) < 9 for n in POIS) or any(math.hypot(x-ex,y-ey)<7 for ex,ey in ENEMY_SPAWNS):
+            continue
+        kind = list(SEARCH_SITES)[placed]
+        label, prop, loot, seconds = SEARCH_SITES[kind]
+        POIS.append(dict(id='search:'+region['id']+':'+kind,x=round(x,2),y=round(y,2),kind='metal',site_type=kind,prop=prop,label=label,loot=loot,seconds=seconds))
+        placed += 1
+
 
 def migrate_profile_layout(profile, source_layout=None):
     """Move personal coordinates once; keep all equipment, resources and facilities."""
@@ -235,4 +258,7 @@ def new_npcs():
 
 def live_pois(world):
     moving = {n['id']: n for n in world['npcs']}
-    return [moving.get(n['id'], n) for n in POIS]
+    base = world.get('base', {})
+    def outside_base(node):
+        return not (node.get('site_type') and base.get('established', True) and base.get('x') is not None and math.hypot(node['x']-base['x'], node['y']-base['y']) < 12)
+    return [moving.get(n['id'], n) for n in POIS if outside_base(n)]

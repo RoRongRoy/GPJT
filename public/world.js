@@ -186,7 +186,8 @@ class WorldView {
   const visible=(x,y)=>x>=minX&&x<=maxX&&y>=minY&&y<=maxY;
   this.prepareScenery(state);
   const hasBase=Boolean(w.base&&w.base.established!==false&&w.base.x!=null);
-  const outsideCamp=e=>!hasBase||Math.hypot(e.x-w.base.x,e.y-w.base.y)>=state.map.base_clear_radius;
+  const campClearance=Object.keys(w.base?.facilities||{}).some(id=>(w.base.facilities[id]||0)>0&&!['kitchen','alchemy','medical','storage'].includes(id))?12:state.map.base_clear_radius;
+  const outsideCamp=e=>!hasBase||Math.hypot(e.x-w.base.x,e.y-w.base.y)>=campClearance;
   const scenery=this.scenery.filter(e=>visible(e.x,e.y)&&outsideCamp(e));
   if(!art.ground(state,this.projection)){
    const palettes={outskirts:'#404449',forest:'#2f3b39',marsh:'#33434a',works:'#4d494b'};
@@ -210,7 +211,7 @@ class WorldView {
    c.strokeStyle='#f2d39b';c.beginPath();c.ellipse(tx,ty,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
   }
   const offsets={kitchen:[-4,2],alchemy:[3,-4],medical:[2,4],storage:[5,0]};
-  const facilities=hasBase?Object.entries(w.base.facilities||{}).filter(([,level])=>level).map(([id,level])=>({x:w.base.x+offsets[id][0],y:w.base.y+offsets[id][1],id,level,type:'facility'})):[];
+  const facilities=hasBase?Object.entries(w.base.facilities||{}).filter(([,level])=>level).map(([id,level])=>{const off=state.map.facilities?.[id]?.offset||offsets[id]||[0,0];return {x:w.base.x+off[0],y:w.base.y+off[1],id,level,type:'facility'};}):[];
   const smooth=(e,key)=>{let v=this.entityPositions.get(key);if(!v||Math.hypot(v.x-e.x,v.y-e.y)>5||w.paused)v={x:e.x,y:e.y};
    const follow=1-Math.exp(-12*dt);v.x+=(e.x-v.x)*follow;v.y+=(e.y-v.y)*follow;this.entityPositions.set(key,v);return {...e,...v};};
   const otherBases=(state.other_bases||[]).map(b=>({...b,type:'other_base'}));
@@ -255,7 +256,10 @@ class WorldView {
     art.refuge(sx,sy,scale);
     labels.push([e.name||'생존자 거점',sx,sy-250*scale,'#7dd3fc']);
    }
-   if(e.type==='facility')art.facility(sx,sy,scale,e.id);
+   if(e.type==='facility'){
+    const spec=state.map.facilities?.[e.id];if(!['kitchen','alchemy','medical','storage'].includes(e.id))art.refuge(sx,sy,scale*.36);art.prop(spec?.prop||e.id,sx,sy,scale*.9);
+    labels.push([`${spec?.name||e.id} Lv.${e.level}`,sx,sy-108*scale,'#d3c7a3']);
+   }
    if(e.type==='drop'){
     const gear=e.gear?.[0],rarityColor=gear?state.rarities?.[gear.rarity]?.color||'#efc878':'#e8c97a';
     c.save();
@@ -272,9 +276,18 @@ class WorldView {
     this.points.push({x:sx,y:sy-10*scale,id:e.id,left:sx-45*scale,right:sx+45*scale,top:sy-55*scale,bottom:sy+16*scale});
    }
    if(e.type==='poi'){
-    if(e.kind==='wood')tree(e.x,e.y,.8);
-    if(['water','metal','blood'].includes(e.kind)&&!art.prop(e.kind,sx,sy,scale))box(e.x,e.y,30,'#77716a');
-    if(['crop','herb'].includes(e.kind)){
+    if(e.site_type){
+     if(e.site_type==='corpse'){
+      ellipse(sx,sy,22,8,'#292426');c.strokeStyle='#84716a';c.lineWidth=7*scale;c.beginPath();c.moveTo(sx-17*scale,sy-3*scale);c.lineTo(sx+16*scale,sy-3*scale);c.stroke();ellipse(sx+20*scale,sy-3*scale,5,5,'#a0927e');
+     }else if(['warehouse','library','pharmacy','armory'].includes(e.site_type)){
+      art.refuge(sx,sy,scale*.55);art.prop(e.prop,sx+27*scale,sy+8*scale,scale*.5);
+     }else if(e.site_type==='mine'){
+      for(let j=0;j<4;j++)box(e.x+j*.25,e.y-j*.3,22+j*7,'#837e72',.35);
+     }else art.prop(e.prop,sx,sy,scale);
+    }
+    if(!e.site_type&&e.kind==='wood')tree(e.x,e.y,.8);
+    if(!e.site_type&&['water','metal','blood'].includes(e.kind)&&!art.prop(e.kind,sx,sy,scale))box(e.x,e.y,30,'#77716a');
+    if(!e.site_type&&['crop','herb'].includes(e.kind)){
      tile(e.x,e.y,'#494143');
      for(let j=0;j<9;j++){
       const [gx,gy]=project(e.x+(j%3-1)*.37,e.y+(Math.floor(j/3)-1)*.37);
@@ -292,9 +305,9 @@ class WorldView {
     const focus=e.id===selected||near<=3.5;
     if(focus){c.strokeStyle='#e9d29a';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy,28*scale,14*scale,0,0,Math.PI*2);c.stroke();}
     const poiLabel=focus&&e.kind!=='npc'?`${e.label} [E: 내용물 확인]`:e.label;
-    if(focus||near<8)labels.push([poiLabel,sx,sy-(e.kind==='wood'?214:e.kind==='blood'?140:e.kind==='water'||e.kind==='metal'?116:96)*scale,focus?'#ffe5aa':'#e0e4d2']);
+    if(focus||near<8)labels.push([poiLabel,sx,sy-(e.site_type?175:e.kind==='wood'?214:e.kind==='blood'?140:e.kind==='water'||e.kind==='metal'?116:96)*scale,focus?'#ffe5aa':'#e0e4d2']);
     const halfWidth=Math.max((e.kind==='wood'?66:e.kind==='metal'?72:45)*scale,e.label.length*5.5);
-    this.points.push({x:sx,y:sy-22*scale,id:e.id,left:sx-halfWidth,right:sx+halfWidth,top:sy-(e.kind==='wood'?210:e.kind==='blood'?137:110)*scale,bottom:sy+12*scale});
+    this.points.push({x:sx,y:sy-22*scale,id:e.id,left:sx-halfWidth,right:sx+halfWidth,top:sy-(e.site_type?175:e.kind==='wood'?210:e.kind==='blood'?137:110)*scale,bottom:sy+12*scale});
    }
    if(e.type==='town_wall'||e.type==='town_tower'){
     const tower=e.type==='town_tower',dark=e.faction==='vampire',height=tower?80:34;
