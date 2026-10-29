@@ -108,12 +108,13 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   for(const [selector,panel] of [['#menu-bag','bag'],['#menu-equip','equip'],['#menu-journal','journal'],['#menu-account','account']]){await page.locator(selector).click();assert.equal(await page.locator('#menu-dialog').getAttribute('data-panel'),panel);await page.keyboard.press('Escape');}
   fixture.world.gear.push({id:'gear:test-ring',slot:'ring',rarity:'rare',name:'검증 반지',power:7});
   await page.locator('#menu-equip').click();
-  assert.equal(await page.locator('#equip-paperdoll .equip-slot-card').count(),8);
+  assert.equal(await page.locator('#equip-paperdoll .paperdoll-slot').count(),8);
   await until(()=>page.getByRole('button',{name:'반지 2 장착',exact:true}).isVisible(),'Ring slot choice must appear');
   await page.getByRole('button',{name:'반지 2 장착',exact:true})[mobile?'tap':'click']();await delay(150);
   assert.equal(commands.at(-1)?.action,'equip');assert.equal(commands.at(-1)?.item,'gear:test-ring');assert.equal(commands.at(-1)?.slot,'ring2');
   fixture.world.equipment.ring2='gear:test-ring';
-  const ringCard=page.locator('#equip-paperdoll .equip-slot-card').filter({hasText:'반지 2 슬롯'});
+  await page.locator('[data-equipment-slot=ring2]')[mobile?'tap':'click']();
+  const ringCard=page.locator('#equip-selected .equip-slot-card');
   await until(()=>ringCard.getByRole('button',{name:'착용 해제'}).isVisible(),'Equipped ring must appear in its slot');
   await ringCard.getByRole('button',{name:'착용 해제'})[mobile?'tap':'click']();await delay(150);
   assert.equal(commands.at(-1)?.action,'unequip');assert.equal(commands.at(-1)?.slot,'ring2');
@@ -124,6 +125,11 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   assert.equal(commands.at(-1)?.action,'equip');assert.equal(commands.at(-1)?.item,'gear:test-ring');assert.equal(commands.at(-1)?.slot,'ring2');
   await page.keyboard.press('Escape');await page.locator('#menu-equip').click();
   await page.locator('.menu-body').evaluate(el=>el.scrollTop=0);
+  const stage=await page.locator('.equipment-stage').boundingBox();
+  for(const slot of await page.locator('#equip-paperdoll button').all()){
+   const bounds=await slot.boundingBox();assert.ok(bounds.x>=stage.x-1&&bounds.y>=stage.y-1&&bounds.x+bounds.width<=stage.x+stage.width+1&&bounds.y+bounds.height<=stage.y+stage.height+1,'Equipment slots must remain inside the character stage');
+  }
+  assert.ok(await page.locator('#equip-character-art').evaluate(img=>img.complete&&img.naturalWidth>0),'Character art must load');
   await page.screenshot({path:`/tmp/equipment-${layout}.png`});
   await page.keyboard.press('Escape');
   fixture.world.base={x:null,y:null,established:false,facilities:{kitchen:0,alchemy:0,medical:0,storage:0}};

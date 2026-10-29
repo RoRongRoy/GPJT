@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261029-town1"><style>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261029-paperdoll1"><style>
  .welcome-quick-resume{background:rgba(217,79,112,0.15);border:1px solid rgba(217,79,112,0.45);border-radius:6px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
  .welcome-quick-resume strong{color:#ffcfd9;font-size:12.5px;display:block}
  .welcome-quick-resume strong .highlight{color:#ff5277;font-weight:bold}
@@ -199,9 +199,17 @@
    <p class="panel-note">기본 전투·회복 스킬은 Lv.1부터 즉시 사용 가능하며, 상위 스킬은 요구 레벨(Lv.3 / 5 / 8 / 12) 달성 후 몬스터에게서 낮은 확률(4%~8.5%)로 드랍되는 <strong>📖 고대 스킬북</strong>을 소모해 해금합니다.</p>
   </section>
   <section data-view="equip" hidden>
+   <div class="equipment-showcase">
+    <header class="equipment-identity"><span id="equip-character-kind"></span><h3 id="equip-character-class"></h3><p id="equip-character-level"></p></header>
+    <div class="equipment-stage">
+     <img id="equip-character-art" alt="" class="equipment-character">
+     <div class="equipment-stage-glow" aria-hidden="true"></div>
+     <div id="equip-paperdoll" aria-label="장비 부위 선택"></div>
+    </div>
+    <p class="equipment-hint">슬롯 선택 · 상세 정보 확인 / 숫자 · 장비 능력치</p>
+   </div>
    <div id="equip-stats-summary" class="equip-stats-box"></div>
-   <h3 class="section-label">장착 중인 슬롯 · 무기 / 상의 / 하의 / 장갑 / 장화 / 목걸이 / 반지 ×2</h3>
-   <div id="equip-paperdoll" class="equipped-slot-grid"></div>
+   <div id="equip-selected" aria-live="polite"></div>
    <h3 class="section-label">보유 장비 목록</h3>
    <div id="equip-gear-list" class="equip-gear-list"></div>
    <p id="equip-gear-empty" class="panel-note" hidden>현재 가방에 보유한 장비가 없습니다. 몬스터를 처치하고 전리품을 루팅해 장비를 획득하세요.</p>
@@ -337,5 +345,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261029-town1"></script><script src="/app.js?v=20261029-gear-slots1" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261029-town1"></script><script src="/app.js?v=20261029-paperdoll1" type="module"></script>
 </body></html>

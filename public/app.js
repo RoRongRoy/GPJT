@@ -750,6 +750,33 @@ function makeEquippedSlotCard(slot,mode='equip'){
  }
  card.append(head,stat,actions);return card;
 }
+let selectedEquipmentSlot='weapon',equipmentShowcaseKey='';
+function renderEquipmentShowcase(){
+ const w=state.world,p=w.player;
+ const key=JSON.stringify([w.equipment,w.gear,p.species,p.gender,p.job,p.combat_level,p.level,connected,w.paused,selectedEquipmentSlot]);
+ if(key===equipmentShowcaseKey)return;
+ equipmentShowcaseKey=key;
+ const female=p.gender==='female',human=p.species==='human';
+ const src=human?(female?'/art/human-warden.png':'/art/human-male-warden.png'):(female?'/art/vampire-female-scholar.png':'/art/vampire-scholar.png');
+ const portrait=$('equip-character-art');if(portrait.getAttribute('src')!==src)portrait.src=src;
+ portrait.alt=(human?'인간':'뱀파이어')+' '+genderName(p.gender)+' 캐릭터';
+ $('equip-character-kind').textContent=(human?'HUMAN · 인간':'VAMPIRE · 뱀파이어')+' / '+genderName(p.gender);
+ $('equip-character-class').textContent=classInfo(p.species,p.job||'warrior').name;
+ $('equip-character-level').textContent='Lv. '+(p.combat_level||1);
+ const focusedSlot=document.activeElement?.dataset?.equipmentSlot;
+ $('equip-paperdoll').replaceChildren(...['weapon','armor','necklace','pants','ring1','gloves','ring2','boots'].map(slot=>{
+  const g=gearItem(w.equipment?.[slot]),rarity=g?gearRarity(g):null;
+  const button=document.createElement('button');button.type='button';button.className='paperdoll-slot'+(g?' is-equipped':' is-empty');button.dataset.equipmentSlot=slot;
+  button.setAttribute('aria-pressed',String(selectedEquipmentSlot===slot));button.setAttribute('aria-label',equipmentSlots[slot]+' · '+(g?itemName(g.id):'미착용'));
+  button.title=equipmentSlots[slot]+' · '+(g?itemName(g.id):'미착용');
+  if(rarity)button.style.setProperty('--gear-color',rarity.color);
+  const icon=document.createElement('img');icon.src='/icons/'+slotIcon(slot)+'.svg';icon.alt='';
+  button.append(span('paperdoll-slot-label',equipmentSlots[slot]),icon,span('paperdoll-slot-value',g?'+'+g.power:'비어 있음'));
+  button.onclick=()=>{selectedEquipmentSlot=slot;renderEquipmentShowcase();$('equip-selected').scrollIntoView({block:'nearest'});};return button;
+ }));
+ if(focusedSlot)$('equip-paperdoll').querySelector(`[data-equipment-slot="${focusedSlot}"]`)?.focus({preventScroll:true});
+ $('equip-selected').replaceChildren(makeEquippedSlotCard(selectedEquipmentSlot,'equip'));
+}
 function renderEquippedViews(){
  if(!state)return;
  const w=state.world,p=w.player,gear=w.gear||[];
@@ -757,7 +784,7 @@ function renderEquippedViews(){
  const lvl=p.combat_level||1,lvlAtk=(lvl-1)*3,lvlDef=Math.floor((lvl-1)/2);
  const wepPow=wep?.power||0,armPow=totalArmor();
  $('equip-stats-summary').textContent=`전투 Lv.${lvl} · 총 공격력 보너스 +${lvlAtk+wepPow} (레벨 +${lvlAtk} / 무기 +${wepPow}) · 무기강화 +${p.level||0} · 총 방어력 +${lvlDef+armPow} (레벨 +${lvlDef} / 방어구 +${armPow})`;
- $('equip-paperdoll').replaceChildren(...Object.keys(equipmentSlots).map(slot=>makeEquippedSlotCard(slot,'equip')));
+ renderEquipmentShowcase();
  $('bag-equipped-slots').replaceChildren(...Object.keys(equipmentSlots).map(slot=>makeEquippedSlotCard(slot,'bag')));
  $('survival-equipped').replaceChildren(...Object.keys(equipmentSlots).map(slot=>makeEquippedSlotCard(slot,'survival')));
  $('equip-gear-empty').hidden=gear.length>0;
