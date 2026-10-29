@@ -307,7 +307,7 @@ class WorldView {
     const isFriendly=(eFac===p.species);
     const specForArt=(eFac==='vampire'?'vampire':'human');
     if(high){c.strokeStyle=boss?'#ff525288':'#d68c7766';c.lineWidth=boss?2:1.3;c.beginPath();c.ellipse(sx,sy+2*scale,(boss?24:19)*scale,(boss?11:9)*scale,0,0,Math.PI*2);c.stroke();}
-    art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),specForArt,pose.moving,now,{enemy:!isFriendly,variant:high,pose,gender:'male',job:'warrior'});
+    art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),specForArt,pose.moving,now,{enemy:eFac==='infected',variant:high,pose,gender:'male',job:'warrior'});
     c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);
     c.fillStyle=isFriendly?'#38bdf8':boss?'#ff5c5c':high?'#d9734e':'#ad5866';
     c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);

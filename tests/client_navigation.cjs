@@ -116,5 +116,28 @@ console.log('Contextual menu checks passed: camp radius, leaving camp, remote ac
  assert.ok(Math.abs((vm.runInContext('view.prediction.x',sandbox)-20)-fixture.map.movement.step*1.65)<1e-8,'Sprint prediction must use sprint multiplier');
  key('keydown','Shift');assert.equal(vm.runInContext('isSprinting()',sandbox),true);
  key('keyup','Shift');assert.equal(vm.runInContext('isSprinting()',sandbox),false);
+ // Hostility must not turn the opposing faction into a ghoul/brute.
+ for(const species of ['human','vampire']){
+  sandbox.viewerSpecies=species;
+  vm.runInContext(`
+   {
+   globalThis.factionDraws=[];
+   const scene=JSON.parse(JSON.stringify(state));
+   scene.world.player.x=60;scene.world.player.y=60;scene.world.player.species=viewerSpecies;
+   scene.world.enemies=['human','vampire','infected'].map((faction,id)=>({id,x:60+id,y:61,hp:100,max_hp:100,level:9,faction,name:faction}));
+   const renderer=new WorldView(canvas,$('minimap'));
+   renderer.art.character=(x,y,scale,species,moving,now,options={})=>{if('enemy' in options)factionDraws.push({species,monster:options.enemy});};
+   renderer.draw(scene,null,null);
+   globalThis.factionPoints=renderer.points.filter(p=>p.id.startsWith('enemy:')).map(p=>({id:p.id,friendly:p.isFriendly}));
+   }
+  `,sandbox);
+  assert.deepEqual(JSON.parse(JSON.stringify(sandbox.factionDraws)),[
+   {species:'human',monster:false},{species:'vampire',monster:false},{species:'human',monster:true}
+  ],'Both faction appearances must remain visible for '+species);
+  assert.deepEqual(JSON.parse(JSON.stringify(sandbox.factionPoints)),[
+   {id:'enemy:0',friendly:species==='human'},{id:'enemy:1',friendly:species==='vampire'},{id:'enemy:2',friendly:false}
+  ],'Friendly and hostile targeting must remain correct');
+ }
+ console.log('Faction appearance passed: both player factions see human/vampire combatants and infected monsters with correct allegiances.');
  console.log('Input latency checks passed: throttled input retry, one-step prediction, authoritative reconciliation, delayed response/key release, reversal, rejection, sprint and map bounds.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
