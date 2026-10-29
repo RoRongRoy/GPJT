@@ -20,7 +20,7 @@ if __name__ == '__main__' and not __package__:
 from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, JOB_SKILLS, CLASSES, GENDERS, live_pois, RARITIES, FACILITIES
 from .socketio_server import SocketIOHub
 from .storage import Store
-from .worldmap import WORLD_MAP, BASE_SPAWN_SITES, START_BASE
+from .worldmap import WORLD_MAP, BASE_SPAWN_SITES, START_BASE, migrate_profile_layout
 from .movement import MovementInputs
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -147,6 +147,7 @@ class Runtime:
             backup_prof = command.get('profile')
             if not backup_prof or not isinstance(backup_prof, dict) or not backup_prof.get('player', {}).get('chosen'):
                 raise RuleError('복원할 저장 데이터가 올바르지 않습니다.')
+            backup_prof = migrate_profile_layout(copy.deepcopy(backup_prof))
             for k in PROFILE_KEYS:
                 if k in backup_prof:
                     candidate[k] = copy.deepcopy(backup_prof[k])

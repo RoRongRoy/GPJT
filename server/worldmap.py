@@ -1,6 +1,6 @@
 """Authored world layout shared with clients; existing landmark IDs stay stable."""
-SIZE = 128
-LAYOUT_VERSION = 2
+SIZE = 256
+LAYOUT_VERSION = 3
 BASE_USE_RADIUS = 7.0
 BASE_CLEAR_RADIUS = 9.0
 START_BASE = (22, 22)
@@ -28,7 +28,7 @@ REGIONS = [
     {'id': 'works', 'name': '침묵의 공업지대', 'subtitle': '최상위 고렙지역 · 보스급 철갑 파괴자의 황무지',
      'x': 94, 'y': 92, 'radius': 50, 'color': '#71616a'},
 ]
-for region, levels in zip(REGIONS, [(1, 3), (4, 6), (8, 10), (12, 14)]):
+for region, levels in zip(REGIONS, [(1, 5), (1, 12), (13, 20), (21, 30)]):
     region['levels'] = list(levels)
 
 ROADS = [
@@ -79,11 +79,24 @@ TOWNS = {
         }
     }
 }
+# Layout 3 doubles each axis: four times the explorable area.
+START_BASE = tuple(v*2 for v in START_BASE)
+BASE_SPAWN_SITES = [tuple(v*2 for v in site) for site in BASE_SPAWN_SITES]
+for region in REGIONS:
+    for key in ('x', 'y', 'radius'):
+        region[key] *= 2
+ROADS = [[[v*2 for v in point] for point in road] for road in ROADS]
+for town in TOWNS.values():
+    for key in ('x', 'y', 'radius'):
+        town[key] *= 2
+    town['spawn'] = tuple(v*2 for v in town['spawn'])
+    town['merchant'].update(x=town['x']-8, y=town['y']-5)
+
 MERCHANTS = []
 for faction, town in TOWNS.items():
     town['merchant']['role'] = 'supplies'
     MERCHANTS.append(town['merchant'])
-    for role, label, dx, dy in [('equipment', '장비 상인', 3, -2), ('scroll', '주문서 상인', -3, 2), ('skill', '스킬 상인', 2, 3)]:
+    for role, label, dx, dy in [('equipment', '장비 상인', 8, -5), ('scroll', '주문서 상인', -8, 6), ('skill', '스킬 상인', 8, 6)]:
         MERCHANTS.append({'id': f'{faction}_{role}', 'name': label, 'label': label,
                           'kind': 'merchant', 'role': role, 'faction': faction,
                           'x': town['x'] + dx, 'y': town['y'] + dy})
@@ -153,18 +166,66 @@ ENEMY_PROFILES = [
 ]
 
 
+# Preserve landmark and encounter IDs; spread resources and existing patrols out.
+for node in POIS:
+    node['x'] *= 2
+    node['y'] *= 2
+ENEMY_SPAWNS = [(x*2, y*2) for x, y in ENEMY_SPAWNS]
+MONSTER_TYPES = {
+    'walker': {'name': '굶주린 감염자', 'scale': .95, 'hue': 0, 'speed': .8},
+    'hound': {'name': '묘지 사냥귀', 'scale': .8, 'hue': 35, 'speed': 1.25},
+    'plague': {'name': '역병 운반자', 'scale': 1.05, 'hue': 80, 'speed': .7},
+    'wraith': {'name': '잿빛 망령', 'scale': .95, 'hue': 190, 'speed': 1.05},
+    'juggernaut': {'name': '철갑 도살자', 'scale': 1.25, 'hue': 320, 'speed': .6},
+    'knight': {'name': '혈월의 집행자', 'scale': 1.15, 'hue': 0, 'speed': .9},
+}
+# Hand-authored hunting pockets, with generous travel space between them.
+_EXTRA_SPAWNS = [(25,72),(66,30),(64,78),(20,108),(86,94),(112,36),
+                 (162,90),(182,76),(214,28),(238,82),(146,110),(208,106),
+                 (22,148),(62,146),(92,176),(30,196),(68,236),(120,234),
+                 (144,132),(196,146),(238,162),(150,204),(184,240),(238,244)]
+for offset, position in enumerate(_EXTRA_SPAWNS):
+    kind = list(MONSTER_TYPES)[offset % len(MONSTER_TYPES)]
+    faction = ('human' if (offset//6) % 2 else 'vampire') if kind == 'knight' else 'infected'
+    ENEMY_SPAWNS.append(position)
+    profile = {'faction': faction, 'name': MONSTER_TYPES[kind]['name'], 'monster_type': kind}
+    if offset == 23:
+        profile['level'] = 30
+    ENEMY_PROFILES.append(profile)
+WORLD_MAP['monster_types'] = MONSTER_TYPES
+
+
+def migrate_profile_layout(profile, source_layout=None):
+    """Move personal coordinates once; keep all equipment, resources and facilities."""
+    player = profile.get('player', {})
+    version = source_layout if source_layout is not None else player.get('map_layout', 2)
+    if version not in (1, 2, LAYOUT_VERSION):
+        raise ValueError('Unsupported personal map layout')
+    if version < LAYOUT_VERSION:
+        for actor in (player, profile.get('base', {})):
+            for key in ('x', 'y'):
+                if actor.get(key) is not None:
+                    actor[key] = (expand_coordinate(actor[key]) if version == 1 else actor[key])*2
+    player['map_layout'] = LAYOUT_VERSION
+    return profile
+
+
 def new_enemy(index):
     x, y = ENEMY_SPAWNS[index]
     region = region_at(x, y)
-    level = region['levels'][0] + index % 3
+    prof = ENEMY_PROFILES[index % len(ENEMY_PROFILES)]
+    level = prof.get('level', region['levels'][0] + index % (region['levels'][1]-region['levels'][0]+1))
+    # Both starter towns have low-level hunting pockets outside their walls.
+    if min(((x-t['x'])**2+(y-t['y'])**2)**.5 for t in TOWNS.values()) < 48:
+        level = 1 + index % 5
     tier_mult = {'outskirts': 1, 'forest': 2, 'marsh': 4, 'works': 7}[region['id']]
     hp = 60 + (level-1)*18*tier_mult
     damage = 8 + (level-1)*(2 if region['id'] == 'outskirts' else 4)
-    prof = ENEMY_PROFILES[index % len(ENEMY_PROFILES)]
     faction = prof['faction']
     name = prof['name']
     return {'id': index, 'x': x, 'y': y, 'hp': hp, 'max_hp': hp, 'level': level,
             'name': name, 'region': region['id'], 'damage': damage, 'faction': faction,
+            'monster_type': prof.get('monster_type', 'juggernaut' if level >= 13 else 'walker'),
             'xp': 12+level*4*tier_mult, 'respawn': 0, 'attack': 0, 'returning': False}
 
 

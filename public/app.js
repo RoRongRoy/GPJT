@@ -101,7 +101,7 @@ const poiContents={
 };
 let activeLoot=null,lootChecks=new Set(),inspectOnArrive=false;
 function bagCapacity(w=state?.world){const sl=(w?.base&&w.base.established!==false)?(w.base.facilities?.storage||0):0;return w?160+sl*50+((w.player.combat_level||1)-1)*10:160;}
-function bagUsed(w=state?.world){return w?Object.values(w.inventory).reduce((a,b)=>a+b,0)+(w.gear?.length||0)*4:0;}
+function bagUsed(w=state?.world){return w?Object.entries(w.inventory).reduce((sum,[id,amount])=>sum+(id==='gold'?0:amount),0)+(w.gear?.length||0)*4:0;}
 function isBagFull(w=state?.world){return !w||bagUsed(w)>=bagCapacity(w)||(w.gear?.length||0)>=20;}
 function toast(message) { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600); }
 let socket=null,moveBusy=false,lastSocketAt=0;
@@ -449,7 +449,7 @@ function handleCanvasPoint(e,allowNode=true){
  const node=allowNode?view.points.map(n=>({...n,d:Math.hypot(n.x-cx,n.y-cy)})).filter(n=>cx>=n.left&&cx<=n.right&&cy>=n.top&&cy<=n.bottom).sort((a,b)=>a.d-b.d)[0]:null;
  if(node){
   if(node.id==='base'){inspectOnArrive=false;if(canUseCamp()){openPanel('camp');return;}if(state.world.base?.x!=null)navigate(state.world.base.x,state.world.base.y);}
-  else if(node.id.startsWith('merchant:')){const mid=node.id.replace('merchant:','');const m=(state.map?.merchants||[]).find(x=>x.id===mid);if(m){if(Math.hypot(m.x-p.x,m.y-p.y)<=3.5){clearMovement();shopCategory=m.role||'supplies';openPanel('shop');return;}inspectOnArrive=true;navigate(m.x,m.y,node.id);}}
+  else if(node.id.startsWith('merchant:')){const mid=node.id.replace('merchant:','');const m=(state.map?.merchants||[]).find(x=>x.id===mid);if(m){if(Math.hypot(m.x-p.x,m.y-p.y)<=3.5){clearMovement();openMerchant(m);return;}inspectOnArrive=true;navigate(m.x,m.y,node.id);}}
   else if(node.id.startsWith('enemy:')){inspectOnArrive=false;const enemy=state.world.enemies.find(n=>n.id===Number(node.id.split(':')[1]));if(enemy)navigate(enemy.x,enemy.y,node.id);}
   else if(node.id.startsWith('drop:')){const drop=(state.world.drops||[]).find(d=>d.id===node.id);if(drop){if(Math.hypot(drop.x-p.x,drop.y-p.y)<=3.5){clearMovement();selected=drop.id;openLootBox({type:'drop',id:drop.id});return;}inspectOnArrive=true;navigate(drop.x,drop.y,drop.id);}}
   else{const poi=state.pois.find(n=>n.id===node.id);if(poi){if(poi.kind!=='npc'&&Math.hypot(poi.x-p.x,poi.y-p.y)<=3.5){clearMovement();selected=poi.id;openLootBox({type:'poi',id:poi.id});return;}inspectOnArrive=poi.kind!=='npc';navigate(poi.x,poi.y,poi.id);}}
@@ -876,12 +876,18 @@ const shopCatalog={
 for(const catalog of Object.values(shopCatalog))catalog.push({item:'shop_weapon',name:'민병대 무기',price:120,desc:'일반 무기 · 공격력 +4'},{item:'shop_armor',name:'민병대 방호복',price:100,desc:'일반 상의 · 방어력 +2'});
 for(const catalog of Object.values(shopCatalog))for(const slot of ['pants','boots','gloves','necklace','ring'])catalog.push({item:'shop_'+slot,name:'민병대 '+gearTypeNames[slot],price:80,desc:'일반 '+gearTypeNames[slot]+' · 방어력 +2'});
 function merchantRole(item){return item.startsWith('shop_')?'equipment':item==='scroll'?'scroll':item==='skillbook'?'skill':'supplies';}
-let shopCategory='supplies';
+let activeMerchantId=null,shopRenderKey='';
+function openMerchant(m){if(!m)return;activeMerchantId=m.id;shopMode='buy';openPanel('shop');}
 const shopSellPrices={wood:1,metal:2,crop:2,herb:2,blood:2,water:2,scroll:10,soup:5,elixir:5,medicine:7,skillbook:30};
 function renderShop(){
  if(!state)return;
  const w=state.world,p=w.player,gold=w.inventory.gold||0;
- document.querySelectorAll('[data-shop-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shopCategory===shopCategory)));
+ const merchant=(state.map.merchants||[]).find(m=>m.id===activeMerchantId);
+ const trading=Boolean(merchant&&merchant.faction===p.species&&Math.hypot(merchant.x-p.x,merchant.y-p.y)<=5);
+ const renderKey=JSON.stringify([activeMerchantId,shopMode,trading,connected,w.paused,w.inventory,w.gear,w.equipment,bagCapacity(w)]);
+ if(renderKey===shopRenderKey)return;shopRenderKey=renderKey;
+ $('shop-merchant-name').textContent=merchant?merchant.name:'거래할 상인에게 말을 거세요';
+ $('shop-hint').textContent=trading?'이 상인의 전문 품목만 구매·판매할 수 있습니다.':'상인에게 가까이 가서 대화하세요. 다른 상점은 해당 상인을 직접 방문하세요.';
  const goldEl=$('shop-gold-amount');if(goldEl)goldEl.textContent=`${gold} G`;
  const buyTab=$('shop-tab-buy'),sellTab=$('shop-tab-sell'),buyView=$('shop-buy-view'),sellView=$('shop-sell-view');
  if(buyTab&&sellTab){
@@ -892,7 +898,7 @@ function renderShop(){
  if(sellView)sellView.hidden=shopMode!=='sell';
  const buyList=$('shop-buy-list');
  if(buyList&&shopMode==='buy'){
-  const catalog=(shopCatalog[p.species]||shopCatalog.human).filter(e=>merchantRole(e.item)===shopCategory);
+  const catalog=(merchant?(shopCatalog[merchant.faction]||shopCatalog.human):[]).filter(e=>merchantRole(e.item)===merchant.role);
   buyList.replaceChildren(...catalog.map(entry=>{
    const card=document.createElement('div');card.className='shop-item-card';
    const left=document.createElement('div');left.className='shop-item-left';
@@ -904,9 +910,9 @@ function renderShop(){
    const act=document.createElement('div');act.className='shop-item-action';
    const price=document.createElement('span');price.className='shop-price-tag';price.textContent=`💰 ${entry.price} G`;
    const btn=document.createElement('button');btn.type='button';btn.className='shop-buy-btn';
-   const nearby=(state.map.merchants||[]).some(m=>m.faction===p.species&&m.role===shopCategory&&Math.hypot(m.x-p.x,m.y-p.y)<=5);
+   const nearby=trading;
    btn.textContent=nearby?'구매':'상인에게 이동';btn.disabled=!nearby||!connected||w.paused||gold<entry.price||isBagFull(w);
-   btn.onclick=()=>manualAction('shop_buy',{item:entry.item,count:1});
+   btn.onclick=()=>manualAction('shop_buy',{item:entry.item,count:1,merchant_id:activeMerchantId});
    act.append(price,btn);card.append(left,act);return card;
   }));
  }
@@ -914,11 +920,11 @@ function renderShop(){
  if(sellList&&shopMode==='sell'){
   const sellItems=[];
   for(const [k,v] of Object.entries(w.inventory)){
-   if(k!=='gold'&&v>0&&shopSellPrices[k]){sellItems.push({type:'item',id:k,name:itemName(k),count:v,price:shopSellPrices[k]});}
+   if(merchant&&merchantRole(k)===merchant.role&&k!=='gold'&&v>0&&shopSellPrices[k]){sellItems.push({type:'item',id:k,name:itemName(k),count:v,price:shopSellPrices[k]});}
   }
   const gear=w.gear||[];
   for(const g of gear){
-   if(!equippedSlot(g)){
+   if(merchant?.role==='equipment'&&!equippedSlot(g)){
     const gearVal=15+(g.power||1)*5;
     sellItems.push({type:'gear',id:g.id,name:itemName(g.id),count:1,price:gearVal,gear:g});
    }
@@ -939,8 +945,8 @@ function renderShop(){
     const act=document.createElement('div');act.className='shop-item-action';
     const price=document.createElement('span');price.className='shop-price-tag';price.textContent=`+${item.price} G`;
     const btn=document.createElement('button');btn.type='button';btn.className='shop-sell-btn';
-    btn.textContent='판매';btn.disabled=!connected||w.paused;
-    btn.onclick=()=>{if(item.type==='gear')manualAction('shop_sell',{gear_id:item.id});else manualAction('shop_sell',{item:item.id,count:1});};
+    btn.textContent='판매';btn.disabled=!trading||!connected||w.paused;
+    btn.onclick=()=>{if(item.type==='gear')manualAction('shop_sell',{gear_id:item.id,merchant_id:activeMerchantId});else manualAction('shop_sell',{item:item.id,count:1,merchant_id:activeMerchantId});};
     act.append(price,btn);card.append(left,act);return card;
    }));
   }
@@ -1404,7 +1410,7 @@ function interact(){
  clearMovement();if(!state)return;const w=state.world,p=w.player;
  const nearMerchant=[...(state.map?.merchants||[])].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
  if(nearMerchant&&Math.hypot(nearMerchant.x-p.x,nearMerchant.y-p.y)<=3.5){
-  openPanel('shop');
+  openMerchant(nearMerchant);
   return;
  }
  const nearDrop=[...(w.drops||[])].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
@@ -1553,7 +1559,7 @@ function stepMovement(){
     if(autoHunt&&!isBagFull(state.world))command('loot',{id,item:'all'});
     else openLootBox({type:'drop',id});
    }else if(id?.startsWith('merchant:')){
-    openPanel('shop');
+    openMerchant((state.map.merchants||[]).find(m=>m.id===id.slice(9)));
    }else if(id){
     const poi=state.pois.find(n=>n.id===id);
     if(poi){
@@ -1651,7 +1657,6 @@ document.querySelectorAll('.menu-body,#loot-list,#activity-messages').forEach(ma
 
 $('hud-pause').onclick=()=>$('pause').click();
 
-for(const b of document.querySelectorAll('[data-shop-category]'))b.onclick=()=>{shopCategory=b.dataset.shopCategory;document.querySelectorAll('[data-shop-category]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderShop();};
 
 function renderSettlement(){
  if(!state)return;

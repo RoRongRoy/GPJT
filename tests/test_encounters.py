@@ -51,8 +51,9 @@ class EncounterTests(unittest.TestCase):
         for region in REGIONS:
             enemies = [e for e in w['enemies'] if e['region'] == region['id']]
             self.assertTrue(enemies)
-            self.assertGreater(min(e['max_hp'] for e in enemies), previous)
-            previous = max(e['max_hp'] for e in enemies)
+            average = sum(e['max_hp'] for e in enemies)/len(enemies)
+            self.assertGreater(average, previous)
+            previous = average
             for e in enemies:
                 self.assertTrue(region['levels'][0] <= e['level'] <= region['levels'][1])
                 self.assertGreaterEqual(e['damage'], 8)

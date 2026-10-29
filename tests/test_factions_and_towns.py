@@ -54,7 +54,7 @@ class FactionsAndTownsTests(unittest.TestCase):
 
     def test_enemies_fight_opposing_factions(self):
         # Player far away in safe town
-        self.w['player'].update(chosen=True, species='human', x=18.0, y=18.0, hp=100.0)
+        self.w['player'].update(chosen=True, species='human', x=36.0, y=36.0, hp=100.0)
         # Enemy 4: Human soldier (home 72, 36), Enemy 5: Vampire knight
         home4 = ENEMY_SPAWNS[4]
         self.w['enemies'][4].update(x=home4[0], y=home4[1], hp=80.0)
@@ -78,7 +78,7 @@ class FactionsAndTownsTests(unittest.TestCase):
 
     def test_safe_town_pauses_hunger_thirst(self):
         # Player in Lumina Citadel safe zone
-        self.w['player'].update(chosen=True, species='human', x=18.0, y=18.0, food=90.0, water=90.0)
+        self.w['player'].update(chosen=True, species='human', x=36.0, y=36.0, food=90.0, water=90.0)
         food_before = self.w['player']['food']
         water_before = self.w['player']['water']
 
@@ -113,6 +113,8 @@ class FactionsAndTownsTests(unittest.TestCase):
 
         gold_before = self.w['inventory']['gold']
         expected_gain = 15 + test_gear['power'] * 5
+        armorer = next(m for m in MERCHANTS if m['id']=='human_equipment')
+        self.w['player'].update(x=armorer['x'], y=armorer['y'])
         self.action(action='shop_sell', gear_id=test_gear['id'])
         self.assertEqual(self.w['inventory']['gold'], gold_before + expected_gain)
         self.assertNotIn(test_gear, self.w['gear'])

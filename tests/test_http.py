@@ -40,7 +40,7 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request('/../data/access.key')[0], 404)
         status, body = self.request('/api/state')
         self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body)['map']['size'], 128)
+        self.assertEqual(json.loads(body)['map']['size'], 256)
         self.assertEqual(json.loads(body)['map']['base_radius'], 7)
         self.assertEqual(json.loads(body)['recipes']['soup']['facility'], 'kitchen')
         status2, body2 = self.request('/api/state', session='second-test-session')
@@ -116,7 +116,7 @@ class HttpTests(unittest.TestCase):
 
     def test_all_camp_operations_reject_remote_requests_without_spending(self):
         world = self.runtime.world
-        world['player'].update(chosen=True, x=40, y=40)
+        world['player'].update(chosen=True, x=120, y=120)
         world['base']['facilities'].update(kitchen=1, medical=1)
         self.runtime.store.save(world)
         before = self.runtime.store.load()
@@ -179,6 +179,7 @@ class HttpTests(unittest.TestCase):
     def test_new_adventurer_account_save_and_load(self):
         self.assertEqual(self.request('/api/action', {'revision': 0, 'command': {'action': 'choose', 'species': 'human'}})[0], 200)
         self.runtime.last_command = 0
+        self.runtime.world['player'].update(x=self.runtime.world['base']['x'], y=self.runtime.world['base']['y'])
         self.assertEqual(self.request('/api/action', {'revision': 1, 'command': {'action': 'build', 'facility': 'kitchen'}})[0], 200)
         self.runtime.last_command = 0
         status, body = self.request('/api/action', {

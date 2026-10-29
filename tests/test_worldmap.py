@@ -81,6 +81,7 @@ class WorldMapTests(unittest.TestCase):
     def test_distant_relocation_survives_save_and_species_roundtrip(self):
         world = new_world()
         act(world, {'action': 'choose', 'species': 'human'})
+        world['player'].update(x=world['base']['x'], y=world['base']['y'])
         act(world, {'action': 'build', 'facility': 'medical'})
         world['player'].update(x=60, y=10)
         facilities = copy.deepcopy(world['base']['facilities'])
@@ -105,9 +106,9 @@ class WorldMapTests(unittest.TestCase):
         before=copy.deepcopy(w)
         with tempfile.TemporaryDirectory() as directory:
             store=Store(Path(directory)/'world.sqlite3');store.save(w);restored=store.load()
-            self.assertEqual(restored['layout_version'],2)
-            self.assertEqual(restored['player']['x'],expand_coordinate(6))
-            self.assertEqual(restored['base']['y'],expand_coordinate(6))
+            self.assertEqual(restored['layout_version'],3)
+            self.assertEqual(restored['player']['x'],expand_coordinate(6)*2)
+            self.assertEqual(restored['base']['y'],expand_coordinate(6)*2)
             for key in ('inventory','cooldowns','elapsed','milestones'):
                 self.assertEqual(restored[key],before[key])
             self.assertEqual(restored['base']['facilities'],before['base']['facilities'])
@@ -118,7 +119,7 @@ class WorldMapTests(unittest.TestCase):
             store.save(restored);self.assertEqual(store.load(),restored);store.close()
 
     def test_spacing_and_non_grid_layout(self):
-        self.assertEqual(SIZE,128);self.assertEqual(len(POIS),29);self.assertEqual(len(ENEMY_SPAWNS),11)
+        self.assertEqual(SIZE,256);self.assertEqual(len(POIS),29);self.assertEqual(len(ENEMY_SPAWNS),35)
         for i,a in enumerate(POIS):
             for b in POIS[i+1:]:self.assertGreaterEqual(math.hypot(a['x']-b['x'],a['y']-b['y']),8)
         for i,a in enumerate(ENEMY_SPAWNS):
@@ -130,12 +131,12 @@ class WorldMapTests(unittest.TestCase):
             self.assertGreater(len({p[0] for p in road}),2);self.assertGreater(len({p[1] for p in road}),2)
 
     def test_expanded_camp_crafting_and_protection_use_same_boundary(self):
-        w=new_world();w['player'].update(chosen=True,x=41.9,y=12);w['base'].update(x=35,y=12)
+        w=new_world();w['player'].update(chosen=True,x=83.9,y=24);w['base'].update(x=77,y=24)
         for e in w['enemies']:e.update(x=100,y=100)
-        w['enemies'][0].update(x=42,y=12)
+        w['enemies'][0].update(x=84,y=24)
         act(w,{'action':'build','facility':'kitchen'})
         hp=w['player']['hp'];tick(w,.2);self.assertEqual(w['player']['hp'],hp)
-        w['player']['x']=42.1
+        w['player']['x']=84.1
         with self.assertRaises(RuleError):act(copy.deepcopy(w),{'action':'build','facility':'storage'})
         tick(w,.2);self.assertLess(w['player']['hp'],hp)
 

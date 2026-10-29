@@ -169,10 +169,10 @@ class WorldView {
   const poly=(points,color)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle=color;c.fill();};
   const tile=(x,y,color)=>{const [sx,sy]=project(x,y);poly([[sx,sy-th],[sx+tw+.6,sy],[sx,sy+th+.5],[sx-tw-.6,sy]],color);};
   const ellipse=(x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx*scale,ry*scale,0,0,Math.PI*2);c.fill();};
-  const box=(x,y,z,color,wide=.7)=>{
+  const box=(x,y,z,color,wide=.7,sides=['#35423e','#273637'])=>{
    const [sx,sy]=project(x,y),a=tw*wide,b=th*wide,h=z*scale;
-   poly([[sx-a,sy-h],[sx,sy-h+b],[sx,sy+b],[sx-a,sy]],'#35423e');
-   poly([[sx+a,sy-h],[sx,sy-h+b],[sx,sy+b],[sx+a,sy]],'#273637');
+   poly([[sx-a,sy-h],[sx,sy-h+b],[sx,sy+b],[sx-a,sy]],sides[0]);
+   poly([[sx+a,sy-h],[sx,sy-h+b],[sx,sy+b],[sx+a,sy]],sides[1]);
    poly([[sx-a,sy-h],[sx,sy-h-b],[sx+a,sy-h],[sx,sy-h+b]],color);
   };
   const label=(text,x,y,color='#d9e4cd')=>{
@@ -195,18 +195,13 @@ class WorldView {
   for(const pond of this.ponds){if(!visible(pond.x,pond.y)||!outsideCamp(pond))continue;const [sx,sy]=project(pond.x,pond.y);ellipse(sx,sy,22,9,'#253842');ellipse(sx+3*scale,sy,14,4,'#93a8b02c');}
   const towns=state.map?.towns?Object.values(state.map.towns):[];
   for(const town of towns){
-   if(!visible(town.x,town.y))continue;
-   for(let dx=-5;dx<=5;dx++)for(let dy=-5;dy<=5;dy++){if(Math.abs(dx)<=1||Math.abs(dy)<=1)tile(town.x+dx,town.y+dy,(dx+dy)%2?'#4b4548':'#39363c');}
-   const [tx,ty]=project(town.x,town.y);
-   c.save();
-   c.strokeStyle=town.faction==='vampire'?'#e11d4866':'#38bdf866';
-   c.lineWidth=2.2*scale;
-   c.beginPath();
-   c.ellipse(tx,ty,town.radius*tw*.95,town.radius*th*.95,0,0,Math.PI*2);
-   c.stroke();
-   c.fillStyle=town.faction==='vampire'?'#e11d4814':'#38bdf814';
-   c.fill();
-   c.restore();
+   const dark=town.faction==='vampire';
+   for(let dx=-12;dx<=12;dx++)for(let dy=-12;dy<=12;dy++){
+    const x=town.x+dx,y=town.y+dy;if(!visible(x,y))continue;
+    const avenue=Math.abs(dx)<=2||Math.abs(dy)<=2,plaza=Math.abs(dx)<=4&&Math.abs(dy)<=4;
+    tile(x,y,plaza?((dx+dy)%2?'#60534e':'#4c4544'):avenue?((dx+dy)%2?'#49464b':'#3b3c42'):dark?'#2b252e':'#30373a');
+    if(avenue&&(Math.abs(dx)===2||Math.abs(dy)===2))tile(x,y,dark?'#68424a':'#6b6653');
+   }
   }
   if(hasBase&&!art.campGround(w.base.x,w.base.y,this.projection,state.map.base_radius))for(let x=-2;x<=2;x++)for(let y=-2;y<=2;y++)tile(w.base.x+x,w.base.y+y,'#5c5757');
   if(target){
@@ -221,8 +216,18 @@ class WorldView {
   const otherBases=(state.other_bases||[]).map(b=>({...b,type:'other_base'}));
   const merchants=(state.map.merchants||[]).map(m=>({...m,type:'merchant',kind:'merchant'}));
   const baseEntity=hasBase?[{...w.base,type:'base'}]:[];
-  const townBuildings=towns.flatMap(t=>[[-5,-4,'storage'],[4,-5,'medical'],[-5,5,'alchemy'],[5,5,'kitchen']].map(([dx,dy,prop])=>({x:t.x+dx,y:t.y+dy,type:'town_building',prop,faction:t.faction})));
-  const entities=[...scenery.filter(e=>!towns.some(t=>Math.hypot(e.x-t.x,e.y-t.y)<t.radius)),...townBuildings,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...merchants,...(w.drops||[]).map(d=>({...d,type:'drop'})),...baseEntity,...facilities,...otherBases,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
+  const townBuildings=towns.flatMap(t=>[[-8,-9,'storage','보급 창고'],[8,-9,'storage','무기 공방'],[-8,10,'alchemy','주문서 서고'],[8,10,'medical',t.faction==='human'?'성당':'혈족 예배당'],[-9,0,'kitchen','선술집'],[9,0,'medical','치유소']].map(([dx,dy,prop,title])=>({x:t.x+dx,y:t.y+dy,type:'town_building',prop,title,faction:t.faction})));
+  const townWalls=towns.flatMap(t=>{
+   const pieces=[];
+   for(let n=-12;n<=12;n+=2)for(const side of [-1,1])if(Math.abs(n)>2){
+    pieces.push({x:t.x+n,y:t.y+side*12,type:'town_wall',faction:t.faction});
+    pieces.push({x:t.x+side*12,y:t.y+n,type:'town_wall',faction:t.faction});
+   }
+   for(const dx of [-12,12])for(const dy of [-12,12])pieces.push({x:t.x+dx,y:t.y+dy,type:'town_tower',faction:t.faction});
+   pieces.push({x:t.x,y:t.y,type:'town_monument',faction:t.faction,title:t.name});
+   return pieces;
+  });
+  const entities=[...scenery.filter(e=>!towns.some(t=>Math.hypot(e.x-t.x,e.y-t.y)<t.radius)),...townBuildings,...townWalls,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...merchants,...(w.drops||[]).map(d=>({...d,type:'drop'})),...baseEntity,...facilities,...otherBases,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
   this.points=[];const labels=[];let playerCovered=false;
   const tree=(x,y,seed=0)=>{const [sx,sy]=project(x,y);art.tree(sx,sy,scale,seed);};
   for(const e of entities){
@@ -291,10 +296,31 @@ class WorldView {
     const halfWidth=Math.max((e.kind==='wood'?66:e.kind==='metal'?72:45)*scale,e.label.length*5.5);
     this.points.push({x:sx,y:sy-22*scale,id:e.id,left:sx-halfWidth,right:sx+halfWidth,top:sy-(e.kind==='wood'?210:e.kind==='blood'?137:110)*scale,bottom:sy+12*scale});
    }
-   if(e.type==='town_building'){art.prop(e.prop,sx,sy,scale*.85);c.fillStyle=e.faction==='human'?'#78bccb':'#aa536b';c.fillRect(sx-3*scale,sy-90*scale,3*scale,45*scale);c.beginPath();c.moveTo(sx,sy-90*scale);c.lineTo(sx+22*scale,sy-84*scale);c.lineTo(sx,sy-73*scale);c.fill();}
+   if(e.type==='town_wall'||e.type==='town_tower'){
+    const tower=e.type==='town_tower',dark=e.faction==='vampire',height=tower?80:34;
+    const wallWidth=tower?1.15:1;
+    box(e.x,e.y,height,dark?'#54404b':'#60656b',wallWidth,dark?['#42363e','#302b32']:['#575755','#3f4143']);
+    c.strokeStyle='#15171b99';c.lineWidth=.8*scale;
+    for(let z=10;z<height;z+=10){
+     c.beginPath();c.moveTo(sx-tw*wallWidth,sy-(height-z)*scale);c.lineTo(sx,sy+th*wallWidth-(height-z)*scale);c.lineTo(sx+tw*wallWidth,sy-(height-z)*scale);c.stroke();
+    }
+    for(const d of [-.65,0,.65])box(e.x+d,e.y,height+7,dark?'#7b5360':'#898273',.19);
+    if(tower){c.fillStyle=dark?'#c95970':'#e7be72';c.fillRect(sx-3*scale,sy-56*scale,6*scale,13*scale);}
+   }
+   if(e.type==='town_monument'){
+    box(e.x,e.y,10,'#817361',1.7);box(e.x,e.y,70,e.faction==='human'?'#afb5b7':'#734259',.42);
+    c.strokeStyle=e.faction==='human'?'#ecdbac':'#e98aaf';c.lineWidth=4*scale;
+    c.beginPath();c.moveTo(sx,sy-105*scale);c.lineTo(sx,sy-65*scale);c.moveTo(sx-12*scale,sy-90*scale);c.lineTo(sx+12*scale,sy-90*scale);c.stroke();
+    labels.push([e.title,sx,sy-120*scale,'#e8cf97']);
+   }
+   if(e.type==='town_building'){
+    c.save();if(e.faction==='vampire')c.filter='hue-rotate(315deg) saturate(.75)';art.refuge(sx,sy,scale*(e.prop==='medical'?.85:.62));c.restore();
+    art.prop(e.prop,sx+38*scale,sy+12*scale,scale*.6);c.fillStyle=e.faction==='human'?'#78bccb':'#aa536b';c.fillRect(sx-3*scale,sy-105*scale,3*scale,55*scale);c.beginPath();c.moveTo(sx,sy-105*scale);c.lineTo(sx+26*scale,sy-97*scale);c.lineTo(sx,sy-84*scale);c.fill();
+    labels.push([e.title,sx,sy-(e.prop==='medical'?238:178)*scale,'#cbbfa9']);
+   }
    if(e.type==='merchant'){
     const isVamp=e.faction==='vampire';
-    const [hx,hy]=project(e.x,e.y);art.prop('storage',hx+22*scale,hy+6*scale,scale*.65);
+    const [hx,hy]=project(e.x,e.y);box(e.x+.6,e.y+.6,14,isVamp?'#603c4b':'#6a6352',.65);
     art.character(sx,sy,scale,isVamp?'vampire':'human',false,now,{npc:true});
     c.strokeStyle='#fbbf24aa';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy+2*scale,16*scale,8*scale,0,0,Math.PI*2);c.stroke();
     labels.push([`${({equipment:'⚔',scroll:'◇',skill:'✦',supplies:'◈'})[e.role]||'◈'} ${e.name} [E: 상점]`,sx,sy-112*scale,'#fde047']);
@@ -307,7 +333,9 @@ class WorldView {
     const isFriendly=(eFac===p.species);
     const specForArt=(eFac==='vampire'?'vampire':'human');
     if(high){c.strokeStyle=boss?'#ff525288':'#d68c7766';c.lineWidth=boss?2:1.3;c.beginPath();c.ellipse(sx,sy+2*scale,(boss?24:19)*scale,(boss?11:9)*scale,0,0,Math.PI*2);c.stroke();}
-    art.character(sx,sy+eBob,scale*(boss?1.15:high?1.06:1),specForArt,pose.moving,now,{enemy:eFac==='infected',variant:high,pose,gender:'male',job:'warrior'});
+    const monster=state.map.monster_types?.[e.monster_type];
+    c.save();if(eFac==='infected'&&monster)c.filter=`hue-rotate(${monster.hue}deg)`;
+    art.character(sx,sy+eBob,scale*(monster?.scale||(boss?1.15:high?1.06:1)),specForArt,pose.moving,now,{enemy:eFac==='infected',variant:e.monster_type==='juggernaut'||high,pose,gender:'male',job:e.monster_type==='wraith'?'ranged':'warrior'});c.restore();
     c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);
     c.fillStyle=isFriendly?'#38bdf8':boss?'#ff5c5c':high?'#d9734e':'#ad5866';
     c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);

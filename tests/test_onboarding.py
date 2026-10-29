@@ -36,6 +36,7 @@ class OnboardingTests(unittest.TestCase):
         world = new_world()
         del world['milestones']
         act(world, {'action': 'choose', 'species': 'human'})
+        world['player'].update(x=world['base']['x'], y=world['base']['y'])
         before = copy.deepcopy(world['inventory'])
         act(world, {'action': 'build', 'facility': 'kitchen'})
         self.assertEqual(world['milestones'], ['build:kitchen'])

@@ -2115,3 +2115,6 @@ body.field-ui{--hud-gold:#b9a16e;--hud-ink:#100f0dcc;overflow:hidden}
  .equipment-identity{padding-top:12px}.equipment-identity h3{font-size:24px!important}
  .equipment-character{width:88%}
 }
+
+/* Touch devices use the main category panels; hover flyouts must not cover combat controls. */
+@media (hover:none), (pointer:coarse){.field-ui .dock-flyout{display:none!important}}

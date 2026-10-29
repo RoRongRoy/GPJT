@@ -133,7 +133,7 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   await page.screenshot({path:`/tmp/equipment-${layout}.png`});
   await page.keyboard.press('Escape');
   fixture.world.base={x:null,y:null,established:false,facilities:{kitchen:0,alchemy:0,medical:0,storage:0}};
-  fixture.world.player.x=18;fixture.world.player.y=19;
+  fixture.world.player.x=fixture.map.towns.human.x;fixture.world.player.y=fixture.map.towns.human.y;
   await page.locator('#menu-camp').click();
   await until(()=>page.locator('#settlement-build').isDisabled(),'Town must explain why construction is unavailable');
   fixture.world.player.x=58;fixture.world.player.y=14;
@@ -144,6 +144,30 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   await until(()=>page.locator('#settlement-manage').isVisible(),'Construction should expose facility management');
   await page.locator('#settlement-manage').click();assert.equal(await page.locator('#menu-dialog').getAttribute('data-panel'),'camp');
   await page.keyboard.press('Escape');await page.keyboard.press('b');assert.equal(await page.locator('#menu-dialog').getAttribute('data-panel'),'settlement');
+  await page.keyboard.press('Escape');fixture.world.inventory.gold=10000;
+  for(const role of ['equipment','scroll','skill','supplies']){
+   const merchant=fixture.map.merchants.find(m=>m.faction==='human'&&m.role===role);
+   fixture.world.player.x=merchant.x;fixture.world.player.y=merchant.y;
+   await until(()=>page.locator('#coordinates').textContent().then(t=>t===`${merchant.x} / ${merchant.y}`),'Merchant position must arrive');
+   await page.locator('#interact')[mobile?'tap':'click']();
+   assert.equal(await page.locator('#menu-dialog').getAttribute('data-panel'),'shop');
+   assert.equal(await page.locator('#shop-merchant-name').textContent(),merchant.name);
+   assert.equal(await page.locator('[data-shop-category]').count(),0,'Another merchant must require a visit');
+   const count=await page.locator('#shop-buy-list .shop-item-card').count();
+   assert.equal(count,role==='equipment'?7:role==='supplies'?6:1);
+   await page.locator('#shop-buy-list .shop-buy-btn').first()[mobile?'tap':'click']();await delay(150);
+   assert.equal(commands.at(-1)?.merchant_id,merchant.id);
+   assert.equal(commands.at(-1)?.action,'shop_buy');
+   if(role==='equipment')await page.screenshot({path:`/tmp/specialist-shop-${layout}.png`});
+   await page.keyboard.press('Escape');
+  }
+  for(const faction of ['human','vampire']){
+   fixture.world.player.species=faction;
+   const town=fixture.map.towns[faction];fixture.world.player.x=town.x;fixture.world.player.y=town.y;
+   await until(()=>page.locator('#coordinates').textContent().then(t=>t===`${town.x} / ${town.y}`),'Town view must arrive');
+   await page.evaluate(()=>document.getElementById('zoom-out').click());await page.evaluate(()=>document.getElementById('zoom-out').click());await delay(400);
+   await page.screenshot({path:`/tmp/town-${faction}-${layout}.png`});
+  }
   assert.deepEqual(errors,[]);console.log(`Hotbar ${layout} passed: migration, assignment, empty slots, removal, 1–6 dispatch, persistence, unlocks, touch/click actions, navigation and HUD bounds.`);
   await page.unrouteAll({behavior:'ignoreErrors'});await context.close();
  }

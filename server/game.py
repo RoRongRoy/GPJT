@@ -2,7 +2,7 @@
 import math
 import random
 
-from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at, TOWNS, MERCHANTS
+from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at, TOWNS, MERCHANTS, MONSTER_TYPES
 
 from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOTS, SLOT_NAMES, slot_type, equipped_slot, armor_power
 
@@ -55,6 +55,15 @@ SHOP_SELL_PRICES = {
     'wood': 1, 'metal': 2, 'crop': 2, 'herb': 2, 'blood': 2, 'water': 2,
     'scroll': 10, 'soup': 5, 'elixir': 5, 'medicine': 7, 'skillbook': 30,
 }
+
+
+def trading_merchant(w, command):
+    p = w['player']
+    nearby = [m for m in MERCHANTS if m['faction'] == p['species'] and math.hypot(p['x']-m['x'], p['y']-m['y']) <= 5]
+    merchant_id = command.get('merchant_id')
+    merchant = next((m for m in nearby if m['id'] == merchant_id), None) if merchant_id else min(nearby, key=lambda m: math.hypot(p['x']-m['x'], p['y']-m['y']), default=None)
+    require(merchant, '거래할 아군 상인 가까이로 이동하세요.')
+    return merchant
 
 
 def in_safe_town(p, species=None):
@@ -447,7 +456,7 @@ class RuleError(ValueError):
 def new_world():
     return {'version': 1, 'layout_version': LAYOUT_VERSION, 'revision': 0, 'elapsed': 0.0, 'paused': False,
             'player': {'x': float(START_BASE[0]), 'y': float(START_BASE[1]+1), 'species': 'human', 'origin': 'human',
-                       'gender': 'male', 'job': 'warrior', 'chosen': False,
+                       'gender': 'male', 'job': 'warrior', 'chosen': False, 'map_layout': LAYOUT_VERSION,
                        'hp': 100.0, 'mp': 100.0, 'food': 90.0, 'water': 90.0, 'blood': 90.0, 'stability': 90.0,
                        'infection': 0.0, 'combat_level': 1, 'xp': 0, 'level': 0, 'pity': 0, 'mounted': False,
                        'learned_skills': ['sweep', 'recover'],
@@ -846,14 +855,13 @@ def act(w, command, rng=random.random):
         p.update(x=float(w['base']['x']), y=float(w['base']['y']+1), hp=70., infection=0., mounted=False)
         note(w, '중립 치료소 구조 · 자산 유지 (프로토타입 복구 지원)')
     elif action == 'shop_buy':
-        near_merchant = any(math.hypot(p['x']-m['x'], p['y']-m['y']) <= 5.0 for m in MERCHANTS)
-        require(near_merchant or in_safe_town(p), '마을 상인 가까이에서 상점을 이용하세요.')
+        merchant = trading_merchant(w, command)
         item = command.get('item')
         count = max(1, int(command.get('count', 1)))
         catalog = SHOP_BUY_CATALOG.get(p.get('species', 'human'), SHOP_BUY_CATALOG['human'])
         entry = next((e for e in catalog if e['item'] == item), None)
         require(entry, '상인에게서 구매할 수 없는 품목입니다.')
-        require(any(m['faction'] == p['species'] and m['role'] == merchant_role(item) and math.hypot(p['x']-m['x'], p['y']-m['y']) <= 5 for m in MERCHANTS), '해당 품목을 취급하는 아군 상인 가까이로 이동하세요.')
+        require(merchant['role'] == merchant_role(item), '이 상인이 취급하지 않는 품목입니다.')
         total = entry['price'] * count
         require(w['inventory'].get('gold', 0) >= total, f'골드가 부족합니다. (필요: {total} G / 보유: {w["inventory"].get("gold", 0)} G)')
         require(bag_used(w) + count * (4 if merchant_role(item) == 'equipment' else 1) <= bag_capacity(w), '가방 용량이 가득 찼습니다.')
@@ -869,9 +877,9 @@ def act(w, command, rng=random.random):
             w['inventory'][item] = w['inventory'].get(item, 0) + count
         note(w, f"💰 [{entry['name']}] {count}개를 {total} 골드에 구매했습니다. (잔여 골드: {w['inventory']['gold']} G)")
     elif action == 'shop_sell':
-        near_merchant = any(math.hypot(p['x']-m['x'], p['y']-m['y']) <= 5.0 for m in MERCHANTS)
-        require(near_merchant or in_safe_town(p), '마을 상인 가까이에서 상점을 이용하세요.')
+        merchant = trading_merchant(w, command)
         if command.get('gear_id'):
+            require(merchant['role'] == 'equipment', '장비 상인에게 장비를 판매하세요.')
             gear_id = command.get('gear_id')
             g = next((x for x in w.get('gear', []) if x['id'] == gear_id), None)
             require(g, '보유하지 않은 장비입니다.')
@@ -882,6 +890,7 @@ def act(w, command, rng=random.random):
             note(w, f"💰 [{g['name']}]을(를) 판매하여 {gear_val} 골드를 획득했습니다. (보유 골드: {w['inventory']['gold']} G)")
         else:
             item = command.get('item')
+            require(isinstance(item, str) and merchant['role'] == merchant_role(item), '이 상인이 취급하지 않는 품목입니다.')
             count = max(1, int(command.get('count', 1)))
             require(item and item != 'gold', '판매할 수 없는 아이템입니다.')
             require(w['inventory'].get(item, 0) >= count, '판매할 아이템 수량이 부족합니다.')
@@ -948,7 +957,7 @@ def tick(w, dt, extra_profiles=None):
         if dist(e, home) > 10:
             e['returning'] = True
         if e['returning']:
-            move_toward(e, home, dt*.9)
+            move_toward(e, home, dt*MONSTER_TYPES.get(e.get('monster_type'), {}).get('speed', .9))
             if dist(e, home) < .2:
                 e['returning'] = False
             continue
@@ -1011,7 +1020,7 @@ def tick(w, dt, extra_profiles=None):
             p = target_prof['player']
             d = dist(e, p)
             if d > 1:
-                move_toward(e, p, dt*.8)
+                move_toward(e, p, dt*MONSTER_TYPES.get(e.get('monster_type'), {}).get('speed', .8))
             if d <= 1.3 and w['elapsed'] >= e['attack']:
                 e['attack'] = w['elapsed'] + 2.5
                 armor = _profile_armor(target_prof)
@@ -1022,7 +1031,7 @@ def tick(w, dt, extra_profiles=None):
             oe = best_target
             d = dist(e, oe)
             if d > 1:
-                move_toward(e, oe, dt*.8)
+                move_toward(e, oe, dt*MONSTER_TYPES.get(e.get('monster_type'), {}).get('speed', .8))
             if d <= 1.4 and w['elapsed'] >= e['attack']:
                 e['attack'] = w['elapsed'] + 2.2
                 oe['hp'] = max(0, oe['hp'] - max(1, e['damage'] - oe.get('level', 1)))

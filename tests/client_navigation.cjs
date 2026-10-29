@@ -26,7 +26,7 @@ for(const mounted of [false,true])for(const destination of [[1,1],[20,20],[1,20]
  assert.equal(vm.runInContext('target===null',sandbox),true,`arrival: ${mounted} ${destination}`);
 }
 vm.runInContext("state.world.player.x=6;state.world.player.y=7;state.world.player.mounted=false;navigate(state.pois.find(n=>n.id==='grove').x,state.pois.find(n=>n.id==='grove').y,'grove')",sandbox);
-for(let i=0;i<50&&vm.runInContext('!!target',sandbox);i++){now+=150;intervals[0]();}
+for(let i=0;i<150&&vm.runInContext('!!target',sandbox);i++){now+=150;intervals[0]();}
 assert.equal(sandbox.lastAction.action,'gather');assert.equal(sandbox.lastAction.id,'grove');
 vm.runInContext("navigate(20,20);state.world.paused=true;update()",sandbox);
 assert.equal(vm.runInContext('target===null',sandbox),true);
@@ -72,7 +72,7 @@ console.log('Client navigation: 24 walking/mounted destinations, gathering, scre
 vm.runInContext('state.world.paused=false;state.world.player.x=state.world.base.x;state.world.player.y=state.world.base.y+1;connected=true;update()',sandbox);
 assert.equal(vm.runInContext('openPanel("craft")',sandbox),true);
 assert.equal(vm.runInContext('activePanel',sandbox),'craft');
-vm.runInContext('state.world.player.x=40;state.world.player.y=40;update()',sandbox);
+vm.runInContext('state.world.player.x=120;state.world.player.y=120;update()',sandbox);
 assert.equal(vm.runInContext('activePanel',sandbox),null);
 assert.equal(nodes.get('menu-camp').hidden,false,'Personal outpost construction must remain reachable in the field');
 assert.equal(vm.runInContext('openPanel("craft")',sandbox),false);
@@ -110,8 +110,8 @@ console.log('Contextual menu checks passed: camp radius, leaving camp, remote ac
  requests[1].resolve({ok:false,status:400,json:async()=>({error:'Rejected move'})});await new Promise(setImmediate);
  assert.equal(vm.runInContext('view.prediction',sandbox),null);assert.equal(vm.runInContext('view.player',sandbox),null,'Rejected prediction must snap back on the next frame');
  assert.equal(vm.runInContext('state.world.player.x',sandbox),predicted.x);
- vm.runInContext('state.world.player.x=126;state.world.player.y=126;view.predictMove(state,{dx:1,dy:1})',sandbox);
- assert.equal(vm.runInContext('view.prediction.x',sandbox),126,'Prediction must respect map boundaries');
+ vm.runInContext('state.world.player.x=state.map.size-2;state.world.player.y=state.map.size-2;view.predictMove(state,{dx:1,dy:1})',sandbox);
+ assert.equal(vm.runInContext('view.prediction.x',sandbox),fixture.map.size-2,'Prediction must respect map boundaries');
  vm.runInContext('state.world.player.x=20;state.world.player.y=20;view.predictMove(state,{dx:1,dy:0,sprint:true})',sandbox);
  assert.ok(Math.abs((vm.runInContext('view.prediction.x',sandbox)-20)-fixture.map.movement.step*1.65)<1e-8,'Sprint prediction must use sprint multiplier');
  key('keydown','Shift');assert.equal(vm.runInContext('isSprinting()',sandbox),true);
@@ -141,3 +141,5 @@ console.log('Contextual menu checks passed: camp radius, leaving camp, remote ac
  console.log('Faction appearance passed: both player factions see human/vampire combatants and infected monsters with correct allegiances.');
  console.log('Input latency checks passed: throttled input retry, one-step prediction, authoritative reconciliation, delayed response/key release, reversal, rejection, sprint and map bounds.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
+assert.equal(vm.runInContext('bagUsed({...state.world,inventory:{gold:100000,wood:3},gear:[]})',sandbox),3,'Gold must not consume bag capacity or disable purchases');

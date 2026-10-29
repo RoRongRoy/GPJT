@@ -55,6 +55,7 @@ class ProcessTest(unittest.TestCase):
                 w = start()
                 for action in [
                     {'action':'choose','species':'human'},
+                    *([{'action':'move','dx':1,'dy':1}]*22),
                     {'action':'build','facility':'kitchen'},
                     {'action':'craft','recipe':'soup'},
                     {'action':'build','facility':'medical'},
@@ -67,8 +68,11 @@ class ProcessTest(unittest.TestCase):
                     {'action':'relocate'},
                     {'action':'pause'},
                 ]:
-                    time.sleep(.08)
-                    w = request({'revision':w['revision'], 'command':action})
+                    time.sleep(.13)
+                    try:
+                        w = request({'revision':w['revision'], 'command':action})
+                    except urllib.error.HTTPError as error:
+                        self.fail(f'{action}: {error.read().decode()}')
                 saved = w
                 stop()
                 restored = start()

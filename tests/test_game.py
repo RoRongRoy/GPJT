@@ -10,6 +10,7 @@ class GameTests(unittest.TestCase):
     def setUp(self):
         self.w = new_world()
         act(self.w, {'action': 'choose', 'species': 'human'})
+        self.w['player'].update(x=self.w['base']['x'], y=self.w['base']['y'])
 
     def action(self, name, **fields):
         candidate = copy.deepcopy(self.w)
