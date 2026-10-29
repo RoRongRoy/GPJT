@@ -444,7 +444,7 @@ function handleCanvasPoint(e,allowNode=true){
  const node=allowNode?view.points.map(n=>({...n,d:Math.hypot(n.x-cx,n.y-cy)})).filter(n=>cx>=n.left&&cx<=n.right&&cy>=n.top&&cy<=n.bottom).sort((a,b)=>a.d-b.d)[0]:null;
  if(node){
   if(node.id==='base'){inspectOnArrive=false;if(canUseCamp()){openPanel('camp');return;}if(state.world.base?.x!=null)navigate(state.world.base.x,state.world.base.y);}
-  else if(node.id.startsWith('merchant:')){const mid=node.id.replace('merchant:','');const m=(state.map?.merchants||[]).find(x=>x.id===mid);if(m){if(Math.hypot(m.x-p.x,m.y-p.y)<=3.5){clearMovement();openPanel('shop');return;}inspectOnArrive=true;navigate(m.x,m.y,node.id);}}
+  else if(node.id.startsWith('merchant:')){const mid=node.id.replace('merchant:','');const m=(state.map?.merchants||[]).find(x=>x.id===mid);if(m){if(Math.hypot(m.x-p.x,m.y-p.y)<=3.5){clearMovement();shopCategory=m.role||'supplies';openPanel('shop');return;}inspectOnArrive=true;navigate(m.x,m.y,node.id);}}
   else if(node.id.startsWith('enemy:')){inspectOnArrive=false;const enemy=state.world.enemies.find(n=>n.id===Number(node.id.split(':')[1]));if(enemy)navigate(enemy.x,enemy.y,node.id);}
   else if(node.id.startsWith('drop:')){const drop=(state.world.drops||[]).find(d=>d.id===node.id);if(drop){if(Math.hypot(drop.x-p.x,drop.y-p.y)<=3.5){clearMovement();selected=drop.id;openLootBox({type:'drop',id:drop.id});return;}inspectOnArrive=true;navigate(drop.x,drop.y,drop.id);}}
   else{const poi=state.pois.find(n=>n.id===node.id);if(poi){if(poi.kind!=='npc'&&Math.hypot(poi.x-p.x,poi.y-p.y)<=3.5){clearMovement();selected=poi.id;openLootBox({type:'poi',id:poi.id});return;}inspectOnArrive=poi.kind!=='npc';navigate(poi.x,poi.y,poi.id);}}
@@ -824,10 +824,14 @@ const shopCatalog={
   {item:'skillbook',name:'고대 스킬북',price:80,desc:'비전서 · 상위 직업 스킬 해금'}
  ]
 };
+for(const catalog of Object.values(shopCatalog))catalog.push({item:'shop_weapon',name:'민병대 무기',price:120,desc:'일반 무기 · 공격력 +4'},{item:'shop_armor',name:'민병대 방호복',price:100,desc:'일반 방어구 · 방어력 +2'});
+function merchantRole(item){return item.startsWith('shop_')?'equipment':item==='scroll'?'scroll':item==='skillbook'?'skill':'supplies';}
+let shopCategory='supplies';
 const shopSellPrices={wood:1,metal:2,crop:2,herb:2,blood:2,water:2,scroll:10,soup:5,elixir:5,medicine:7,skillbook:30};
 function renderShop(){
  if(!state)return;
  const w=state.world,p=w.player,gold=w.inventory.gold||0;
+ document.querySelectorAll('[data-shop-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shopCategory===shopCategory)));
  const goldEl=$('shop-gold-amount');if(goldEl)goldEl.textContent=`${gold} G`;
  const buyTab=$('shop-tab-buy'),sellTab=$('shop-tab-sell'),buyView=$('shop-buy-view'),sellView=$('shop-sell-view');
  if(buyTab&&sellTab){
@@ -838,11 +842,11 @@ function renderShop(){
  if(sellView)sellView.hidden=shopMode!=='sell';
  const buyList=$('shop-buy-list');
  if(buyList&&shopMode==='buy'){
-  const catalog=shopCatalog[p.species]||shopCatalog.human;
+  const catalog=(shopCatalog[p.species]||shopCatalog.human).filter(e=>merchantRole(e.item)===shopCategory);
   buyList.replaceChildren(...catalog.map(entry=>{
    const card=document.createElement('div');card.className='shop-item-card';
    const left=document.createElement('div');left.className='shop-item-left';
-   const img=document.createElement('img');img.src=`/icons/${itemIcon(entry.item)}.svg`;img.alt='';img.width=40;img.height=40;
+   const img=document.createElement('img');img.src=`/icons/${entry.item==='shop_weapon'?'weapon':entry.item==='shop_armor'?'armor':itemIcon(entry.item)}.svg`;img.alt='';img.width=40;img.height=40;
    const txt=document.createElement('div');txt.className='shop-item-text';
    const title=document.createElement('strong');title.textContent=entry.name;
    const desc=document.createElement('small');desc.textContent=`${entry.desc} · 보유: ${w.inventory[entry.item]||0}개`;
@@ -850,7 +854,8 @@ function renderShop(){
    const act=document.createElement('div');act.className='shop-item-action';
    const price=document.createElement('span');price.className='shop-price-tag';price.textContent=`💰 ${entry.price} G`;
    const btn=document.createElement('button');btn.type='button';btn.className='shop-buy-btn';
-   btn.textContent='구매';btn.disabled=!connected||w.paused||gold<entry.price||isBagFull(w);
+   const nearby=(state.map.merchants||[]).some(m=>m.faction===p.species&&m.role===shopCategory&&Math.hypot(m.x-p.x,m.y-p.y)<=5);
+   btn.textContent=nearby?'구매':'상인에게 이동';btn.disabled=!nearby||!connected||w.paused||gold<entry.price||isBagFull(w);
    btn.onclick=()=>manualAction('shop_buy',{item:entry.item,count:1});
    act.append(price,btn);card.append(left,act);return card;
   }));
@@ -1595,3 +1600,5 @@ function makeDraggableScroll(el){
 document.querySelectorAll('.menu-body,#loot-list,#activity-messages').forEach(makeDraggableScroll);
 
 $('hud-pause').onclick=()=>$('pause').click();
+
+for(const b of document.querySelectorAll('[data-shop-category]'))b.onclick=()=>{shopCategory=b.dataset.shopCategory;document.querySelectorAll('[data-shop-category]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderShop();};

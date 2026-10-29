@@ -79,7 +79,14 @@ TOWNS = {
         }
     }
 }
-MERCHANTS = [TOWNS['human']['merchant'], TOWNS['vampire']['merchant']]
+MERCHANTS = []
+for faction, town in TOWNS.items():
+    town['merchant']['role'] = 'supplies'
+    MERCHANTS.append(town['merchant'])
+    for role, label, dx, dy in [('equipment', '장비 상인', 3, -2), ('scroll', '주문서 상인', -3, 2), ('skill', '스킬 상인', 2, 3)]:
+        MERCHANTS.append({'id': f'{faction}_{role}', 'name': label, 'label': label,
+                          'kind': 'merchant', 'role': role, 'faction': faction,
+                          'x': town['x'] + dx, 'y': town['y'] + dy})
 WORLD_MAP = {'size': SIZE, 'layout_version': LAYOUT_VERSION, 'regions': REGIONS, 'roads': ROADS,
              'movement': MOVEMENT, 'base_radius': BASE_USE_RADIUS, 'base_clear_radius': BASE_CLEAR_RADIUS,
              'towns': TOWNS, 'merchants': MERCHANTS}

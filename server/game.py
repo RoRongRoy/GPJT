@@ -40,6 +40,16 @@ SHOP_BUY_CATALOG = {
     ],
 }
 
+for catalog in SHOP_BUY_CATALOG.values():
+    catalog.extend([
+        {'item': 'shop_weapon', 'name': '민병대 무기', 'price': 120, 'desc': '일반 무기 · 공격력 +4'},
+        {'item': 'shop_armor', 'name': '민병대 방호복', 'price': 100, 'desc': '일반 방어구 · 방어력 +2'},
+    ])
+
+def merchant_role(item):
+    return 'equipment' if item in ('shop_weapon', 'shop_armor') else 'scroll' if item == 'scroll' else 'skill' if item == 'skillbook' else 'supplies'
+
+
 SHOP_SELL_PRICES = {
     'wood': 1, 'metal': 2, 'crop': 2, 'herb': 2, 'blood': 2, 'water': 2,
     'scroll': 10, 'soup': 5, 'elixir': 5, 'medicine': 7, 'skillbook': 30,
@@ -693,6 +703,7 @@ def act(w, command, rng=random.random):
         require(math.hypot(p['x'] - x, p['y'] - y) <= 4.0, '현재 캐릭터 주변에만 아지트를 선포할 수 있습니다.')
         require(all(math.hypot(x-n['x'], y-n['y']) >= 3.0 for n in live_pois(w)), '자원이나 NPC 지점과 너무 가까워 선포할 수 없습니다.')
         require(all(math.hypot(x-ex, y-ey) >= 8.0 for ex, ey in ENEMY_SPAWNS), '감염체 서식지와 너무 가깝습니다. 안전지대에서 선포하세요.')
+        require(all(math.hypot(x-t['x'], y-t['y']) > t['radius'] + BASE_USE_RADIUS for t in TOWNS.values()), '공용 마을과 개인 아지트 영역이 겹칩니다.')
         was_est = w['base'].get('established')
         w['base']['x'] = x
         w['base']['y'] = y
@@ -832,11 +843,20 @@ def act(w, command, rng=random.random):
         catalog = SHOP_BUY_CATALOG.get(p.get('species', 'human'), SHOP_BUY_CATALOG['human'])
         entry = next((e for e in catalog if e['item'] == item), None)
         require(entry, '상인에게서 구매할 수 없는 품목입니다.')
+        require(any(m['faction'] == p['species'] and m['role'] == merchant_role(item) and math.hypot(p['x']-m['x'], p['y']-m['y']) <= 5 for m in MERCHANTS), '해당 품목을 취급하는 아군 상인 가까이로 이동하세요.')
         total = entry['price'] * count
         require(w['inventory'].get('gold', 0) >= total, f'골드가 부족합니다. (필요: {total} G / 보유: {w["inventory"].get("gold", 0)} G)')
-        require(bag_used(w) + count <= bag_capacity(w), '가방 용량이 가득 찼습니다.')
+        require(bag_used(w) + count * (4 if merchant_role(item) == 'equipment' else 1) <= bag_capacity(w), '가방 용량이 가득 찼습니다.')
+        if merchant_role(item) == 'equipment':
+            require(len(w['gear']) + count <= 20, '장비 보관 한도입니다.')
         w['inventory']['gold'] -= total
-        w['inventory'][item] = w['inventory'].get(item, 0) + count
+        if merchant_role(item) == 'equipment':
+            for _ in range(count):
+                slot = 'weapon' if item == 'shop_weapon' else 'armor'
+                w['gear'].append({'id': 'gear:' + str(w['next_gear_id']), 'slot': slot, 'rarity': 'normal', 'name': entry['name'], 'power': 4 if slot == 'weapon' else 2})
+                w['next_gear_id'] += 1
+        else:
+            w['inventory'][item] = w['inventory'].get(item, 0) + count
         note(w, f"💰 [{entry['name']}] {count}개를 {total} 골드에 구매했습니다. (잔여 골드: {w['inventory']['gold']} G)")
     elif action == 'shop_sell':
         near_merchant = any(math.hypot(p['x']-m['x'], p['y']-m['y']) <= 5.0 for m in MERCHANTS)

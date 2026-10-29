@@ -196,6 +196,7 @@ class WorldView {
   const towns=state.map?.towns?Object.values(state.map.towns):[];
   for(const town of towns){
    if(!visible(town.x,town.y))continue;
+   for(let dx=-5;dx<=5;dx++)for(let dy=-5;dy<=5;dy++){if(Math.abs(dx)<=1||Math.abs(dy)<=1)tile(town.x+dx,town.y+dy,(dx+dy)%2?'#4b4548':'#39363c');}
    const [tx,ty]=project(town.x,town.y);
    c.save();
    c.strokeStyle=town.faction==='vampire'?'#e11d4866':'#38bdf866';
@@ -220,7 +221,8 @@ class WorldView {
   const otherBases=(state.other_bases||[]).map(b=>({...b,type:'other_base'}));
   const merchants=(state.map.merchants||[]).map(m=>({...m,type:'merchant',kind:'merchant'}));
   const baseEntity=hasBase?[{...w.base,type:'base'}]:[];
-  const entities=[...scenery,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...merchants,...(w.drops||[]).map(d=>({...d,type:'drop'})),...baseEntity,...facilities,...otherBases,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
+  const townBuildings=towns.flatMap(t=>[[-5,-4,'storage'],[4,-5,'medical'],[-5,5,'alchemy'],[5,5,'kitchen']].map(([dx,dy,prop])=>({x:t.x+dx,y:t.y+dy,type:'town_building',prop,faction:t.faction})));
+  const entities=[...scenery.filter(e=>!towns.some(t=>Math.hypot(e.x-t.x,e.y-t.y)<t.radius)),...townBuildings,...state.pois.map(n=>({...n,...(n.kind==='npc'?smooth(n,'npc:'+n.id):{}),type:'poi'})),...merchants,...(w.drops||[]).map(d=>({...d,type:'drop'})),...baseEntity,...facilities,...otherBases,...w.enemies.filter(e=>e.hp>0).map(e=>({...smooth(e,'enemy:'+e.id),type:'enemy'})),...(state.others||[]).filter(o=>o.chosen).map(o=>({...smooth(o,'peer:'+o.id),type:'peer'})),{...p,...this.player,type:'player'}].filter(e=>visible(e.x,e.y)).sort((a,b)=>a.x+a.y-b.x-b.y);
   this.points=[];const labels=[];let playerCovered=false;
   const tree=(x,y,seed=0)=>{const [sx,sy]=project(x,y);art.tree(sx,sy,scale,seed);};
   for(const e of entities){
@@ -289,12 +291,13 @@ class WorldView {
     const halfWidth=Math.max((e.kind==='wood'?66:e.kind==='metal'?72:45)*scale,e.label.length*5.5);
     this.points.push({x:sx,y:sy-22*scale,id:e.id,left:sx-halfWidth,right:sx+halfWidth,top:sy-(e.kind==='wood'?210:e.kind==='blood'?137:110)*scale,bottom:sy+12*scale});
    }
+   if(e.type==='town_building'){art.prop(e.prop,sx,sy,scale*.85);c.fillStyle=e.faction==='human'?'#78bccb':'#aa536b';c.fillRect(sx-3*scale,sy-90*scale,3*scale,45*scale);c.beginPath();c.moveTo(sx,sy-90*scale);c.lineTo(sx+22*scale,sy-84*scale);c.lineTo(sx,sy-73*scale);c.fill();}
    if(e.type==='merchant'){
     const isVamp=e.faction==='vampire';
     const [hx,hy]=project(e.x,e.y);art.prop('storage',hx+22*scale,hy+6*scale,scale*.65);
     art.character(sx,sy,scale,isVamp?'vampire':'human',false,now,{npc:true});
     c.strokeStyle='#fbbf24aa';c.lineWidth=1.5;c.beginPath();c.ellipse(sx,sy+2*scale,16*scale,8*scale,0,0,Math.PI*2);c.stroke();
-    labels.push([`💰 [상인] ${e.name} [E: 상점]`,sx,sy-112*scale,'#fde047']);
+    labels.push([`${({equipment:'⚔',scroll:'◇',skill:'✦',supplies:'◈'})[e.role]||'◈'} ${e.name} [E: 상점]`,sx,sy-112*scale,'#fde047']);
     this.points.push({x:sx,y:sy-25*scale,id:'merchant:'+e.id,left:sx-48*scale,right:sx+48*scale,top:sy-98*scale,bottom:sy+12*scale,merchant:true});
    }
    if(e.type==='enemy'){

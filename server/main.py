@@ -1,4 +1,5 @@
 """Server-authoritative multiplayer development server with Socket.IO support."""
+import math
 import argparse
 import copy
 import json
@@ -223,6 +224,16 @@ class Runtime:
                         candidate[k] = peer_prof[k]
                 if not self._handle_account_action(candidate, command, is_peer, sess_info):
                     act(candidate, command)
+                    if command.get('action') in ('claim_base', 'relocate'):
+                        base = candidate['base']
+                        for owner in self.sessions:
+                            if owner == token:
+                                continue
+                            other = self._profile_for(owner)
+                            ob = other.get('base', {})
+                            if ob.get('established') and ob.get('x') is not None:
+                                if math.hypot(base['x']-ob['x'], base['y']-ob['y']) < WORLD_MAP['base_radius'] * 2:
+                                    raise RuleError('다른 유저의 아지트 영역과 겹칩니다.')
                 if command.get('action') == 'move':
                     self.movement.block_after_step(token, now)
                 acc_name = candidate['player'].get('account')

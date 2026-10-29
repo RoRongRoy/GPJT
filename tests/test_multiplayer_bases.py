@@ -43,6 +43,7 @@ class MultiplayerBaseTests(unittest.TestCase):
 
                 # Proclaim base at current location
                 rt.sessions['player2-session']['last_command'] = 0
+                rt.peers['player2-session']['player'].update(x=58., y=14.)
                 status, snap = rt.execute_action('player2-session', {'action': 'claim_base'})
                 self.assertEqual(status, 200)
 
@@ -73,6 +74,7 @@ class MultiplayerBaseTests(unittest.TestCase):
                 self.assertEqual(status, 200)
 
                 rt.sessions['player2-session']['last_command'] = 0
+                rt.peers['player2-session']['player'].update(x=58., y=14.)
                 status, snap = rt.execute_action('player2-session', {'action': 'claim_base'})
                 self.assertEqual(status, 200)
 
