@@ -397,7 +397,7 @@ def make_handler(runtime, access_key, sio=None):
                 files['/'+name+'.js'] = (name+'.js', 'text/javascript; charset=utf-8')
             for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'human-male', 'vampire', 'vampire-female', 'ghoul', 'brute', 'props', 'earth', 'stone'):
                 files['/art/gameplay/'+name+'.png'] = ('art/gameplay/'+name+'.png', 'image/png')
-            for item in (*ITEMS, 'weapon', 'armor'):
+            for item in (*ITEMS, 'weapon', 'armor', 'pants', 'boots', 'gloves', 'necklace', 'ring'):
                 files['/icons/'+item+'.svg'] = ('icons/'+item+'.svg', 'image/svg+xml')
             if path not in files:
                 self.send(404, {'error': 'Not found'})

@@ -666,7 +666,7 @@ function updateContext(){
  $('field-vital').textContent=p.species==='human'?`포만 ${Math.ceil(p.food)} · 수분 ${Math.ceil(p.water)}`:`혈액 ${Math.ceil(p.blood)} · 안정 ${Math.ceil(p.stability)}`;
  $('field-bag').textContent=`가방 ${bagUsed()}/${bagCapacity()}`;
  const eqW=gearItem(state.world.equipment?.weapon),eqA=gearItem(state.world.equipment?.armor);
- $('field-equip').textContent=`⚔ ${eqW?itemName(eqW.id):'미착용'} · 🛡 ${eqA?itemName(eqA.id):'미착용'}`;
+ $('field-equip').textContent=`⚔ ${eqW?itemName(eqW.id):'미착용'} · 🛡 ${eqA?itemName(eqA.id):'미착용'} · 총 장비 방어력 ${totalArmor()}`;
  $('field-infection').hidden=p.infection<1;$('field-infection').textContent=`감염 ${Math.ceil(p.infection)}`;
  $('account-top-btn').textContent=p.account?`💾 ${p.account}`:'💾 계정저장';
  if(p.account){
@@ -706,6 +706,13 @@ function itemUseReason(id){
  if(['blood','elixir'].includes(id)&&w.player.species!=='vampire')return '뱀파이어만 사용할 수 있습니다.';
  return '';
 }
+const equipmentSlots={weapon:'무기',armor:'상의',pants:'하의',boots:'장화',gloves:'장갑',necklace:'목걸이',ring1:'반지 1',ring2:'반지 2'};
+const gearTypeNames={...equipmentSlots,ring:'반지'};
+function slotIcon(slot){return slot.startsWith('ring')?'ring':slot;}
+function equippedSlot(g){return g?Object.keys(equipmentSlots).find(slot=>state.world.equipment?.[slot]===g.id):undefined;}
+function targetSlot(g){return g.slot==='ring'?(equippedSlot(g)||(!state.world.equipment?.ring1?'ring1':!state.world.equipment?.ring2?'ring2':'ring1')):g.slot;}
+function totalArmor(){return Object.keys(equipmentSlots).filter(slot=>slot!=='weapon').reduce((sum,slot)=>sum+(gearItem(state.world.equipment?.[slot])?.power||0),0);}
+function useGear(g,slot=targetSlot(g)){manualAction(equippedSlot(g)?'unequip':'equip',{item:g.id,slot:equippedSlot(g)||slot});}
 function gearItem(id){return state?.world.gear?.find(g=>g.id===id);}
 function gearRarity(g){
  const id=g?.rarity==='common'?'normal':g?.rarity;
@@ -718,9 +725,9 @@ function makeEquippedSlotCard(slot,mode='equip'){
  const card=document.createElement('div');card.className='equip-slot-card';
  if(rarity)card.style.borderColor=rarity.color;
  const head=document.createElement('div');head.className='equip-slot-head';
- const img=document.createElement('img');img.src='/icons/'+slot+'.svg';img.alt='';img.width=34;img.height=34;
+ const img=document.createElement('img');img.src='/icons/'+slotIcon(slot)+'.svg';img.alt='';img.width=34;img.height=34;
  const titleBox=document.createElement('div');titleBox.className='equip-slot-title';
- const slotLabel=document.createElement('small');slotLabel.textContent=(slot==='weapon'?'⚔ 주무기 슬롯':'🛡 방어구 슬롯')+(rarity?` · ${rarity.name} 등급`:'');
+ const slotLabel=document.createElement('small');slotLabel.textContent=equipmentSlots[slot]+' 슬롯'+(rarity?` · ${rarity.name} 등급`:'');
  const nameEl=document.createElement('strong');nameEl.textContent=g?itemName(g.id):'장착된 장비 없음';
  if(rarity)nameEl.style.color=rarity.color;
  titleBox.append(slotLabel,nameEl);head.append(img,titleBox);
@@ -746,17 +753,17 @@ function makeEquippedSlotCard(slot,mode='equip'){
 function renderEquippedViews(){
  if(!state)return;
  const w=state.world,p=w.player,gear=w.gear||[];
- const wep=gearItem(w.equipment?.weapon),arm=gearItem(w.equipment?.armor);
+ const wep=gearItem(w.equipment?.weapon);
  const lvl=p.combat_level||1,lvlAtk=(lvl-1)*3,lvlDef=Math.floor((lvl-1)/2);
- const wepPow=wep?.power||0,armPow=arm?.power||0;
+ const wepPow=wep?.power||0,armPow=totalArmor();
  $('equip-stats-summary').textContent=`전투 Lv.${lvl} · 총 공격력 보너스 +${lvlAtk+wepPow} (레벨 +${lvlAtk} / 무기 +${wepPow}) · 무기강화 +${p.level||0} · 총 방어력 +${lvlDef+armPow} (레벨 +${lvlDef} / 방어구 +${armPow})`;
- $('equip-paperdoll').replaceChildren(makeEquippedSlotCard('weapon','equip'),makeEquippedSlotCard('armor','equip'));
- $('bag-equipped-slots').replaceChildren(makeEquippedSlotCard('weapon','bag'),makeEquippedSlotCard('armor','bag'));
- $('survival-equipped').replaceChildren(makeEquippedSlotCard('weapon','survival'),makeEquippedSlotCard('armor','survival'));
+ $('equip-paperdoll').replaceChildren(...Object.keys(equipmentSlots).map(slot=>makeEquippedSlotCard(slot,'equip')));
+ $('bag-equipped-slots').replaceChildren(...Object.keys(equipmentSlots).map(slot=>makeEquippedSlotCard(slot,'bag')));
+ $('survival-equipped').replaceChildren(...Object.keys(equipmentSlots).map(slot=>makeEquippedSlotCard(slot,'survival')));
  $('equip-gear-empty').hidden=gear.length>0;
  $('equip-gear-list').replaceChildren(...gear.map(g=>{
-  const rarity=gearRarity(g),equipped=w.equipment?.[g.slot]===g.id;
-  const currentPow=gearItem(w.equipment?.[g.slot])?.power||0,diff=g.power-currentPow;
+  const rarity=gearRarity(g),equipped=Boolean(equippedSlot(g));
+  const currentPow=gearItem(w.equipment?.[targetSlot(g)])?.power||0,diff=g.power-currentPow;
   const row=document.createElement('div');row.className='equip-gear-row';
   if(equipped&&rarity)row.style.borderColor=rarity.color;
   const info=document.createElement('div');info.className='equip-gear-info';
@@ -764,13 +771,18 @@ function renderEquippedViews(){
   const txt=document.createElement('div');txt.className='equip-gear-text';
   const title=document.createElement('strong');title.textContent=itemName(g.id)+(equipped?' [착용 중]':'');
   if(rarity)title.style.color=rarity.color;
-  const desc=document.createElement('small');desc.textContent=(g.slot==='weapon'?`무기 · 공격력 +${g.power}`:`방어구 · 방어력 +${g.power}`)+(equipped?' · 현재 장착 슬롯':` · 장착 시 ${diff>=0?'+'+diff:diff}`);
+  const desc=document.createElement('small');desc.textContent=(g.slot==='weapon'?`무기 · 공격력 +${g.power}`:`${gearTypeNames[g.slot]} · 방어력 +${g.power}`)+(equipped?' · 현재 장착 슬롯':g.slot==='ring'?' · 반지 1 / 2 선택 장착':` · 장착 시 ${diff>=0?'+'+diff:diff}`);
   txt.append(title,desc);info.append(img,txt);
   const btn=document.createElement('button');btn.type='button';btn.className=equipped?'':'accent';
   btn.textContent=equipped?'착용 해제':'장착';
   btn.disabled=!connected||w.paused;
-  btn.onclick=()=>manualAction(equipped?'unequip':'equip',{item:g.id,slot:g.slot});
-  row.append(info,btn);return row;
+  btn.onclick=()=>useGear(g);
+  const actions=document.createElement('div');actions.className='equip-slot-actions';actions.append(btn);
+  if(g.slot==='ring'&&!equipped){
+   btn.textContent='반지 1 장착';btn.onclick=()=>useGear(g,'ring1');
+   const second=document.createElement('button');second.type='button';second.textContent='반지 2 장착';second.disabled=btn.disabled;second.onclick=()=>useGear(g,'ring2');actions.append(second);
+  }
+  row.append(info,actions);return row;
  }));
 }
 function renderInventory(){
@@ -793,20 +805,24 @@ function renderInventory(){
   $('inventory').replaceChildren(...slots);inventoryLayout=layout;
  }
  for(const id of ids){const {button,count}=itemSlots.get(id),g=gearItem(id),amount=state.world.inventory[id];
-  count.textContent=g?(state.world.equipment[g.slot]===id?'착용':'장비'):amount;
+  count.textContent=g?(Boolean(equippedSlot(g))?'착용':'장비'):amount;
   button.style.color=g?gearRarity(g).color:'';button.style.borderColor=g?gearRarity(g).color:'';
   button.setAttribute('aria-label',g?itemName(id)+' '+count.textContent:itemName(id)+' '+amount+'개');button.setAttribute('aria-pressed',String(id===selectedItem));}
- $('equipped-summary').textContent=['weapon','armor'].map(slot=>{const g=gearItem(state.world.equipment?.[slot]);return (slot==='weapon'?'무기':'방어구')+' · '+(g?itemName(g.id):'미착용');}).join(' / ');
+ $('equipped-summary').textContent=Object.keys(equipmentSlots).map(slot=>{const g=gearItem(state.world.equipment?.[slot]);return equipmentSlots[slot]+' · '+(g?itemName(g.id):'미착용');}).join(' / ');
  $('bag-count').textContent=Object.values(state.world.inventory).filter(n=>n>0).length+'종 · 장비 '+gear.length+'개 · 용량 '+bagUsed()+'/'+bagCapacity();$('inventory-empty').hidden=ids.length>0;
- const g=gearItem(selectedItem),rarity=g?gearRarity(g):null,equipped=g&&state.world.equipment[g.slot]===g.id;
- const info=g?[rarity.name+' '+(g.slot==='weapon'?'무기':'방어구'),'몬스터에게서 획득한 장비. 종족·레벨 제한 없이 착용할 수 있습니다.',(g.slot==='weapon'?'공격력 +':'받는 피해 −')+g.power+' · 현재 부위 대비 '+(g.power-(gearItem(state.world.equipment[g.slot])?.power||0)>=0?'+':'')+(g.power-(gearItem(state.world.equipment[g.slot])?.power||0))]:itemInfo[selectedItem];$('item-art').hidden=!info;if(info)$('item-art').src='/icons/'+itemIcon(selectedItem)+'.svg';
+ const g=gearItem(selectedItem),rarity=g?gearRarity(g):null,equipped=g&&Boolean(equippedSlot(g));
+ const comparedSlot=g?(g.slot==='ring'&&!equipped?$('ring-target').value:targetSlot(g)):null;
+ const powerDiff=g?g.power-(gearItem(state.world.equipment[comparedSlot])?.power||0):0;
+ const info=g?[rarity.name+' '+gearTypeNames[g.slot],'드랍·상점에서 획득하는 장비. 종족·레벨 제한 없이 착용할 수 있습니다.',(g.slot==='weapon'?'공격력 +':'받는 피해 −')+g.power+' · 현재 부위 대비 '+(powerDiff>=0?'+':'')+powerDiff]:itemInfo[selectedItem];$('item-art').hidden=!info;if(info)$('item-art').src='/icons/'+itemIcon(selectedItem)+'.svg';
  $('item-category').textContent=info?.[0]||'';$('item-name').textContent=selectedItem?itemName(selectedItem):'비어 있는 가방';
  $('item-description').textContent=info?.[1]||'채집하거나 제작해 아이템을 획득하세요.';$('item-effect').textContent=info?.[2]||'';
  $('item-category').style.color=rarity?.color||'';
  $('item-owned').textContent=g?(equipped?'현재 착용 중':'가방에 보관 중'):selectedItem?'보유 수량 · '+(state.world.inventory[selectedItem]||0):'';
+ $('ring-target-label').hidden=!(g?.slot==='ring'&&!equipped);
  const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent=g?(equipped?'착용 해제':'착용'):selectedItem==='skillbook'?'스킬 메뉴 열기 (K)':'1개 사용';$('item-use-reason').textContent=reason||(g?'같은 부위의 장비는 교체되며 가방에 보존됩니다.':selectedItem==='skillbook'?'스킬 메뉴에서 스킬북을 사용해 직업 스킬을 해금합니다.':'선택한 아이템 1개를 사용합니다.');
 }
-$('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){if(selectedItem==='skillbook'){openPanel('skills');return;}const g=gearItem(selectedItem);if(g)manualAction(state.world.equipment[g.slot]===g.id?'unequip':'equip',{item:g.id,slot:g.slot});else manualAction('consume',{item:selectedItem});}};
+$('ring-target').onchange=()=>renderInventory();
+$('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){if(selectedItem==='skillbook'){openPanel('skills');return;}const g=gearItem(selectedItem);if(g)useGear(g,g.slot==='ring'?$('ring-target').value:g.slot);else manualAction('consume',{item:selectedItem});}};
 let shopMode='buy';
 const shopCatalog={
  human:[
@@ -830,7 +846,8 @@ const shopCatalog={
   {item:'skillbook',name:'고대 스킬북',price:80,desc:'비전서 · 상위 직업 스킬 해금'}
  ]
 };
-for(const catalog of Object.values(shopCatalog))catalog.push({item:'shop_weapon',name:'민병대 무기',price:120,desc:'일반 무기 · 공격력 +4'},{item:'shop_armor',name:'민병대 방호복',price:100,desc:'일반 방어구 · 방어력 +2'});
+for(const catalog of Object.values(shopCatalog))catalog.push({item:'shop_weapon',name:'민병대 무기',price:120,desc:'일반 무기 · 공격력 +4'},{item:'shop_armor',name:'민병대 방호복',price:100,desc:'일반 상의 · 방어력 +2'});
+for(const catalog of Object.values(shopCatalog))for(const slot of ['pants','boots','gloves','necklace','ring'])catalog.push({item:'shop_'+slot,name:'민병대 '+gearTypeNames[slot],price:80,desc:'일반 '+gearTypeNames[slot]+' · 방어력 +2'});
 function merchantRole(item){return item.startsWith('shop_')?'equipment':item==='scroll'?'scroll':item==='skillbook'?'skill':'supplies';}
 let shopCategory='supplies';
 const shopSellPrices={wood:1,metal:2,crop:2,herb:2,blood:2,water:2,scroll:10,soup:5,elixir:5,medicine:7,skillbook:30};
@@ -852,7 +869,7 @@ function renderShop(){
   buyList.replaceChildren(...catalog.map(entry=>{
    const card=document.createElement('div');card.className='shop-item-card';
    const left=document.createElement('div');left.className='shop-item-left';
-   const img=document.createElement('img');img.src=`/icons/${entry.item==='shop_weapon'?'weapon':entry.item==='shop_armor'?'armor':itemIcon(entry.item)}.svg`;img.alt='';img.width=40;img.height=40;
+   const img=document.createElement('img');img.src=`/icons/${entry.item.startsWith('shop_')?entry.item.slice(5):itemIcon(entry.item)}.svg`;img.alt='';img.width=40;img.height=40;
    const txt=document.createElement('div');txt.className='shop-item-text';
    const title=document.createElement('strong');title.textContent=entry.name;
    const desc=document.createElement('small');desc.textContent=`${entry.desc} · 보유: ${w.inventory[entry.item]||0}개`;
@@ -874,7 +891,7 @@ function renderShop(){
   }
   const gear=w.gear||[];
   for(const g of gear){
-   if(w.equipment?.[g.slot]!==g.id){
+   if(!equippedSlot(g)){
     const gearVal=15+(g.power||1)*5;
     sellItems.push({type:'gear',id:g.id,name:itemName(g.id),count:1,price:gearVal,gear:g});
    }

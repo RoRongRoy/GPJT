@@ -65,7 +65,7 @@ s=Store(sys.argv[1]);s.save(new_world());s.save_account('legacy-player','test-pa
     await until(()=>page.locator('#field-equip').textContent().then(t=>t.includes('[미확인]')&&t.includes('[일반]')),'Fallback rarity display failed');
     await page.locator('[data-filter=equipment]').click();
     await page.locator('[data-inventory-item="gear:starter-armor"]').click();
-    assert.equal(await page.locator('#item-category').textContent(),'미확인 방어구');
+    assert.equal(await page.locator('#item-category').textContent(),'미확인 상의');
    }
    assert.deepEqual(errors,[]);
    console.log(`Passed ${transport} / ${species}: start, gear, movement, legacy account`);

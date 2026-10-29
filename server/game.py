@@ -4,7 +4,7 @@ import random
 
 from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at, TOWNS, MERCHANTS
 
-from .equipment import RARITIES, roll_equipment, equipment_power
+from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOTS, SLOT_NAMES, slot_type, equipped_slot, armor_power
 
 RECIPES = {
     'soup': {'cost': {'crop': 2, 'water': 1}, 'facility': 'kitchen', 'name': '채소 수프'},
@@ -43,11 +43,12 @@ SHOP_BUY_CATALOG = {
 for catalog in SHOP_BUY_CATALOG.values():
     catalog.extend([
         {'item': 'shop_weapon', 'name': '민병대 무기', 'price': 120, 'desc': '일반 무기 · 공격력 +4'},
-        {'item': 'shop_armor', 'name': '민병대 방호복', 'price': 100, 'desc': '일반 방어구 · 방어력 +2'},
+        {'item': 'shop_armor', 'name': '민병대 방호복', 'price': 100, 'desc': '일반 상의 · 방어력 +2'},
     ])
+    catalog.extend({'item': 'shop_'+slot, 'name': '민병대 '+SLOT_NAMES[slot], 'price': 80, 'desc': '일반 '+SLOT_NAMES[slot]+' · 방어력 +2'} for slot in ('pants', 'boots', 'gloves', 'necklace', 'ring'))
 
 def merchant_role(item):
-    return 'equipment' if item in ('shop_weapon', 'shop_armor') else 'scroll' if item == 'scroll' else 'skill' if item == 'skillbook' else 'supplies'
+    return 'equipment' if item.startswith('shop_') else 'scroll' if item == 'scroll' else 'skill' if item == 'skillbook' else 'supplies'
 
 
 SHOP_SELL_PRICES = {
@@ -647,12 +648,21 @@ def act(w, command, rng=random.random):
     elif action == 'equip':
         item = next((g for g in w['gear'] if g['id'] == command.get('item')), None)
         require(item, '보유하지 않은 장비입니다.')
-        w['equipment'][item['slot']] = item['id']
+        slot = command.get('slot')
+        if item['slot'] == 'ring' and slot in (None, 'ring'):
+            slot = equipped_slot(w, item['id']) or next((s for s in ('ring1', 'ring2') if not w['equipment'].get(s)), 'ring1')
+        elif slot is None:
+            slot = item['slot']
+        require(isinstance(slot, str) and slot in EQUIPMENT_SLOTS and slot_type(slot) == item['slot'], '장비 부위 오류')
+        previous = equipped_slot(w, item['id'])
+        if previous:
+            w['equipment'][previous] = None
+        w['equipment'][slot] = item['id']
         note(w, item['name'] + ' 착용')
     elif action == 'unequip':
         slot = command.get('slot')
-        require(isinstance(slot, str) and slot in ('weapon', 'armor'), '장비 부위 오류')
-        require(w['equipment'][slot], '착용한 장비가 없습니다.')
+        require(isinstance(slot, str) and slot in EQUIPMENT_SLOTS, '장비 부위 오류')
+        require(w['equipment'].get(slot), '착용한 장비가 없습니다.')
         w['equipment'][slot] = None
     elif action == 'craft':
         at_base(w)
@@ -852,7 +862,7 @@ def act(w, command, rng=random.random):
         w['inventory']['gold'] -= total
         if merchant_role(item) == 'equipment':
             for _ in range(count):
-                slot = 'weapon' if item == 'shop_weapon' else 'armor'
+                slot = item.removeprefix('shop_')
                 w['gear'].append({'id': 'gear:' + str(w['next_gear_id']), 'slot': slot, 'rarity': 'normal', 'name': entry['name'], 'power': 4 if slot == 'weapon' else 2})
                 w['next_gear_id'] += 1
         else:
@@ -865,7 +875,7 @@ def act(w, command, rng=random.random):
             gear_id = command.get('gear_id')
             g = next((x for x in w.get('gear', []) if x['id'] == gear_id), None)
             require(g, '보유하지 않은 장비입니다.')
-            require(w.get('equipment', {}).get(g['slot']) != gear_id, '현재 착용 중인 장비는 판매할 수 없습니다. 착용을 해제하세요.')
+            require(not equipped_slot(w, gear_id), '현재 착용 중인 장비는 판매할 수 없습니다. 착용을 해제하세요.')
             gear_val = 15 + g.get('power', 1) * 5
             w['gear'].remove(g)
             w['inventory']['gold'] = w['inventory'].get('gold', 0) + gear_val
@@ -915,9 +925,7 @@ def _tick_actor(w, prof, dt):
 
 
 def _profile_armor(prof):
-    item_id = prof.get('equipment', {}).get('armor')
-    item = next((g for g in prof.get('gear', []) if g['id'] == item_id), None)
-    return item['power'] if item else 0
+    return armor_power(prof)
 
 
 def tick(w, dt, extra_profiles=None):

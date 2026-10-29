@@ -200,7 +200,7 @@
   </section>
   <section data-view="equip" hidden>
    <div id="equip-stats-summary" class="equip-stats-box"></div>
-   <h3 class="section-label">장착 중인 슬롯 (무기 / 방어구)</h3>
+   <h3 class="section-label">장착 중인 슬롯 · 무기 / 상의 / 하의 / 장갑 / 장화 / 목걸이 / 반지 ×2</h3>
    <div id="equip-paperdoll" class="equipped-slot-grid"></div>
    <h3 class="section-label">보유 장비 목록</h3>
    <div id="equip-gear-list" class="equip-gear-list"></div>
@@ -212,7 +212,7 @@
    <p id="equipped-summary" class="panel-note"></p>
    <div class="bag-summary"><span>소지 아이템</span><strong id="bag-count"></strong></div>
    <div class="bag-layout"><div><div id="inventory" aria-label="아이템 슬롯"></div><p id="inventory-empty" hidden>이 분류에 보유한 아이템이 없습니다.</p></div>
-   <aside class="item-detail" aria-label="선택한 아이템"><img id="item-art" alt="" width="64" height="64"><span id="item-category" class="eyebrow"></span><h3 id="item-name">아이템 선택</h3><p id="item-description"></p><p id="item-owned"></p><p id="item-effect"></p><button id="item-use" class="wide accent" disabled>사용</button><p id="item-use-reason" role="status"></p></aside></div>
+   <aside class="item-detail" aria-label="선택한 아이템"><img id="item-art" alt="" width="64" height="64"><span id="item-category" class="eyebrow"></span><h3 id="item-name">아이템 선택</h3><p id="item-description"></p><p id="item-owned"></p><p id="item-effect"></p><label id="ring-target-label" hidden>반지 장착 위치 <select id="ring-target"><option value="ring1">반지 1</option><option value="ring2">반지 2</option></select></label><button id="item-use" class="wide accent" disabled>사용</button><p id="item-use-reason" role="status"></p></aside></div>
    <details class="panel-note" open><summary>장비 등급 및 몬스터 드랍 확률 (리니지식 하드코어 밸런스)</summary><p><strong>[5단계 장비 등급]</strong> 일반(5%) · 고급(1%) · 희귀(0.1%) · 영웅(0.01%) · 전설(0.001%) / 미획득 93.889%.<br><strong>[몬스터 전리품]</strong> 처치 시 강화 주문서·부품 기본 드랍, 치료제 20% 확률 드랍, 중·고렙 지역 몬스터는 원혈·약초·강화혈액 및 고티어(T2~T4) 장비를 추가 드랍합니다.</p></details>
    <p class="panel-note">아이템을 클릭하면 상세 정보를 볼 수 있습니다. 아지트와 보관품을 공유합니다.</p>
   </section>
@@ -321,7 +321,7 @@
      <div class="controls-card"><kbd>G</kbd><span>자동사냥 토글</span></div>
      <div class="controls-card"><kbd>M</kbd><span>다크에덴 박쥐 탑승 / 변신 토글</span></div>
      <div class="controls-card"><kbd>V</kbd><span>탐험 화면 넓게 보기 (시야 확대)</span></div>
-     <div class="controls-card"><kbd>C</kbd><span>캐릭터 장착 장비 (무기/방어구)</span></div>
+     <div class="controls-card"><kbd>C</kbd><span>캐릭터 장착 장비 (8개 슬롯)</span></div>
      <div class="controls-card"><kbd>K</kbd><span>스킬북 목록 및 직업 계열 전환</span></div>
      <div class="controls-card"><kbd>H</kbd><span>생존 상태(HP/MP) 및 음식 섭취</span></div>
      <div class="controls-card"><kbd>I</kbd><span>가방 (소지품 인벤토리)</span></div>
@@ -337,5 +337,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261029-town1"></script><script src="/app.js?v=20261029-base-build1" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261029-town1"></script><script src="/app.js?v=20261029-gear-slots1" type="module"></script>
 </body></html>

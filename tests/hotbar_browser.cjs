@@ -106,6 +106,26 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   }
   for(const selector of ['#interact','#loot-btn','#sprint-toggle','#mount-toggle','#auto-hunt','#interaction .attack-button']){const b=await page.locator(selector).boundingBox(),c=await page.locator('#interaction').boundingBox();assert.ok(b.x>=c.x-1&&b.y>=c.y-1&&b.x+b.width<=c.x+c.width+1&&b.y+b.height<=c.y+c.height+1,`${layout}: ${selector} must stay inside the combat controls`);}
   for(const [selector,panel] of [['#menu-bag','bag'],['#menu-equip','equip'],['#menu-journal','journal'],['#menu-account','account']]){await page.locator(selector).click();assert.equal(await page.locator('#menu-dialog').getAttribute('data-panel'),panel);await page.keyboard.press('Escape');}
+  fixture.world.gear.push({id:'gear:test-ring',slot:'ring',rarity:'rare',name:'검증 반지',power:7});
+  await page.locator('#menu-equip').click();
+  assert.equal(await page.locator('#equip-paperdoll .equip-slot-card').count(),8);
+  await until(()=>page.getByRole('button',{name:'반지 2 장착',exact:true}).isVisible(),'Ring slot choice must appear');
+  await page.getByRole('button',{name:'반지 2 장착',exact:true})[mobile?'tap':'click']();await delay(150);
+  assert.equal(commands.at(-1)?.action,'equip');assert.equal(commands.at(-1)?.item,'gear:test-ring');assert.equal(commands.at(-1)?.slot,'ring2');
+  fixture.world.equipment.ring2='gear:test-ring';
+  const ringCard=page.locator('#equip-paperdoll .equip-slot-card').filter({hasText:'반지 2 슬롯'});
+  await until(()=>ringCard.getByRole('button',{name:'착용 해제'}).isVisible(),'Equipped ring must appear in its slot');
+  await ringCard.getByRole('button',{name:'착용 해제'})[mobile?'tap':'click']();await delay(150);
+  assert.equal(commands.at(-1)?.action,'unequip');assert.equal(commands.at(-1)?.slot,'ring2');
+  fixture.world.equipment.ring2=null;
+  await page.keyboard.press('Escape');await page.locator('#menu-bag').click();await page.locator('[data-filter=equipment]').click();
+  await page.locator('[data-inventory-item="gear:test-ring"]').click();
+  await page.locator('#ring-target').selectOption('ring2');await page.locator('#item-use')[mobile?'tap':'click']();await delay(150);
+  assert.equal(commands.at(-1)?.action,'equip');assert.equal(commands.at(-1)?.item,'gear:test-ring');assert.equal(commands.at(-1)?.slot,'ring2');
+  await page.keyboard.press('Escape');await page.locator('#menu-equip').click();
+  await page.locator('.menu-body').evaluate(el=>el.scrollTop=0);
+  await page.screenshot({path:`/tmp/equipment-${layout}.png`});
+  await page.keyboard.press('Escape');
   fixture.world.base={x:null,y:null,established:false,facilities:{kitchen:0,alchemy:0,medical:0,storage:0}};
   fixture.world.player.x=18;fixture.world.player.y=19;
   await page.locator('#menu-camp').click();
