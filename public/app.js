@@ -1,6 +1,10 @@
 const $ = id => document.getElementById(id);
 const query = new URLSearchParams(location.hash.slice(1));
 if(query.has('key')) { sessionStorage.setItem('bloodfall-key', query.get('key')); history.replaceState(null,'',location.pathname); }
+// A localhost restart can use a different key while the tab retains the old one.
+// Bare local URLs use the server's existing keyless-play mode; explicit links win.
+const localTestHost=['localhost','127.0.0.1','[::1]','::1'].includes(location.hostname);
+if(localTestHost&&!query.has('key'))sessionStorage.removeItem('bloodfall-key');
 const key = sessionStorage.getItem('bloodfall-key') || '';
 // Deliberately per-tab: a second tab must not silently share control of this P0 world.
 const session = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}-${Math.random()}`;

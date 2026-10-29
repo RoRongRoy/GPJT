@@ -25,7 +25,9 @@ s=Store(sys.argv[1]);s.save(new_world());s.save_account('legacy-player','test-pa
    const context=await browser.newContext({viewport:species==='human'?{width:1440,height:1080}:{width:390,height:844}});
    const page=await context.newPage(),errors=[];page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));
    if(transport==='http')await page.route('**/socket.io.js',r=>r.fulfill({contentType:'text/javascript',body:''}));
-   await page.goto(url+'/#key='+key);
+   await page.addInitScript(()=>sessionStorage.setItem('bloodfall-key','obsolete-local-server-key'));
+   await page.goto(species==='human'?url:url+'/#key='+key);
+   if(species==='human')assert.equal(await page.evaluate(()=>sessionStorage.getItem('bloodfall-key')),null,'Bare localhost URL must discard obsolete access keys');
    await until(()=>page.locator('#connection').textContent().then(t=>t.includes('접속)')),'Connection missing');
    await page.locator(`[data-species=${species}]`).click();
    await until(async()=>{
