@@ -7,6 +7,7 @@ from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RA
 from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOTS, SLOT_NAMES, slot_type, equipped_slot, armor_power
 
 from .settlement import FACILITY_SPECS, EXTRA_RECIPES, MATERIALS
+from .skills import register_skills
 
 RECIPES = {
     'soup': {'cost': {'crop': 2, 'water': 1}, 'facility': 'kitchen', 'name': '채소 수프'},
@@ -318,8 +319,12 @@ COMBAT = {
 }
 
 
+register_skills(COMBAT, JOB_SKILLS)
+
+
 def resolve_skill_spec(species, job, skill):
     base = COMBAT[skill]
+    require(not base.get('species') or (base['species'], base['job']) == (species, job), '현재 종족·직업의 전용 스킬이 아닙니다.')
     if skill == 'attack':
         return base
     job_spec = JOB_SKILLS.get((species, job), {}).get(skill, {})
@@ -777,8 +782,8 @@ def act(w, command, rng=random.random):
             req_lvl = spec.get('unlock_level', 1)
             require(p.get('combat_level', 1) >= req_lvl, f'전투 Lv.{req_lvl} 달성 시 해금되는 스킬입니다.')
             learned = p.setdefault('learned_skills', ['sweep', 'recover'])
-            if spec.get('book_cost', 0) > 0:
-                require(skill in learned, f"고대 스킬북 {spec['book_cost']}권으로 먼저 스킬을 해금하세요.")
+            if spec.get('requires_learning') or spec.get('book_cost', 0) > 0:
+                require(skill in learned, '스킬 메뉴에서 먼저 선택해 배우세요.')
         is_vamp = (p['species'] == 'vampire')
         meter = 'blood' if is_vamp else 'food'
         require(p[meter] >= spec.get('cost', 0), '포만도 또는 혈액량이 부족합니다.')
@@ -789,7 +794,7 @@ def act(w, command, rng=random.random):
             hp_cost = spec.get('hp_cost', 6)
             require(p['hp'] > hp_cost, '스킬 사용에 필요한 체력이 부족합니다.')
         if 'heal' in spec:
-            if skill == 'purify':
+            if spec.get('cleanse'):
                 require(p['hp'] < 100 or p.get('infection', 0) > 0, '이미 체력이 가득하고 감염이 없습니다.')
             else:
                 require(p['hp'] < 100, '이미 체력이 가득합니다.')
@@ -823,10 +828,15 @@ def act(w, command, rng=random.random):
                 else:
                     p['mp'] = max(0.0, p.get('mp', 100.0) - spec.get('mp_cost', 12))
             targets = enemies if spec.get('aoe') else ([min(enemies, key=lambda e: dist(p, e))] if enemies else [])
+            if spec.get('blast_radius') and targets:
+                center = targets[0]
+                targets = [e for e in w['enemies'] if e['hp'] > 0 and is_hostile(e) and dist(e, center) <= spec['blast_radius']]
             damage = (spec['damage'] + equipment_power(w, 'weapon') + (p['combat_level']-1)*3) * (1 + p['level'] * .02)
             leech_mult = spec.get('leech_mult', 0.18)
             for enemy in targets:
                 damage_enemy(w, enemy, damage, rng)
+                if enemy['hp'] > 0 and spec.get('stun'):
+                    enemy['stunned_until'] = max(enemy.get('stunned_until', 0), w['elapsed'] + spec['stun'])
                 if is_vamp:
                     leeched = round(min(16.0, max(4.0, damage * leech_mult)), 1)
                     p['hp'] = min(100.0, p['hp'] + leeched)
@@ -973,6 +983,8 @@ def tick(w, dt, extra_profiles=None):
         if e['hp'] <= 0:
             if w['elapsed'] >= e['respawn']:
                 e.update(hp=e['max_hp'], x=home['x'], y=home['y'], returning=False)
+            continue
+        if e.get('stunned_until', 0) > w['elapsed']:
             continue
         if dist(e, home) > 10:
             e['returning'] = True

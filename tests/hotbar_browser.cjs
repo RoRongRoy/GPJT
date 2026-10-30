@@ -23,7 +23,7 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
    const url=new URL(route.request().url());
    if(url.pathname.includes('socket.io'))return route.fulfill({contentType:'text/javascript',body:''});
    if(url.pathname.startsWith('/api/')){
-    if(url.pathname==='/api/action'){commands.push(route.request().postDataJSON().command);fixture.world.revision++;}
+    if(url.pathname==='/api/action'){const cmd=route.request().postDataJSON().command;commands.push(cmd);fixture.world.revision++;if(cmd.action==='learn_skill'){fixture.world.player.learned_skills.push(cmd.skill);fixture.world.inventory.skillbook-=fixture.combat[cmd.skill].book_cost;}}
     fixture.snapshot_time=Date.now()/1000;
     return route.fulfill({json:fixture});
    }
@@ -193,6 +193,37 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   assert.ok((await page.locator('#loot-list').textContent()).includes('철광석'));
   await page.locator('#loot-all')[mobile?'tap':'click']();await delay(200);
   assert.equal(commands.at(-1)?.id,mine.id);assert.deepEqual(commands.at(-1)?.items,['ore','metal']);
+  await page.keyboard.press('Escape');
+  fixture.world.player.species='human';fixture.world.player.job='warrior';fixture.world.player.combat_level=30;
+  fixture.world.player.learned_skills=['sweep','recover'];fixture.world.inventory.skillbook=10;
+  await page.keyboard.press('k');
+  await until(()=>page.locator('#skills-list .skill-card').count().then(n=>n===14),'14 skills for the active class');
+  assert.equal(await page.locator('#skills-list [data-skill=hr_shot]').count(),0);
+  await page.locator('#skill-filter').selectOption('available');
+  await until(()=>page.locator('#skills-list [data-skill=hw_slash] > button').isEnabled(),'Free skill ready');
+  await page.locator('#skills-list [data-skill=hw_slash] > button').click();
+  await until(()=>Promise.resolve(fixture.world.player.learned_skills.includes('hw_slash')),'Explicit free learning request');
+  assert.equal(fixture.world.inventory.skillbook,10);
+  await page.locator('#skill-filter').selectOption('learned');
+  await until(()=>page.locator('[data-select-skill=hw_slash]').isEnabled(),'Learned skill assignable');
+  await page.locator('[data-select-skill=hw_slash]').click();await page.locator('[data-assign-slot="1"]').click();
+  assert.equal((await mapping())['1'],'hw_slash');
+  assert.ok(await page.locator('#quickslot-1 svg path').count(),'New skill has an icon');
+  await page.reload();await page.locator('#welcome').waitFor({state:'hidden'});
+  assert.equal((await mapping())['1'],'hw_slash','New skill mapping survives reload');
+  await page.keyboard.press('k');await page.locator('#skill-filter').selectOption('all');
+  await page.locator('#skills-list [data-skill=hw_execution] > button').click();
+  await until(()=>Promise.resolve(fixture.world.player.learned_skills.includes('hw_execution')),'High level skill can be chosen without prerequisites');
+  assert.equal(fixture.world.inventory.skillbook,7);
+  await page.locator('#skill-filter').selectOption('heal');
+  assert.equal(await page.locator('#skills-list .skill-card').count(),4);
+  await page.screenshot({path:`/tmp/skills-expanded-${layout}.png`});
+  fixture.world.player.species='vampire';fixture.world.player.job='ranged';
+  await page.locator('#skill-filter').selectOption('all');
+  await until(()=>page.locator('#skills-list [data-skill=vr_bolt]').count().then(n=>n===1),'Vampire ranged catalog appears');
+  assert.equal(await page.locator('#skills-list [data-skill=hw_slash]').count(),0);
+  assert.equal((await mapping())['1'],null,'Wrong class skill is cleared from active slots');
+  assert.equal(await page.locator('#skills-list .skill-card').count(),14);
   assert.deepEqual(errors,[]);console.log(`Hotbar ${layout} passed: migration, assignment, empty slots, removal, 1–6 dispatch, persistence, unlocks, touch/click actions, navigation and HUD bounds.`);
   await page.unrouteAll({behavior:'ignoreErrors'});await context.close();
  }

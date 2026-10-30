@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261029-settlement4"><style>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261030-skills1"><style>
  .welcome-quick-resume{background:rgba(217,79,112,0.15);border:1px solid rgba(217,79,112,0.45);border-radius:6px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
  .welcome-quick-resume strong{color:#ffcfd9;font-size:12.5px;display:block}
  .welcome-quick-resume strong .highlight{color:#ff5277;font-weight:bold}
@@ -194,9 +194,10 @@
    </div>
    <div id="skills-summary" class="equip-stats-box"></div>
    <details class="skill-class-options"><summary>직업·성별 설정</summary><div id="class-switcher" class="class-switcher"></div></details>
-   <h3 class="section-label">보유 스킬 · 사용할 스킬을 선택하세요</h3>
+   <h3 class="section-label">직업 스킬 도감 · 원하는 기술을 골라 배우세요</h3>
+   <label>스킬 분류 <select id="skill-filter"><option value="all">전체 · 레벨 순</option><option value="available">지금 배울 수 있는 스킬</option><option value="learned">습득한 스킬</option><option value="attack">공격·제압</option><option value="heal">회복·정화</option></select></label>
    <div id="skills-list" class="equip-gear-list"></div>
-   <p class="panel-note">기본 전투·회복 스킬은 Lv.1부터 즉시 사용 가능하며, 상위 스킬은 요구 레벨(Lv.3 / 5 / 8 / 12) 달성 후 몬스터에게서 낮은 확률(4%~8.5%)로 드랍되는 <strong>📖 고대 스킬북</strong>을 소모해 해금합니다.</p>
+   <p class="panel-note">각 직업 14종: 기본 2종은 즉시 사용, 나머지는 요구 레벨을 달성한 뒤 직접 선택해 습득합니다. 신규 Lv.2 스킬은 무료이고 다른 스킬은 고대 스킬북을 사용합니다. 선행 스킬 없이 원하는 순서로 배우세요. 전직·종족 변경 시 전용 스킬은 비활성화되며 돌아오면 다시 사용할 수 있습니다. 배우기만 해서는 슬롯에 자동 등록되지 않습니다.</p>
   </section>
   <section data-view="equip" hidden>
    <div class="equipment-showcase">
@@ -345,5 +346,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261029-settlement4"></script><script src="/app.js?v=20261029-settlement4" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261030-skills1"></script><script src="/app.js?v=20261030-skills1" type="module"></script>
 </body></html>

@@ -20,7 +20,7 @@ const campActions=new Set(['craft','build','enhance','research','convert','dispa
 const panelInfo={
  settlement:['개인 아지트 건설','일반 필드의 현재 위치에 나만의 아지트를 건설하세요.','PERSONAL OUTPOST'],
  survival:['생존','내 상태를 살피고 필요한 소모품을 사용하세요.','SURVIVOR'],
- skills:['종족 스킬','전투 레벨 성장에 따라 해금되는 종족별 고유 전투·회복 기술을 확인하고 시전하세요.','SPECIES SKILLS'],
+ skills:['종족 스킬','종족·직업별 기술을 골라 배우고 1~6번 슬롯에 배치하세요.','SPECIES SKILLS'],
  equip:['장착 장비','현재 착용 중인 무기·방어구와 보유 장비를 확인하고 장착·해제하세요.','EQUIPMENT'],
  bag:['인벤토리','아이템을 선택해 정보를 확인하고 사용하세요.','INVENTORY'],
  journal:['수첩','확인하고 싶은 기록을 선택하세요.','FIELD JOURNAL'],
@@ -186,7 +186,7 @@ async function command(action, fields={}) {
   if(drops.length)toast('★ 장비 드랍 · '+drops.map(g=>itemName(g.id)).join(' · ')+' · 가방에 보관');
   else if(result.world.player.combat_level>before.player.combat_level)toast(`전투 레벨 상승 · Lv.${result.world.player.combat_level}`);
   else if(killed.length)toast(result.world.log[0]||'몬스터 처치 · 전리품 획득');
-  if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':fields.skill);
+  if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':(activeSkillSpec(fields.skill)?.visual||fields.skill));
  }catch(e){
   if(isMove)view.endMove(false,e.status===409||e.status===429||e.status===408||e.status===503);
   if(e.status===409){
@@ -965,7 +965,8 @@ function renderShop(){
 }
 if($('shop-tab-buy'))$('shop-tab-buy').onclick=()=>{shopMode='buy';renderShop();};
 if($('shop-tab-sell'))$('shop-tab-sell').onclick=()=>{shopMode='sell';renderShop();};
-const SKILL_IDS=['sweep','recover','strike','ranged','purify','ultimate'];
+function skillIds(){return Object.keys(state?.combat||{}).filter(id=>id!=='attack'&&activeSkillSpec(id)).sort((a,b)=>(activeSkillSpec(a).unlock_level||1)-(activeSkillSpec(b).unlock_level||1));}
+let skillFilter='all';
 const HOTBAR_KEYS=['1','2','3','4','5','6'];
 const DEFAULT_HOTBAR=Object.fromEntries(HOTBAR_KEYS.map(key=>[key,null]));
 let hotbarMap={...DEFAULT_HOTBAR},selectedAssignSkill=null,selectedAssignSlot=null,skillsLayout='';
@@ -974,7 +975,7 @@ try{
  const saved=JSON.parse(current||localStorage.getItem('bloodfall_hotbar_v2')||'null');
  if(saved&&typeof saved==='object'&&!Array.isArray(saved)){
   const oldKeys=current?HOTBAR_KEYS:['q','r','1','2','3','4'],used=new Set(),restored={...DEFAULT_HOTBAR};
-  HOTBAR_KEYS.forEach((key,i)=>{const id=saved[oldKeys[i]];if(SKILL_IDS.includes(id)&&!used.has(id)){restored[key]=id;used.add(id);}});
+  HOTBAR_KEYS.forEach((key,i)=>{const id=saved[oldKeys[i]];if(typeof id==='string'&&/^[a-z_]+$/.test(id)&&!used.has(id)){restored[key]=id;used.add(id);}});
   hotbarMap=restored;
  }
 }catch(e){}
@@ -991,7 +992,26 @@ const SKILL_ART={
  purify:'<path d="m24 5 5 13 13 6-13 6-5 13-5-13-13-6 13-6z"/><path d="m7 7 5 5m24 24 5 5M7 41l5-5m24-24 5-5"/>',
  ultimate:'<path d="m27 5-7 14 6-1-5 12 13-17-8 2z"/><path d="M12 14C2 27 15 44 29 40c10-3 14-14 8-22M8 29c9 9 21 6 27-2M17 38l-5 4"/>'
 };
-function skillIconMarkup(id){return `<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${SKILL_ART[id]||''}</svg>`;}
+// Eight original emblems, with a distinct frame for each species/job branch.
+const SPECIAL_SKILL_ART=[
+ '<path d="m15 31 14-20 4 7-14 17zM12 34l5 3M21 16l3-5"/>',
+ '<path d="m24 10 12 6-3 13-9 8-9-8-3-13zM24 17v10m-4-4h8"/>',
+ '<path d="m24 11 4 8 9 5-9 5-4 8-4-8-9-5 9-5zM14 14l4 4m12 12 4 4"/>',
+ '<path d="M20 11h8v9h9v8h-9v9h-8v-9h-9v-8h9z"/>',
+ '<path d="m24 9 6 13-6 16-6-16zM12 24h24m-12-9v15"/>',
+ '<path d="M11 28q13-24 26 0M14 33q10-16 20 0M24 11v9m-12-5 4 5m20-5-4 5"/>',
+ '<path d="m12 17 7 5 5-12 5 12 7-5-3 17H15zM18 29h12"/>',
+ '<path d="m26 9-11 16h9l-2 14 13-19h-9zM12 13l4 4m16 16 4 4"/>'
+];
+function skillIconMarkup(id){
+ const spec=activeSkillSpec(id);let art=SKILL_ART[id]||SKILL_ART.strike;
+ if(spec?.requires_learning){
+  const rank=[2,4,6,10,15,20,25,30].indexOf(spec.unlock_level);
+  const frame=spec.species==='vampire'?(spec.job==='ranged'?'<path d="M38 8a21 21 0 1 0 0 32M39 16l-3 8 3 8"/>':'<path d="m4 8 4 7-4 25m40-32-4 7 4 25M13 42l11-3 11 3"/>'):(spec.job==='ranged'?'<path d="M4 15V4h11m18 0h11v11M4 33v11h11m18 0h11V33"/>':'<path d="M5 5h38v26L24 44 5 31z"/>');
+  art=frame+(SPECIAL_SKILL_ART[rank]||SKILL_ART.strike);
+ }
+ return `<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${art}</svg>`;
+}
 function skillIcon(id){const icon=span('skill-art','');icon.dataset.icon=id;icon.innerHTML=skillIconMarkup(id);return icon;}
 function renderHotbarEditor(){
  if(!state||activePanel!=='skills')return;
@@ -1026,7 +1046,7 @@ function getSlotForSkill(skillId){
  return Object.keys(hotbarMap).find(k=>hotbarMap[k]===skillId)||null;
 }
 function assignSkillToSlot(slotKey,targetSkillId){
- if(!HOTBAR_KEYS.includes(slotKey)||!SKILL_IDS.includes(targetSkillId)||!state||!skillStatus(targetSkillId).unlocked)return;
+ if(!HOTBAR_KEYS.includes(slotKey)||!skillIds().includes(targetSkillId)||!state||!skillStatus(targetSkillId).unlocked)return;
  const prevSlot=getSlotForSkill(targetSkillId);
  const currentSkillInSlot=hotbarMap[slotKey];
  if(prevSlot&&prevSlot!==slotKey){
@@ -1074,12 +1094,13 @@ $('hotbar-clear').onclick=()=>{
 };
 function activeSkillSpec(id,species=state?.world.player.species||'human',job=state?.world.player.job||'warrior'){
  const base=state?.combat?.[id];
- if(!base)return null;
+ if(!base||(base.species&&(base.species!==species||base.job!==job)))return null;
  const jobSpec=state?.job_skills?.[`${species}_${job}`]?.[id];
  return jobSpec?{...base,...jobSpec}:base;
 }
 function skillNameFor(spec,species,job){
  if(!spec)return '';
+ if(spec.species)return spec.name;
  const jobSpec=state?.job_skills?.[`${species}_${job}`]?.[Object.keys(state?.combat||{}).find(k=>state.combat[k]?.key===spec.key)];
  if(jobSpec?.name)return jobSpec.name;
  const isVamp=species==='vampire',isRanged=job==='ranged';
@@ -1088,6 +1109,7 @@ function skillNameFor(spec,species,job){
 }
 function skillDescFor(spec,species,job){
  if(!spec)return '';
+ if(spec.species)return spec.desc;
  const jobSpec=state?.job_skills?.[`${species}_${job}`]?.[Object.keys(state?.combat||{}).find(k=>state.combat[k]?.key===spec.key)];
  if(jobSpec?.desc)return jobSpec.desc;
  const isVamp=species==='vampire',isRanged=job==='ranged';
@@ -1103,25 +1125,26 @@ function skillStatus(id){
  const unlockLevel=spec.unlock_level||1,levelMet=(p.combat_level||1)>=unlockLevel;
  const bookCost=spec.book_cost??0,booksHave=w.inventory?.skillbook||0;
  const learnedList=p.learned_skills||['sweep','recover'];
- const learned=bookCost<=0||learnedList.includes(id);
+ const learned=(!spec.requires_learning&&bookCost<=0)||learnedList.includes(id);
  const unlocked=levelMet&&learned;
  const canLearn=levelMet&&!learned&&booksHave>=bookCost;
  const isHeal=Boolean(spec.heal);
  const effRange=isHeal?0:spec.range;
  const remaining=Math.max(0,(w.cooldowns['skill:'+id]||0)-w.elapsed,!isHeal?(w.cooldowns.attack||0)-w.elapsed:0);
- const reason=!connected?'연결 중':w.paused?'일시정지':!levelMet?`Lv.${unlockLevel} 필요`:!learned?`스킬북 ${bookCost}권 필요`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':id==='recover'&&p.hp>=100?'체력 가득':id==='purify'&&p.hp>=100&&(p.infection||0)<=0?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&(e.faction||'infected')!==p.species&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
+ const reason=!connected?'연결 중':w.paused?'일시정지':!levelMet?`Lv.${unlockLevel} 필요`:!learned?(bookCost?`스킬북 ${bookCost}권 필요`:'먼저 무료 습득'):p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':isHeal&&p.hp>=100&&(!spec.cleanse||(p.infection||0)<=0)?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&(e.faction||'infected')!==p.species&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
  return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,levelMet,learned,bookCost,booksHave,canLearn,isHeal,effRange};
 }
+if($('skill-filter'))$('skill-filter').onchange=()=>{skillFilter=$('skill-filter').value;renderSkillsMenu();};
 function renderSkillsMenu(){
  if(!state||activePanel!=='skills'||!$('skills-list'))return;
  const w=state.world,p=w.player,isVamp=p.species==='vampire',job=p.job||'warrior',gender=p.gender||'male',lvl=p.combat_level||1;
  const cls=classInfo(p.species,job),gName=genderName(gender),booksHave=w.inventory?.skillbook||0;
  const wepPow=gearItem(w.equipment?.weapon)?.power||0,lvlAtk=(lvl-1)*3,enhMult=1+(p.level||0)*.02;
- const layout=JSON.stringify([p.species,job,gender,lvl,p.level,wepPow,booksHave,p.learned_skills,connected,w.paused,hotbarMap]);
+ const layout=JSON.stringify([p.species,job,gender,lvl,p.level,wepPow,booksHave,p.learned_skills,connected,w.paused,hotbarMap,skillFilter]);
  if(layout===skillsLayout)return;
  skillsLayout=layout;
- const learnedCount=SKILL_IDS.filter(id=>skillStatus(id).unlocked).length;
- $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어':'☀ 인간'} · ${gName} [${cls.style}] ${cls.name} (${cls.weapon_type} · 기본 사거리 ${cls.attack_range}) · 전투 Lv.${lvl} · 습득 스킬 ${learnedCount}/${SKILL_IDS.length}개 · 📖 보유 고대 스킬북: ${booksHave}권 (몬스터 처치 시 낮은 확률 드랍)`;
+ const learnedCount=skillIds().filter(id=>skillStatus(id).unlocked).length;
+ $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어':'☀ 인간'} · ${gName} [${cls.style}] ${cls.name} (${cls.weapon_type} · 기본 사거리 ${cls.attack_range}) · 전투 Lv.${lvl} · 습득 스킬 ${learnedCount}/${skillIds().length}개 · 📖 보유 고대 스킬북: ${booksHave}권  · Lv.2 기술은 무료 선택 습득 · 나머지는 스킬북으로 원하는 순서대로 학습`;
  if($('class-switcher')){
   const gBar=document.createElement('div');gBar.className='gender-bar';
   gBar.append(span('custom-label',`현재 성별: ${gName} (${gender==='female'?'♀':'♂'})`));
@@ -1146,7 +1169,7 @@ function renderSkillsMenu(){
   });
   $('class-switcher').replaceChildren(gBar,...jobCards);
  }
- $('skills-list').replaceChildren(...SKILL_IDS.map(id=>{
+ $('skills-list').replaceChildren(...skillIds().filter(id=>{const st=skillStatus(id);return skillFilter==='all'||(skillFilter==='learned'&&st.learned)||(skillFilter==='available'&&st.canLearn)||(skillFilter==='attack'&&!st.isHeal)||(skillFilter==='heal'&&st.isHeal);}).map(id=>{
   const {reason,spec,mpCost,hpCost,cost,unlocked,unlockLevel,levelMet,learned,bookCost,booksHave,canLearn,isHeal,effRange}=skillStatus(id);
   if(!spec)return document.createElement('div');
   const name=skillNameFor(spec,p.species,job),altJob=job==='warrior'?'ranged':'warrior',altJobCls=classInfo(p.species,altJob),altJobName=skillNameFor(state.combat?.[id],p.species,altJob);
@@ -1183,13 +1206,13 @@ function renderSkillsMenu(){
   const txt=document.createElement('div');txt.className='equip-gear-text';
   const head=document.createElement('div');head.className='skill-card-head';
   const title=document.createElement('strong');title.textContent=name;
-  const badgeText=unlocked?(bookCost>0?`✓ 습득 완료 (Lv.${unlockLevel})`:`✓ 기본 직업 스킬`):!levelMet?`🔒 Lv.${unlockLevel} + 📖 스킬북 ${bookCost}권 필요`:`📖 스킬북 ${bookCost}권으로 해금 가능 (보유 ${booksHave}/${bookCost})`;
+  const badgeText=unlocked?(spec.requires_learning||bookCost>0?`✓ 습득 완료 (Lv.${unlockLevel})`:`✓ 기본 직업 스킬`):!levelMet?`🔒 Lv.${unlockLevel} + 📖 스킬북 ${bookCost}권 필요`:bookCost===0?'무료로 선택 습득 가능':`📖 스킬북 ${bookCost}권으로 해금 가능 (보유 ${booksHave}/${bookCost})`;
   const badge=span('skill-badge'+(unlocked?'':' locked'),badgeText);
   head.append(title,badge);
   const sub=document.createElement('small');
-  const effectText=isHeal?`회복 +${spec.heal}`+(spec.cleanse?` · 감염 −${spec.cleanse} 정화`:''):`${spec.aoe?'광역':'단일'} 피해 ${totalDmg} (기본 ${spec.damage}) · 사거리 ${effRange.toFixed(1)}`+(isVamp?' · 흡혈 회복':'');
+  const effectText=isHeal?`회복 +${spec.heal}`+(spec.cleanse?` · 감염 −${spec.cleanse} 정화`:''):`${spec.aoe||spec.blast_radius?'광역':'단일'} 피해 ${totalDmg} (기본 ${spec.damage}) · 사거리 ${effRange.toFixed(1)}`+(isVamp?' · 흡혈 회복':'');
   sub.textContent=`${effectText} · 쿨타임 ${spec.cooldown}초 · 소모: ${costText}`;
-  const descEl=document.createElement('small');descEl.textContent=(desc?desc+' ':'')+`(${altJobCls.name} 전직 시: ${altJobName})`;
+  const descEl=document.createElement('small');descEl.textContent=(desc?desc+' ':'')+(spec.species?`[${cls.name} 전용 · ${spec.category}]`:`(${altJobCls.name} 전직 시: ${altJobName})`);
   const assignBar=document.createElement('div');assignBar.className='skill-assign-bar';
   const assign=document.createElement('button');assign.type='button';assign.className='skill-select-button';assign.dataset.selectSkill=id;
   assign.textContent='슬롯에 배치';assign.disabled=!unlocked;
@@ -1199,7 +1222,7 @@ function renderSkillsMenu(){
   const btn=document.createElement('button');btn.type='button';
   if(!learned){
    btn.className=canLearn?'accent':'';
-   btn.textContent=!levelMet?`🔒 Lv.${unlockLevel} 달성 필요`:canLearn?`📖 스킬 해금 (스킬북 ${bookCost}권)`:`📖 스킬북 부족 (${booksHave}/${bookCost})`;
+   btn.textContent=!levelMet?`🔒 Lv.${unlockLevel} 달성 필요`:canLearn?(bookCost===0?'무료로 배우기':`📖 선택 습득 (스킬북 ${bookCost}권)`):`📖 스킬북 부족 (${booksHave}/${bookCost})`;
    btn.disabled=!connected||w.paused||!canLearn;
    btn.onclick=()=>manualAction('learn_skill',{skill:id});
   }else{
@@ -1575,7 +1598,7 @@ function stepMovement(){
   if(distance<=arriveDist){
    const id=target.id;if(!autoHunt||!id?.startsWith('enemy:'))target=null;
    if(id?.startsWith('enemy:')){
-    for(const sk of ['ultimate','sweep','strike','ranged']){if(autoHunt&&!skillStatus(sk).reason){command('skill',{skill:sk});return;}}
+    for(const sk of HOTBAR_KEYS.map(key=>hotbarMap[key]).filter(Boolean)){if(autoHunt&&!skillStatus(sk).isHeal&&!skillStatus(sk).reason){command('skill',{skill:sk});return;}}
     if(!autoHunt||(state.world.cooldowns.attack||0)<=state.world.elapsed)command('attack');
    }else if(id?.startsWith('drop:')){
     if(autoHunt&&!isBagFull(state.world))command('loot',{id,item:'all'});
