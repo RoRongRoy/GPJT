@@ -9,18 +9,19 @@ from server.storage import Store
 
 class SettlementExpansionTests(unittest.TestCase):
     def world(self):
-        w=new_world();w['player'].update(chosen=True,combat_level=50)
+        w=new_world();w['player'].update(chosen=True,combat_level=100)
         w['player'].update(x=w['base']['x'],y=w['base']['y'])
         w['inventory']={k:20 for k in ITEMS};w['inventory']['gold']=1000
         return w
 
     def test_every_facility_and_recipe_has_real_output(self):
-        self.assertEqual(len(FACILITIES),12);self.assertEqual(len(RECIPES),20)
+        self.assertEqual(len(FACILITIES),12);self.assertEqual(len(RECIPES),72)
         for key,spec in RECIPES.items():
             with self.subTest(recipe=key):
                 w=self.world();facility=spec['facility']
                 for _ in range(spec.get('level',1)):
-                    for k in ITEMS:w['inventory'][k]=40
+                    for k in ITEMS:w['inventory'][k]=20
+                    w['inventory'].update(wood=40,metal=40)
                     w['inventory']['gold']=1000
                     act(w,{'action':'build','facility':facility})
                 before=copy.deepcopy(w)
@@ -52,9 +53,9 @@ class SettlementExpansionTests(unittest.TestCase):
 
     def test_search_tables_replenishment_and_injection_rejection(self):
         sites=[n for n in POIS if n.get('site_type')]
-        self.assertEqual(len(sites),48)
+        self.assertEqual(len(sites),148)
         for region in ('outskirts','forest','marsh','works'):
-            self.assertEqual({n['site_type'] for n in sites if region_at(n['x'],n['y'])['id']==region},set(SEARCH_SITES))
+            self.assertEqual({n['site_type'] for n in sites if region_at(n['x'],n['y'])['id']==region},set(list(SEARCH_SITES)[:12]))
         for node in sites:
             w=self.world();w['inventory']={k:0 for k in ITEMS};w['player'].update(x=node['x'],y=node['y'])
             before=copy.deepcopy(w)

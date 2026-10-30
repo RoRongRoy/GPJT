@@ -164,7 +164,7 @@ class FieldArt extends GothicArt {
   }
   g.fillStyle=patterns.earth;g.fillRect(x,y,w,h);g.fillStyle='#252b3228';g.fillRect(x,y,w,h);
   for(const r of map.regions){
-   const tint={outskirts:'#64606228',forest:'#1d474748',marsh:'#355c7260',works:'#67545e48'}[r.id];
+   const tint={outskirts:'#64606228',forest:'#1d474748',marsh:'#355c7260',works:'#67545e48'}[r.terrain||r.id]||r.color+'48';
    const gradient=g.createRadialGradient(r.x,r.y,3,r.x,r.y,r.radius);gradient.addColorStop(0,tint);gradient.addColorStop(1,tint.slice(0,7)+'00');g.fillStyle=gradient;g.fillRect(x,y,w,h);
   }
   g.lineJoin='round';g.lineCap='round';

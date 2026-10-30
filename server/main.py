@@ -1,4 +1,7 @@
 """Server-authoritative multiplayer development server with Socket.IO support."""
+from .settlement import MATERIALS
+from .frontier import CONSUMABLES
+
 import math
 import argparse
 import copy
@@ -320,6 +323,8 @@ class Runtime:
             'online_count': max(1, online_count),
             'pois': live_pois(world_view),
             'items': ITEMS,
+            'materials': MATERIALS,
+            'consumables': CONSUMABLES,
             'map': WORLD_MAP,
             'recipes': RECIPES,
             'combat': COMBAT,

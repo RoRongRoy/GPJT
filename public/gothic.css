@@ -2122,3 +2122,6 @@ body.field-ui{--hud-gold:#b9a16e;--hud-ink:#100f0dcc;overflow:hidden}
 #recipe-choices{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}#facilities .facility[hidden]{display:none}#facilities .facility>div{min-width:0}#facilities .facility span{white-space:normal}#facilities .facility button{flex-shrink:0}
 
 #recipe-choices{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))}#recipe-choices button{width:auto!important;min-width:0;white-space:normal;word-break:keep-all;padding:9px!important;text-align:left}
+
+/* Keep the expanded crafting catalog browsable above the selected recipe. */
+#recipe-choices{max-height:clamp(160px,28vh,300px);overflow-y:auto;overscroll-behavior:contain;padding:3px 6px 3px 0}

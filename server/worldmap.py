@@ -1,7 +1,7 @@
 """Authored world layout shared with clients; existing landmark IDs stay stable."""
 from .settlement import FACILITY_SPECS, SEARCH_SITES
 
-SIZE = 256
+SIZE = 384
 LAYOUT_VERSION = 3
 BASE_USE_RADIUS = 7.0
 BASE_CLEAR_RADIUS = 9.0
@@ -109,8 +109,9 @@ WORLD_MAP = {'size': SIZE, 'layout_version': LAYOUT_VERSION, 'regions': REGIONS,
 
 def region_at(x, y):
     import math
+    candidates = REGIONS[:4] if x < 256 and y < 256 else REGIONS[4:] or REGIONS[:4]
     x, y = x + math.sin(y / 13) * 5, y + math.sin(x / 17) * 4
-    return min(REGIONS, key=lambda r: ((x-r['x'])**2+(y-r['y'])**2)/r['radius']**2)
+    return min(candidates, key=lambda r: ((x-r['x'])**2+(y-r['y'])**2)/r['radius']**2)
 
 
 def expand_coordinate(value):
@@ -204,7 +205,7 @@ _candidates.sort(key=lambda xy: math.sin(xy[0]*12.3+xy[1]*7.1))
 for region in REGIONS:
     placed = 0
     for x,y in _candidates:
-        if placed == len(SEARCH_SITES):
+        if placed == 12:
             break
         if region_at(x,y)['id'] != region['id']:
             continue
@@ -216,6 +217,41 @@ for region in REGIONS:
         label, prop, loot, seconds = SEARCH_SITES[kind]
         POIS.append(dict(id='search:'+region['id']+':'+kind,x=round(x,2),y=round(y,2),kind='metal',site_type=kind,prop=prop,label=label,loot=loot,seconds=seconds))
         placed += 1
+
+
+# Expansion is additive: preserve every original position and layout migration.
+from . import frontier
+REGIONS.extend(frontier.REGIONS)
+MONSTER_TYPES.update(frontier.MONSTER_TYPES)
+WORLD_MAP['max_combat_level'] = frontier.MAX_COMBAT_LEVEL
+WORLD_MAP['materials'] = {**frontier.MATERIALS}
+ROADS.extend([
+    [[230,52],[270,58],[318,42],[356,85],[326,184],[348,245],[321,321]],
+    [[54,230],[60,271],[43,320],[118,344],[190,313],[254,342],[321,321]],
+    [[221,190],[265,205],[320,184]],
+])
+for zone_index, region in enumerate(frontier.REGIONS):
+    for index,(dx,dy) in enumerate([(x,y) for y in (-44,0,44) for x in (-48,-16,16,48)]):
+        kind=frontier.MONSTER_POOLS[zone_index][index%4]
+        level=region['levels'][0]+round(index/11*(region['levels'][1]-region['levels'][0]))
+        ENEMY_SPAWNS.append((round(region['x']+dx+math.sin(index*2.4+zone_index)*4,2),round(region['y']+dy+math.cos(index*1.8+zone_index)*4,2)))
+        ENEMY_PROFILES.append(dict(faction='infected',name=MONSTER_TYPES[kind]['name'],monster_type=kind,level=level))
+# 20 spaced search points in each new region; old 48 search points stay fixed.
+_candidates=[(x+math.sin(y)*2,y+math.cos(x)*2) for x in range(12,SIZE-8,14) for y in range(12,SIZE-8,14) if x>=262 or y>=262]
+_candidates.sort(key=lambda xy: math.sin(xy[0]*12.3+xy[1]*7.1))
+for region in frontier.REGIONS:
+    allowed=[kind for kind in SEARCH_SITES if frontier.SITE_LEVELS.get(kind,1)<=region['levels'][0]]
+    kinds=(allowed+allowed)[:20]
+    used={}
+    for x,y in _candidates:
+        if not kinds: break
+        if region_at(x,y)['id']!=region['id']: continue
+        if any(math.hypot(x-n['x'],y-n['y'])<10 for n in POIS): continue
+        if any(math.hypot(x-ex,y-ey)<8 for ex,ey in ENEMY_SPAWNS): continue
+        kind=kinds.pop(0);label,prop,loot,seconds=SEARCH_SITES[kind]
+        used[kind]=used.get(kind,0)+1
+        suffix='' if used[kind]==1 else ':'+str(used[kind])
+        POIS.append(dict(id='search:'+region['id']+':'+kind+suffix,x=round(x,2),y=round(y,2),kind='metal',site_type=kind,prop=prop,label=label,loot=loot,seconds=seconds))
 
 
 def migrate_profile_layout(profile, source_layout=None):
@@ -241,14 +277,19 @@ def new_enemy(index):
     # Both starter towns have low-level hunting pockets outside their walls.
     if min(((x-t['x'])**2+(y-t['y'])**2)**.5 for t in TOWNS.values()) < 48:
         level = 1 + index % 5
-    tier_mult = {'outskirts': 1, 'forest': 2, 'marsh': 4, 'works': 7}[region['id']]
+    tier_mult = {'outskirts': 1, 'forest': 2, 'marsh': 4, 'works': 7}.get(region['id'], 7)
     hp = 60 + (level-1)*18*tier_mult
     damage = 8 + (level-1)*(2 if region['id'] == 'outskirts' else 4)
+    monster = MONSTER_TYPES.get(prof.get('monster_type'), {})
+    if region['id'] in {r['id'] for r in frontier.REGIONS}:
+        hp = round((1500 + level*55) * monster.get('hp_mult', 1))
+        damage = round((15 + level*3.5) * monster.get('damage_mult', 1))
     faction = prof['faction']
     name = prof['name']
     return {'id': index, 'x': x, 'y': y, 'hp': hp, 'max_hp': hp, 'level': level,
             'name': name, 'region': region['id'], 'damage': damage, 'faction': faction,
             'monster_type': prof.get('monster_type', 'juggernaut' if level >= 13 else 'walker'),
+            'materials': {monster['material']: 1+level//40} if monster.get('material') else {},
             'xp': 12+level*4*tier_mult, 'respawn': 0, 'attack': 0, 'returning': False}
 
 

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261030-skills1"><style>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261030-frontier2"><style>
  .welcome-quick-resume{background:rgba(217,79,112,0.15);border:1px solid rgba(217,79,112,0.45);border-radius:6px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
  .welcome-quick-resume strong{color:#ffcfd9;font-size:12.5px;display:block}
  .welcome-quick-resume strong .highlight{color:#ff5277;font-weight:bold}
@@ -267,7 +267,8 @@
    </div>
   </section>
   <section data-view="craft" hidden>
-   <label>제작 분류 <select id="craft-category"><option value="">전체</option><option>생활</option><option>장비</option><option>생산</option><option>연구</option></select></label><div id="recipe-choices" class="filter-tabs" aria-label="제작법 목록"></div>
+   <label>제작 분류 <select id="craft-category"><option value="">전체</option><option>생활</option><option>장비</option><option>생산</option><option>연구</option></select></label><label>장비 부위 <select id="craft-slot"><option value="">전체</option><option value="weapon">무기</option><option value="armor">상의</option><option value="pants">하의</option><option value="boots">장화</option><option value="gloves">장갑</option><option value="ring">반지</option><option value="necklace">목걸이</option></select></label>
+   <div id="recipe-choices" class="filter-tabs" aria-label="제작법 목록"></div>
    <div class="recipe-card"><div id="recipe-icon" class="feature-symbol">♨</div><span id="recipe-facility" class="eyebrow">주방</span><h3 id="recipe-name">채소 수프</h3><p id="recipe-effect" class="muted"></p><h4 class="section-label">필요 재료</h4><div id="recipe-cost"></div><p id="recipe-status" role="status"></p><button id="craft-submit" class="wide accent">1개 제작</button></div>
   </section>
   <section data-view="build" hidden><label>시설 분류 <select id="build-category"><option value="">전체</option><option>생활</option><option>장비</option><option>생산</option><option>연구</option></select></label><div id="facilities"></div><p class="panel-note">시설 12종 · 최대 Lv.3. 개선하면 생산량 또는 제작 장비 능력치가 증가합니다. 저장고는 레벨당 가방 용량이 50 증가합니다.</p></section>
@@ -346,5 +347,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261028-movement1"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261030-skills1"></script><script src="/app.js?v=20261030-skills1" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261030-frontier2"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261030-frontier2"></script><script src="/app.js?v=20261030-frontier2" type="module"></script>
 </body></html>

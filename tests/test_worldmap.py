@@ -35,7 +35,10 @@ class WorldMapTests(unittest.TestCase):
         self.assertEqual(len({node['id'] for node in POIS}), len(POIS))
         for region in WORLD_MAP['regions']:
             nodes = [node for node in POIS if region_at(node['x'],node['y'])['id']==region['id']]
-            self.assertTrue(any(node['kind'] == 'npc' for node in nodes))
+            if not region.get('terrain'):
+                self.assertTrue(any(node['kind'] == 'npc' for node in nodes))
+            else:
+                self.assertEqual(len(nodes),20)
             for node in nodes:
                 self.assertTrue(1 <= node['x'] <= SIZE-2 and 1 <= node['y'] <= SIZE-2)
                 if node['kind'] == 'npc':
@@ -119,7 +122,7 @@ class WorldMapTests(unittest.TestCase):
             store.save(restored);self.assertEqual(store.load(),restored);store.close()
 
     def test_spacing_and_non_grid_layout(self):
-        self.assertEqual(SIZE,256);self.assertEqual(len(POIS),77);self.assertEqual(len(ENEMY_SPAWNS),35)
+        self.assertEqual(SIZE,384);self.assertEqual(len(POIS),177);self.assertEqual(len(ENEMY_SPAWNS),95)
         for i,a in enumerate(POIS):
             for b in POIS[i+1:]:self.assertGreaterEqual(math.hypot(a['x']-b['x'],a['y']-b['y']),8)
         for i,a in enumerate(ENEMY_SPAWNS):

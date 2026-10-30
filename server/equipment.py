@@ -1,4 +1,6 @@
 """Server-owned equipment catalog and Lineage-inspired low per-kill probabilities."""
+from .frontier import GEAR_MODELS
+
 RARITIES = {
     'normal': {'name': '일반', 'color': '#c6c9c5', 'chance': .05, 'bonus': 0},
     'advanced': {'name': '고급', 'color': '#80c48e', 'chance': .01, 'bonus': 3},
@@ -79,6 +81,12 @@ def roll_equipment(world, enemy, rng, collect=True):
             item = {'id': 'gear:' + str(world['next_gear_id']), 'slot': slot, 'rarity': rarity,
                     'name': f'{base_name} T{tier}',
                     'power': (4*tier if slot == 'weapon' else 2*tier) + spec['bonus']}
+            if enemy['level'] >= 15:
+                family = 'abyssal' if enemy['level'] >= 80 else 'eclipse' if enemy['level'] >= 60 else 'silverguard' if enemy['level'] >= 35 else 'hunter'
+                kind = {('human','warrior'):'sword',('human','ranged'):'rifle',('vampire','warrior'):'claw',('vampire','ranged'):'staff'}.get((p.get('species','human'),p.get('job','warrior')), 'sword')
+                model = GEAR_MODELS[family+'_'+('weapon_'+kind if slot=='weapon' else slot)]
+                item.update(name=f"{model['name']} T{tier}", model=model['model'], min_level=model['min_level'],
+                            power=max(item['power'], model['power'] + spec['bonus']))
             world['next_gear_id'] += 1
             if collect:
                 world['gear'].append(item)

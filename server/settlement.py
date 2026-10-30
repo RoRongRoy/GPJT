@@ -51,3 +51,8 @@ SEARCH_SITES = {
     'garden_ruin': ('폐온실', 'kitchen', {'crop':4,'herb':2}, 45),
     'cistern_ruin': ('정수 시설 잔해', 'water', {'water':5,'metal':1}, 45),
 }
+
+from . import frontier
+MATERIALS.update(frontier.MATERIALS)
+EXTRA_RECIPES.update(frontier.RECIPES)
+SEARCH_SITES.update(frontier.SEARCH_SITES)

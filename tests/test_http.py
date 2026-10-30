@@ -40,7 +40,7 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request('/../data/access.key')[0], 404)
         status, body = self.request('/api/state')
         self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body)['map']['size'], 256)
+        self.assertEqual(json.loads(body)['map']['size'], 384)
         self.assertEqual(json.loads(body)['map']['base_radius'], 7)
         self.assertEqual(json.loads(body)['recipes']['soup']['facility'], 'kitchen')
         status2, body2 = self.request('/api/state', session='second-test-session')

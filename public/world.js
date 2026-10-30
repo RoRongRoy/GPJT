@@ -59,7 +59,7 @@ class WorldView {
   for(let gy=3;gy<state.map.size;gy+=3)for(let gx=3;gx<state.map.size;gx+=3){
    const x=gx+(this.noise(gx,gy)-.5)*1.8,y=gy+(this.noise(gy,gx)-.5)*1.8;
    if(landmarks.some(n=>Math.hypot(x-n.x,y-n.y)<3.8)||this.nearRoad(state.map,x,y))continue;
-   const region=this.region(state,x,y).id,n=this.noise(gx+47,gy+13);
+   const regionInfo=this.region(state,x,y),region=regionInfo.terrain||regionInfo.id,n=this.noise(gx+47,gy+13);
    const cluster=(Math.sin(x/8)+Math.cos(y/11)+Math.sin((x+y)/17))/3;
    if(region==='marsh'&&n>.82)this.ponds.push({x,y});
    if(n<(region==='forest'?(cluster>.15?.48:.87):.88))continue;
@@ -76,7 +76,8 @@ class WorldView {
  project(x,y,z=0) { const {ox,oy,tw,th,scale}=this.projection; return [ox+(x-y)*tw,oy+(x+y)*th-z*scale]; }
  region(state,x,y) {
   const wx=x+Math.sin(y/13)*5,wy=y+Math.sin(x/17)*4;
-  return state.map.regions.reduce((a,b)=>((wx-a.x)**2+(wy-a.y)**2)/a.radius**2<=((wx-b.x)**2+(wy-b.y)**2)/b.radius**2?a:b);
+  const regions=x<256&&y<256?state.map.regions.filter(r=>!r.terrain):state.map.regions.filter(r=>r.terrain);
+  return (regions.length?regions:state.map.regions).reduce((a,b)=>((wx-a.x)**2+(wy-a.y)**2)/a.radius**2<=((wx-b.x)**2+(wy-b.y)**2)/b.radius**2?a:b);
  }
  nearRoad(map,x,y){
   return map.roads.some(road=>road.slice(1).some((b,i)=>{const a=road[i],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy)));return Math.hypot(x-a[0]-t*dx,y-a[1]-t*dy)<2;}));
@@ -191,7 +192,7 @@ class WorldView {
   const scenery=this.scenery.filter(e=>visible(e.x,e.y)&&outsideCamp(e));
   if(!art.ground(state,this.projection)){
    const palettes={outskirts:'#404449',forest:'#2f3b39',marsh:'#33434a',works:'#4d494b'};
-   for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++)tile(x,y,palettes[this.region(state,x,y).id]);
+   for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++)tile(x,y,palettes[this.region(state,x,y).terrain||this.region(state,x,y).id]||'#404449');
   }
   for(const pond of this.ponds){if(!visible(pond.x,pond.y)||!outsideCamp(pond))continue;const [sx,sy]=project(pond.x,pond.y);ellipse(sx,sy,22,9,'#253842');ellipse(sx+3*scale,sy,14,4,'#93a8b02c');}
   const towns=state.map?.towns?Object.values(state.map.towns):[];
@@ -279,10 +280,10 @@ class WorldView {
     if(e.site_type){
      if(e.site_type==='corpse'){
       ellipse(sx,sy,22,8,'#292426');c.strokeStyle='#84716a';c.lineWidth=7*scale;c.beginPath();c.moveTo(sx-17*scale,sy-3*scale);c.lineTo(sx+16*scale,sy-3*scale);c.stroke();ellipse(sx+20*scale,sy-3*scale,5,5,'#a0927e');
-     }else if(['warehouse','library','pharmacy','armory'].includes(e.site_type)){
+     }else if(['warehouse','library','pharmacy','armory','ancient_vault','wreck_truck','mutant_vat'].includes(e.site_type)){
       art.refuge(sx,sy,scale*.55);art.prop(e.prop,sx+27*scale,sy+8*scale,scale*.5);
-     }else if(e.site_type==='mine'){
-      for(let j=0;j<4;j++)box(e.x+j*.25,e.y-j*.3,22+j*7,'#837e72',.35);
+     }else if(['mine','silver_vein','obsidian_vein','crystal_cache','sulfur_vent','bone_pit'].includes(e.site_type)){
+      for(let j=0;j<4;j++)box(e.x+j*.25,e.y-j*.3,22+j*7,({silver_vein:'#b5c8cf',obsidian_vein:'#514268',crystal_cache:'#66bbc9',sulfur_vent:'#b6a65d',bone_pit:'#bab09c'})[e.site_type]||'#837e72',.35);
      }else art.prop(e.prop,sx,sy,scale);
     }
     if(!e.site_type&&e.kind==='wood')tree(e.x,e.y,.8);

@@ -8,6 +8,7 @@ from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOT
 
 from .settlement import FACILITY_SPECS, EXTRA_RECIPES, MATERIALS
 from .skills import register_skills
+from .frontier import MAX_COMBAT_LEVEL, CONSUMABLES
 
 RECIPES = {
     'soup': {'cost': {'crop': 2, 'water': 1}, 'facility': 'kitchen', 'name': '채소 수프'},
@@ -20,6 +21,7 @@ ITEMS = {'wood': '목재', 'water': '식수', 'crop': '작물', 'herb': '약초'
          'metal': '부품', 'scroll': '강화 주문서', 'skillbook': '고대 스킬북',
          'soup': '채소 수프', 'elixir': '안정화 혈액', 'medicine': '치료제', 'gold': '골드'}
 ITEMS.update(MATERIALS)
+ITEMS.update({key: spec['name'] for key, spec in CONSUMABLES.items()})
 SKILLBOOK_DROP_CHANCE = 0.04
 
 SHOP_BUY_CATALOG = {
@@ -412,11 +414,11 @@ def bag_full(w):
 def gain_xp(w, amount):
     p = w['player']
     p['xp'] = p.get('xp', 0) + amount
-    while p['combat_level'] < 50 and p['xp'] >= p['combat_level'] * 40:
+    while p['combat_level'] < MAX_COMBAT_LEVEL and p['xp'] >= p['combat_level'] * 40:
         p['xp'] -= p['combat_level'] * 40
         p['combat_level'] += 1
         p['hp'] = min(100.0, p['hp'] + 25.0)
-    if p['combat_level'] >= 50:
+    if p['combat_level'] >= MAX_COMBAT_LEVEL:
         p['xp'] = 0
 
 
@@ -430,6 +432,7 @@ def damage_enemy(w, enemy, damage, rng=random.random):
         scroll_drop = 3 + (2 if enemy.get('level', 1) >= 8 else 0)
         metal_drop = 2 + tier_bonus
         drop_items = {'scroll': scroll_drop, 'metal': metal_drop, 'gold': 4 + enemy.get('level', 1) * 2}
+        drop_items.update(enemy.get('materials', {}))
         if tier_bonus >= 1:
             supply_key = 'herb' if tier_bonus == 1 else 'blood' if tier_bonus == 2 else 'elixir'
             drop_items[supply_key] = tier_bonus
@@ -437,7 +440,7 @@ def damage_enemy(w, enemy, damage, rng=random.random):
         if med_roll < .2:
             drop_items['medicine'] = 1
         item = roll_equipment(w, enemy, rng, collect=False)
-        book_chance = SKILLBOOK_DROP_CHANCE + max(0, (enemy.get('level', 1) - 1) // 4) * 0.015
+        book_chance = min(.15, SKILLBOOK_DROP_CHANCE + max(0, (enemy.get('level', 1) - 1) // 4) * 0.015)
         if med_roll < book_chance:
             drop_items['skillbook'] = 1
         gain_xp(w, enemy['xp'])
@@ -668,6 +671,7 @@ def act(w, command, rng=random.random):
     elif action == 'equip':
         item = next((g for g in w['gear'] if g['id'] == command.get('item')), None)
         require(item, '보유하지 않은 장비입니다.')
+        require(p.get('combat_level', 1) >= item.get('min_level', 1), f"착용에 전투 Lv.{item.get('min_level', 1)}이 필요합니다.")
         slot = command.get('slot')
         if item['slot'] == 'ring' and slot in (None, 'ring'):
             slot = equipped_slot(w, item['id']) or next((s for s in ('ring1', 'ring2') if not w['equipment'].get(s)), 'ring1')
@@ -688,6 +692,7 @@ def act(w, command, rng=random.random):
         at_base(w)
         recipe = RECIPES.get(command.get('recipe'))
         require(recipe, '조합식 오류')
+        require(p.get('combat_level', 1) >= recipe.get('combat_level', 1), '제작에 필요한 전투 레벨이 부족합니다.')
         level = w['base']['facilities'].get(recipe['facility'], 0)
         require(level >= recipe.get('level', 1), '필요한 시설 레벨을 먼저 건설·개선하세요.')
         require(all(w['inventory'].get(k, 0) >= v for k,v in recipe['cost'].items()), '재료가 부족합니다.')
@@ -700,7 +705,7 @@ def act(w, command, rng=random.random):
             cooldown(w, 'craft:'+command['recipe'], recipe['seconds'])
         spend(w, recipe['cost'])
         if recipe.get('gear_slot'):
-            w['gear'].append({'id':'gear:'+str(w['next_gear_id']), 'slot':recipe['gear_slot'], 'rarity':'normal', 'name':recipe['name'], 'power':recipe['power']+level-1})
+            w['gear'].append({'id':'gear:'+str(w['next_gear_id']), 'slot':recipe['gear_slot'], 'rarity':recipe.get('rarity','normal'), 'name':recipe['name'], 'power':recipe['power']+level-1, **{k:recipe[k] for k in ('model','min_level') if k in recipe}})
             w['next_gear_id'] += 1
         else:
             output = recipe.get('output', command['recipe'])
@@ -708,7 +713,10 @@ def act(w, command, rng=random.random):
         note(w, recipe['name'] + ' 제작 완료')
     elif action == 'consume':
         item = command.get('item')
-        require(item in ('soup', 'water', 'blood', 'elixir', 'medicine'), '소모품 오류')
+        require(isinstance(item, str) and (item in ('soup', 'water', 'blood', 'elixir', 'medicine') or item in CONSUMABLES), '소모품 오류')
+        consumable = CONSUMABLES.get(item)
+        if consumable and consumable.get('species'):
+            require(p['species'] == consumable['species'], '현재 종족이 사용할 수 없는 소모품입니다.')
         if item in ('soup', 'water'):
             require(p['species'] == 'human', '인간용 식사입니다.')
         if item in ('blood', 'elixir'):
@@ -717,11 +725,14 @@ def act(w, command, rng=random.random):
         effects = {'soup': {'food': 45, 'water': 15, 'mp': 25}, 'water': {'water': 40, 'mp': 30},
                    'blood': {'blood': 30, 'hp': 12}, 'elixir': {'blood': 40, 'stability': 45, 'hp': 20},
                    'medicine': {'hp': 40, 'mp': 20}}
+        effects.update({key: spec['effects'] for key, spec in CONSUMABLES.items()})
         for k, v in effects[item].items():
             if k in p:
                 p[k] = min(100, p[k] + v)
         if item == 'medicine':
             p['infection'] = max(0, p['infection'] - 60)
+        if consumable and consumable.get('cleanse'):
+            p['infection'] = max(0, p['infection']-consumable['cleanse'])
         note(w, ITEMS[item] + ' 사용')
     elif action == 'build':
         at_base(w)

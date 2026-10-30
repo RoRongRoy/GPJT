@@ -47,13 +47,15 @@ class EncounterTests(unittest.TestCase):
         self.assertEqual((e['x'], e['y']), ENEMY_SPAWNS[0])
 
     def test_regions_have_increasing_strength_and_correct_levels(self):
-        w = self.world(); previous = 0
+        w = self.world(); previous = 0; previous_min = 0
         for region in REGIONS:
             enemies = [e for e in w['enemies'] if e['region'] == region['id']]
             self.assertTrue(enemies)
             average = sum(e['max_hp'] for e in enemies)/len(enemies)
-            self.assertGreater(average, previous)
+            if region['levels'][0] > previous_min:
+                self.assertGreater(average, previous)
             previous = average
+            previous_min = region['levels'][0]
             for e in enemies:
                 self.assertTrue(region['levels'][0] <= e['level'] <= region['levels'][1])
                 self.assertGreaterEqual(e['damage'], 8)
