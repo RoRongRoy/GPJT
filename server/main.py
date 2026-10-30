@@ -18,6 +18,7 @@ if __name__ == '__main__' and not __package__:
     __package__ = 'server'
 
 from .settlement import MATERIALS
+from .resources import ITEM_CATEGORIES, ENHANCEMENT
 from .frontier import CONSUMABLES
 from . import dungeons
 
@@ -339,6 +340,8 @@ class Runtime:
             'pois': pois,
             'items': ITEMS,
             'materials': MATERIALS,
+            'item_categories': ITEM_CATEGORIES,
+            'enhancement_materials': ENHANCEMENT,
             'consumables': CONSUMABLES,
             'map': map_view,
             'recipes': RECIPES,

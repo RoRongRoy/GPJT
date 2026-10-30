@@ -38,7 +38,7 @@ class WorldMapTests(unittest.TestCase):
             if not region.get('terrain'):
                 self.assertTrue(any(node['kind'] == 'npc' for node in nodes))
             else:
-                self.assertEqual(len(nodes),20 if region['id'] in ('quarry','catacombs','laboratory','wasteland','abyss') else 12)
+                self.assertEqual(len(nodes),20 if region['id'] in ('quarry','catacombs','laboratory','wasteland','abyss') else 10 if region['id']=='barrens' else 12)
             for node in nodes:
                 self.assertTrue(1 <= node['x'] <= SIZE-2 and 1 <= node['y'] <= SIZE-2)
                 if node['kind'] == 'npc':

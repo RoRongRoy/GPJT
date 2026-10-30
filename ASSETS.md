@@ -55,3 +55,7 @@
 `public/icons/`의 wood/water/crop/herb/blood/metal/scroll/soup/elixir/medicine.svg 10종은 이번 작업에서 직접 작성한 SVG 도형입니다. 외부 아이콘 라이브러리·게임 이미지를 복사하지 않았습니다. [combat.js](public/combat.js)는 기존 스프라이트의 변환, 무기 궤적, 입자, 피해·회복 숫자를 합성합니다. 신규 공격용 이미지 시트나 외부 음원은 포함하지 않습니다. 기존 라이선스 정책을 유지합니다.
 
 0.8.0: `public/icons/weapon.svg`, `armor.svg`는 프로젝트에서 직접 작성한 검·방호복 인벤토리 아이콘입니다. 외부 게임 이미지를 사용하지 않았습니다.
+
+## Resource economy icons (2026-10-30)
+
+`public/icons/`에 건설 자재 32개·전투 재료/주문서 15개용 자체 작성 SVG 아이콘 47개를 추가했습니다. 코드로 작성한 기하 도형과 색상을 사용하며 외부 게임 이미지를 포함하지 않습니다.

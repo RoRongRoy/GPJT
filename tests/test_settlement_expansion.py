@@ -11,11 +11,11 @@ class SettlementExpansionTests(unittest.TestCase):
     def world(self):
         w=new_world();w['player'].update(chosen=True,combat_level=100)
         w['player'].update(x=w['base']['x'],y=w['base']['y'])
-        w['inventory']={k:20 for k in ITEMS};w['inventory']['gold']=1000
+        w['inventory']={k:10 for k in ITEMS};w['inventory']['gold']=1000
         return w
 
     def test_every_facility_and_recipe_has_real_output(self):
-        self.assertEqual(len(FACILITIES),12);self.assertEqual(len(RECIPES),72)
+        self.assertEqual(len(FACILITIES),12);self.assertEqual(len(RECIPES),75)
         for key,spec in RECIPES.items():
             with self.subTest(recipe=key):
                 w=self.world();facility=spec['facility']
@@ -24,6 +24,8 @@ class SettlementExpansionTests(unittest.TestCase):
                     w['inventory'].update(wood=40,metal=40)
                     w['inventory']['gold']=1000
                     act(w,{'action':'build','facility':facility})
+                w['inventory']={k:0 for k in ITEMS}
+                w['inventory'].update(spec['cost'])
                 before=copy.deepcopy(w)
                 act(w,{'action':'craft','recipe':key})
                 for k,v in spec['cost'].items():

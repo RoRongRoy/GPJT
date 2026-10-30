@@ -9,6 +9,7 @@ from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RA
 from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOTS, SLOT_NAMES, slot_type, equipped_slot, armor_power
 
 from .settlement import FACILITY_SPECS, EXTRA_RECIPES, MATERIALS
+from .resources import DROP_ITEMS, ENHANCEMENT, extra_drop, facility_cost
 from .skills import register_skills
 from .frontier import MAX_COMBAT_LEVEL, CONSUMABLES
 
@@ -24,6 +25,7 @@ ITEMS = {'wood': '목재', 'water': '식수', 'crop': '작물', 'herb': '약초'
          'soup': '채소 수프', 'elixir': '안정화 혈액', 'medicine': '치료제', 'gold': '골드'}
 ITEMS.update(MATERIALS)
 ITEMS.update({key: spec['name'] for key, spec in CONSUMABLES.items()})
+ITEMS.update(DROP_ITEMS)
 SKILLBOOK_DROP_CHANCE = 0.04
 
 SHOP_BUY_CATALOG = {
@@ -338,12 +340,12 @@ def resolve_skill_spec(species, job, skill):
     return merged
 
 POI_CONTENTS = {
-    'wood': [('wood', 3), ('scroll', 1), ('herb', 1)],
-    'water': [('water', 3), ('scroll', 1), ('crop', 1)],
-    'crop': [('crop', 3), ('scroll', 1), ('water', 1)],
-    'herb': [('herb', 3), ('scroll', 1), ('blood', 1)],
-    'blood': [('blood', 3), ('scroll', 1), ('herb', 1)],
-    'metal': [('metal', 3), ('scroll', 1), ('wood', 1)],
+    'wood': [('wood', 3), ('metal', 1), ('herb', 1)],
+    'water': [('water', 3), ('metal', 1), ('crop', 1)],
+    'crop': [('crop', 3), ('metal', 1), ('water', 1)],
+    'herb': [('herb', 3), ('metal', 1), ('blood', 1)],
+    'blood': [('blood', 3), ('metal', 1), ('herb', 1)],
+    'metal': [('metal', 3), ('ore', 1), ('wood', 1)],
 }
 
 
@@ -435,12 +437,14 @@ def damage_enemy(w, enemy, damage, rng=random.random):
         tier_bonus = max(0, (enemy.get('level', 1) - 1) // 3)
         scroll_drop = 3 + (2 if enemy.get('level', 1) >= 8 else 0)
         metal_drop = 2 + tier_bonus
-        drop_items = {'scroll': scroll_drop, 'metal': metal_drop, 'gold': 4 + enemy.get('level', 1) * 2}
-        drop_items.update(enemy.get('materials', {}))
+        drop_items = {'scroll': scroll_drop, 'iron_fragment': metal_drop, 'gold': 4 + enemy.get('level', 1) * 2}
+        drop_items.update({k:v for k,v in enemy.get('materials', {}).items() if k in DROP_ITEMS})
         if tier_bonus >= 1:
-            supply_key = 'herb' if tier_bonus == 1 else 'blood' if tier_bonus == 2 else 'elixir'
+            supply_key = 'elixir'
             drop_items[supply_key] = tier_bonus
         med_roll = rng()
+        for key, amount in extra_drop(enemy, med_roll).items():
+            drop_items[key] = drop_items.get(key, 0) + amount
         if med_roll < .2:
             drop_items['medicine'] = 1
         item = roll_equipment(w, enemy, rng, collect=False)
@@ -470,9 +474,9 @@ class RuleError(ValueError):
 
 
 def new_world():
-    return {'version': 1, 'layout_version': LAYOUT_VERSION, 'revision': 0, 'elapsed': 0.0, 'paused': False,
+    return {'version': 1, 'town_revision': 2, 'layout_version': LAYOUT_VERSION, 'revision': 0, 'elapsed': 0.0, 'paused': False,
             'player': {'x': float(START_BASE[0]), 'y': float(START_BASE[1]+1), 'species': 'human', 'origin': 'human',
-                       'gender': 'male', 'job': 'warrior', 'chosen': False, 'map_layout': LAYOUT_VERSION,
+                       'gender': 'male', 'job': 'warrior', 'chosen': False, 'town_revision': 2, 'map_layout': LAYOUT_VERSION,
                        'hp': 100.0, 'mp': 100.0, 'food': 90.0, 'water': 90.0, 'blood': 90.0, 'stability': 90.0,
                        'infection': 0.0, 'combat_level': 1, 'xp': 0, 'level': 0, 'pity': 0, 'mounted': False,
                        'learned_skills': ['sweep', 'recover'], 'adventurer_id': uuid.uuid4().hex,
@@ -626,12 +630,12 @@ def _act(w, command, rng=random.random):
         require(node and node['kind'] != 'npc', '채집 지점 오류')
         require(dist(p, node) <= 3.5, '채집 지점 가까이 이동하세요.')
         selected = command.get('items')
-        if node.get('loot') and selected is None:
-            selected = list(node['loot'])
+        if selected is None:
+            selected = list(node.get('loot') or dict(POI_CONTENTS[node['kind']]))
         if selected is not None:
             require(isinstance(selected, list) and len(selected) > 0, '파밍할 아이템을 선택하세요.')
             require(not bag_full(w), '인벤토리가 가득 찼습니다.')
-            allowed = dict(node.get('loot') or POI_CONTENTS.get(node['kind'], [(node['kind'], 3), ('scroll', 1)]))
+            allowed = dict(node.get('loot') or POI_CONTENTS.get(node['kind'], [(node['kind'], 3), ('metal', 1)]))
             require(all(isinstance(k, str) and k in allowed for k in selected), '선택한 아이템 오류')
             cooldown(w, node['id'], node.get('seconds', 3))
             gained = []
@@ -644,12 +648,6 @@ def _act(w, command, rng=random.random):
             require(gained, '인벤토리가 가득 찼습니다.')
             w['quest']['collected'] += 1
             note(w, '선택 파밍 · ' + ' · '.join(gained))
-        else:
-            cooldown(w, node['id'], node.get('seconds', 3))
-            w['inventory'][node['kind']] += 3
-            w['inventory']['scroll'] += 1
-            w['quest']['collected'] += 1
-            note(w, f"{ITEMS[node['kind']]} +3 · 주문서 +1")
     elif action == 'loot':
         drops = w.get('drops', [])
         drop_id = command.get('id')
@@ -767,7 +765,7 @@ def _act(w, command, rng=random.random):
         require(name in FACILITIES, '시설 오류')
         level = w['base']['facilities'].get(name, 0)
         require(level < 3, '시설 최대 레벨입니다.')
-        spend(w, {k:v*(level+1) for k,v in FACILITY_SPECS[name]['cost'].items()})
+        spend(w, facility_cost(FACILITY_SPECS[name], level))
         w['base']['facilities'][name] = level + 1
         note(w, f'{FACILITIES[name]} Lv.{level + 1}')
     elif action == 'relocate':
@@ -801,7 +799,13 @@ def _act(w, command, rng=random.random):
         level = p['level']
         require(level < 10, '최대 강화 단계입니다.')
         cost, chance, pity = (1, 1, 0) if level < 3 else (2, .8, 2) if level < 6 else (3, .6, 3) if level < 9 else (5, .4, 4)
-        spend(w, {'scroll': cost})
+        catalyst = command.get('catalyst', '')
+        require(isinstance(catalyst,str) and (not catalyst or catalyst in ENHANCEMENT), '알 수 없는 강화 재료입니다.')
+        costs = {'scroll': cost}
+        if catalyst:
+            costs[catalyst] = 1
+            chance = min(1, chance + ENHANCEMENT[catalyst]['bonus'])
+        spend(w, costs)
         if p['pity'] >= pity or rng() < chance:
             p['level'] += 1
             p['pity'] = 0
@@ -1111,9 +1115,9 @@ def tick(w, dt, extra_profiles=None):
                     oe['respawn'] = w['elapsed'] + 15.0
                     drop_items = {'gold': random.randint(4, 9) + oe.get('level', 1) * 2}
                     if oe.get('faction') == 'vampire':
-                        drop_items['blood'] = random.randint(1, 2)
+                        drop_items['blood_pearl'] = random.randint(1, 2)
                     elif oe.get('faction') == 'human':
-                        drop_items['metal'] = random.randint(1, 2)
+                        drop_items['iron_fragment'] = random.randint(1, 2)
                     drop_id = f"drop:skirmish-{int(w['elapsed'])}-{oe['id']}"
                     w.setdefault('drops', []).append({
                         'id': drop_id,

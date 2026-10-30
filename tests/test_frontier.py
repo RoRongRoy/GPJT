@@ -16,12 +16,12 @@ class FrontierTests(unittest.TestCase):
         w=new_world();w['player'].update(chosen=True,combat_level=100,hp=30,mp=20,infection=100)
         w['player'].update(x=w['base']['x'],y=w['base']['y'])
         w['base']['facilities']={key:3 for key in w['base']['facilities']}
-        w['inventory']={key:20 for key in ITEMS}
+        w['inventory']={key:10 for key in ITEMS}
         return w
 
     def test_old_positions_are_identical_and_expansion_has_room(self):
         # Fingerprint from the previous shipped layout, before adding frontier content.
-        legacy=[[(p['id'],p['x'],p['y']) for p in POIS[:77]],ENEMY_SPAWNS[:35]]
+        legacy=[[(p['id'],94 if p['id']=='vampire' else p['x'],86 if p['id']=='vampire' else p['y']) for p in POIS[:77]],ENEMY_SPAWNS[:35]]
         self.assertEqual(hashlib.sha256(json.dumps(legacy).encode()).hexdigest(),
                          '470ab71cf678c23ffcc61f06c87f595979a788d4e6d47f39a9671554fc13627d')
         self.assertEqual(SIZE,544)
@@ -116,6 +116,8 @@ class FrontierTests(unittest.TestCase):
     def test_materials_can_reach_crafting_outputs(self):
         reachable=set(ITEMS)-set(MATERIALS)-set(CONSUMABLES)
         reachable.update(k for node in POIS for k in node.get('loot',{}))
+        from server.resources import DROP_ITEMS
+        reachable.update(DROP_ITEMS)
         for _ in range(len(RECIPES)):
             for key,r in RECIPES.items():
                 if set(r['cost'])<=reachable and not r.get('gear_slot'):

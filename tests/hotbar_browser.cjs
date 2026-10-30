@@ -170,7 +170,8 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   }
   fixture.world.player.x=58;fixture.world.player.y=14;fixture.world.player.combat_level=50;
   fixture.world.base={x:58,y:14,established:true,facilities:Object.fromEntries(Object.keys(fixture.map.facilities).map(id=>[id,1]))};
-  fixture.world.inventory=Object.fromEntries(Object.keys(fixture.items).map(id=>[id,20]));
+  fixture.world.inventory=Object.fromEntries(Object.keys(fixture.items).map(id=>[id,5]));
+  Object.assign(fixture.world.inventory,{wood:20,metal:20,ore:20});
   await until(()=>page.locator('#coordinates').textContent().then(t=>t==='58 / 14'),'Return to own camp');
   await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
   await page.locator('[data-view=camp] [data-panel=build]').click();
@@ -180,7 +181,7 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   assert.equal(commands.at(-1)?.action,'build');assert.equal(commands.at(-1)?.facility,'forge');
   await page.keyboard.press('Escape');await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
   await page.locator('[data-view=camp] [data-panel=craft]').click();
-  assert.equal(await page.locator('#recipe-choices button').count(),72);
+  assert.equal(await page.locator('#recipe-choices button').count(),75);
   await page.locator('#craft-category').selectOption('장비');assert.equal(await page.locator('#recipe-choices button').count(),47);
   await page.locator('[data-craft=make_ring]').click();await page.locator('#craft-submit')[mobile?'tap':'click']();await delay(200);
   assert.equal(commands.at(-1)?.recipe,'make_ring');
@@ -192,7 +193,7 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   assert.equal(await page.locator('#loot-title').textContent(),mine.label);
   assert.ok((await page.locator('#loot-list').textContent()).includes('철광석'));
   await page.locator('#loot-all')[mobile?'tap':'click']();await delay(200);
-  assert.equal(commands.at(-1)?.id,mine.id);assert.deepEqual(commands.at(-1)?.items,['ore','metal']);
+  assert.equal(commands.at(-1)?.id,mine.id);assert.deepEqual(commands.at(-1)?.items,Object.keys(mine.loot));
   await page.keyboard.press('Escape');
   fixture.world.player.species='human';fixture.world.player.job='warrior';fixture.world.player.combat_level=30;
   fixture.world.player.learned_skills=['sweep','recover'];fixture.world.inventory.skillbook=10;
@@ -230,10 +231,22 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   fixture.world.base={x:340,y:330,established:true,facilities:Object.fromEntries(Object.keys(fixture.map.facilities).map(id=>[id,3]))};
   await until(()=>page.locator('#coordinates').textContent().then(t=>t==='340 / 330'),'Frontier position arrives');
   assert.equal(await page.locator('#region-name').textContent(),'혈월 심연');
-  await page.keyboard.press('i');await page.locator('[data-filter=materials]').click();
+  await page.keyboard.press('i');await page.locator('[data-filter=crafting]').click();
   await page.locator('[data-inventory-item=ancient_core]').click();
-  assert.ok((await page.locator('#item-description').textContent()).includes('고대 동력 금고'));
+  assert.ok((await page.locator('#item-description').textContent()).includes('몬스터 처치'));
   assert.ok(await page.locator('#item-art').evaluate(img=>img.complete&&img.naturalWidth>0),'New material icon loads');
+  await page.locator('[data-filter=materials]').click();
+  assert.equal(await page.locator('[data-inventory-item=ancient_core]').count(),0);
+  await page.locator('[data-inventory-item=plank]').click();
+  assert.ok((await page.locator('#item-category').textContent()).includes('건설'));
+  assert.ok(await page.locator('#item-art').evaluate(img=>img.complete&&img.naturalWidth>0));
+  await page.locator('[data-filter=scrolls]').click();
+  assert.equal(await page.locator('[data-inventory-item=blessed_scroll]').count(),1);
+  await page.locator('[data-filter=currency]').click();
+  assert.equal(await page.locator('#inventory [data-inventory-item]').count(),1);
+  await page.locator('[data-filter=growth]').click();
+  await page.locator('[data-inventory-item=blessing_crystal]').click();
+  assert.ok((await page.locator('#item-effect').textContent()).includes('+20%p'));
   await page.locator('[data-filter=supplies]').click();await page.locator('[data-inventory-item=restoration_tonic]').click();
   await page.locator('#item-use').click();await delay(200);
   assert.equal(commands.at(-1)?.item,'restoration_tonic');
@@ -249,6 +262,14 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   await until(()=>page.locator('#craft-submit').isDisabled(),'High-level crafting checks level in UI');
   assert.ok((await page.locator('#recipe-status').textContent()).includes('80'));
   await page.screenshot({path:`/tmp/frontier-${layout}.png`});
+  await page.keyboard.press('Escape');await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
+  await page.locator('[data-view=camp] [data-panel=research]').click();
+  await page.locator('#enhancement-catalyst').selectOption('blessing_crystal');
+  await delay(500);
+  assert.equal(await page.locator('#enhancement-catalyst').inputValue(),'blessing_crystal');
+  await page.locator('[data-action=enhance]').click();
+  await until(()=>Promise.resolve(commands.at(-1)?.action==='enhance'),'Enhancement command arrives');
+  assert.equal(commands.at(-1)?.catalyst,'blessing_crystal');
   assert.deepEqual(errors,[]);console.log(`Hotbar ${layout} passed: migration, assignment, empty slots, removal, 1–6 dispatch, persistence, unlocks, touch/click actions, navigation and HUD bounds.`);
   await page.unrouteAll({behavior:'ignoreErrors'});await context.close();
  }

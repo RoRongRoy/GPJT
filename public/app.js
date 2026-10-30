@@ -93,12 +93,12 @@ const recipeDetails={soup:['♨','포만도 +45 · 수분 +15'],elixir:['⚗','�
 const inventoryGroups={all:['cloth','ore','chemicals','circuits','gold','wood','water','crop','herb','blood','metal','scroll','skillbook','soup','elixir','medicine'],materials:['cloth','ore','chemicals','circuits','wood','water','crop','herb','blood','metal'],supplies:['soup','water','blood','elixir','medicine'],growth:['scroll','skillbook','gold'],equipment:[]};
 const facilityNames = {kitchen:'주방',alchemy:'연금대',medical:'의료실',storage:'저장고'};
 const poiContents={
- wood:[['wood',3,'주요 벌목 자재'],['scroll',1,'숨겨진 고대 주문서'],['herb',1,'야생 약초']],
- water:[['water',3,'정수된 식수'],['scroll',1,'보존된 주문서'],['crop',1,'물가 작물']],
- crop:[['crop',3,'수확용 작물'],['scroll',1,'농장 주문서'],['water',1,'농업용 식수']],
- herb:[['herb',3,'야생 약초 다발'],['scroll',1,'비전 주문서'],['blood',1,'응고된 원혈']],
- blood:[['blood',3,'농축 원혈'],['scroll',1,'혈족 주문서'],['herb',1,'정화 약초']],
- metal:[['metal',3,'고철 금속 부품'],['scroll',1,'기계공의 주문서'],['wood',1,'폐목재']],
+ wood:[['wood',3,'주요 벌목 자재'],['metal',1,'회수한 건설 부품'],['herb',1,'야생 약초']],
+ water:[['water',3,'정수된 식수'],['metal',1,'회수한 건설 부품'],['crop',1,'물가 작물']],
+ crop:[['crop',3,'수확용 작물'],['metal',1,'회수한 건설 부품'],['water',1,'농업용 식수']],
+ herb:[['herb',3,'야생 약초 다발'],['metal',1,'회수한 건설 부품'],['blood',1,'응고된 원혈']],
+ blood:[['blood',3,'농축 원혈'],['metal',1,'회수한 건설 부품'],['herb',1,'정화 약초']],
+ metal:[['metal',3,'고철 금속 부품'],['ore',1,'건설용 철광석'],['wood',1,'폐목재']],
 };
 let activeLoot=null,lootChecks=new Set(),inspectOnArrive=false;
 function searchContents(poi){return poi?.loot?Object.entries(poi.loot).map(([id,amount])=>[id,amount,'전문 재료']):poiContents[poi?.kind]||[[poi?.kind,3,'자원']];}
@@ -427,7 +427,7 @@ function update() {
   const {row,title,cost,button}=facilityRows.get(id),level=w.base?.facilities?.[id]||0;
   const spec=state.map.facilities?.[id]||{category:'생활',description:'',cost:{wood:3,metal:2}};
   row.hidden=Boolean($('build-category').value&&$('build-category').value!==spec.category);
-  const costs=Object.entries(spec.cost).map(([key,value])=>[key,value*(level+1)]);
+  const costs=Object.entries({...spec.cost,...(level?spec.upgrade_cost||{}:{})}).map(([key,value])=>[key,value*(level+1)]);
   title.textContent=`${name} · Lv.${level} · ${spec.description}`;
   cost.textContent=level>=3?'최대 레벨':costs.map(([key,value])=>`${state.items[key]} ${value}`).join(' · ');
   button.textContent=level?'개선':'건설';button.disabled=!canUseCamp()||!connected||level>=3||w.paused||costs.some(([key,value])=>(w.inventory[key]||0)<value);button.title=cost.textContent;
@@ -520,7 +520,7 @@ function setAutoHunt(active,silent=false){
 $('auto-hunt').onclick=()=>{if(!state?.world.player.chosen||!connected)return;if(state.world.paused){toast('일시정지를 해제하세요.');return;}closePanel(false);setAutoHunt(!autoHunt);if(autoHunt)stepMovement();};
 function manualAction(action,fields={}){if(action==='attack'||action==='skill')closePanel(false);clearMovement();pendingAction=null;clearTimeout(pendingTimer);command(action,fields);}
 $('pause').onclick=()=>manualAction('pause');if($('flyout-pause'))$('flyout-pause').onclick=()=>manualAction('pause');
-document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action));
+document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action,b.dataset.action==='enhance'?{catalyst:$('enhancement-catalyst').value}:{}));
 document.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>manualAction('consume',{item:b.dataset.item}));
 $('craft-submit').onclick=()=>manualAction('craft',{recipe:selectedRecipe});
 document.querySelectorAll('button[data-species]').forEach(b=>b.onclick=()=>{welcomeForced=false;manualAction('choose',{species:b.dataset.species,gender:selectedGender,job:selectedJob});});
@@ -733,6 +733,15 @@ const itemInfo={
  medicine:['공용 소모품','상처와 감염을 치료하는 약품.','체력 +40 · 감염 −60'],
 };
 function expandedItemInfo(id){
+ const category=state.item_categories?.[id];
+ if(category){
+  const places=[...new Set((state.pois||[]).filter(n=>n.loot?.[id]||n.kind===id).map(n=>n.label))];
+  const uses=Object.values(state.recipes||{}).filter(r=>r.cost?.[id]).slice(0,4).map(r=>r.name);
+  const buildings=Object.entries(state.map.facilities||{}).filter(([,r])=>r.cost?.[id]||r.upgrade_cost?.[id]).map(([k,r])=>facilityNames[k]||r.name);
+  const bonus=state.enhancement_materials?.[id]?.bonus;
+  return [category.label,category.origin==='farming'?'오브젝트 탐색: '+places.slice(0,5).join(' · '):'몬스터 처치 후 전리품 회수 · 상위 재료는 고레벨 사냥터에서 획득',bonus?`아지트 강화 성공 확률 +${Math.round(bonus*100)}%p · 선택 시 1개 소모`:[buildings.length?'건설/개선: '+buildings.join(' · '):'',uses.length?'제작: '+uses.join(' · '):'',itemInfo[id]?.[2]||''].filter(Boolean).join(' / ')];
+ }
+
  const spec=state.consumables?.[id],names={hp:'체력',mp:'MP',food:'포만',water:'수분',blood:'혈액',stability:'안정도'};
  if(spec)return ['제작 소모품',spec.species==='human'?'인간용 보급 식량':spec.species==='vampire'?'뱀파이어용 혈청':'공용 회복 약품',Object.entries(spec.effects).map(([key,value])=>`${names[key]||key} +${value}`).join(' · ')+(spec.cleanse?` · 감염 −${spec.cleanse}`:'')];
  if(state.materials?.[id]){
@@ -868,9 +877,21 @@ function renderInventory(){
  if(!state)return;
  renderEquippedViews();
  inventoryGroups.all=Object.keys(state.items);
- inventoryGroups.materials=[...new Set([...inventoryGroups.materials,...Object.keys(state.materials||{})])];
+ const categories=state.item_categories||{};
+ inventoryGroups.materials=Object.keys(categories).filter(k=>categories[k].origin==='farming');
+ inventoryGroups.monster=Object.keys(categories).filter(k=>categories[k].origin==='monster');
+ for(const group of ['crafting','scrolls','currency'])inventoryGroups[group]=Object.keys(categories).filter(k=>categories[k].category===group);
+ inventoryGroups.growth=['skillbook',...Object.keys(state.enhancement_materials||{})];
+ const catalyst=$('enhancement-catalyst'),chosen=catalyst.value;
+ const catalystSignature=JSON.stringify(Object.entries(state.enhancement_materials||{}).map(([id,s])=>[id,s.name,s.bonus,state.world.inventory[id]||0]));
+ if(catalyst.dataset.signature!==catalystSignature){
+  const option=(text,value)=>{const o=document.createElement('option');o.textContent=text;o.value=value;return o;};
+  catalyst.replaceChildren(option('사용 안 함',''),...Object.entries(state.enhancement_materials||{}).map(([id,s])=>option(`${s.name} · +${Math.round(s.bonus*100)}%p · 보유 ${state.world.inventory[id]||0}`,id)));
+  catalyst.value=chosen;catalyst.dataset.signature=catalystSignature;
+ }
+
  inventoryGroups.supplies=[...new Set([...inventoryGroups.supplies,...Object.keys(state.consumables||{})])];
- const gear=state.world.gear||[],allIds=[...inventoryGroups[inventoryFilter],...(['all','equipment'].includes(inventoryFilter)?gear.map(g=>g.id):[])];
+ const gear=state.world.gear||[],allIds=[...inventoryGroups[inventoryFilter],...(['all','equipment','monster'].includes(inventoryFilter)?gear.map(g=>g.id):[])];
  const ids=allIds.filter(id=>gearItem(id)||state.world.inventory[id]>0);
  if(!allIds.includes(selectedItem))selectedItem=ids[0]||null;
  const layout=inventoryFilter+':'+ids.join(',');
@@ -895,7 +916,7 @@ function renderInventory(){
  const g=gearItem(selectedItem),rarity=g?gearRarity(g):null,equipped=g&&Boolean(equippedSlot(g));
  const comparedSlot=g?(g.slot==='ring'&&!equipped?$('ring-target').value:targetSlot(g)):null;
  const powerDiff=g?g.power-(gearItem(state.world.equipment[comparedSlot])?.power||0):0;
- const info=g?[rarity.name+' '+gearTypeNames[g.slot],`드랍·제작·상점 장비 · 착용 Lv.${g.min_level||1}`,(g.slot==='weapon'?'공격력 +':'받는 피해 −')+g.power+' · 현재 부위 대비 '+(powerDiff>=0?'+':'')+powerDiff]:itemInfo[selectedItem]||expandedItemInfo(selectedItem);$('item-art').hidden=!info;if(info)$('item-art').src='/icons/'+itemIcon(selectedItem)+'.svg';
+ const info=g?[rarity.name+' '+gearTypeNames[g.slot],`드랍·제작·상점 장비 · 착용 Lv.${g.min_level||1}`,(g.slot==='weapon'?'공격력 +':'받는 피해 −')+g.power+' · 현재 부위 대비 '+(powerDiff>=0?'+':'')+powerDiff]:expandedItemInfo(selectedItem)||itemInfo[selectedItem];$('item-art').hidden=!info;if(info)$('item-art').src='/icons/'+itemIcon(selectedItem)+'.svg';
  $('item-category').textContent=info?.[0]||'';$('item-name').textContent=selectedItem?itemName(selectedItem):'비어 있는 가방';
  $('item-description').textContent=info?.[1]||'채집하거나 제작해 아이템을 획득하세요.';$('item-effect').textContent=info?.[2]||'';
  $('item-category').style.color=rarity?.color||'';

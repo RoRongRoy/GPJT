@@ -109,6 +109,8 @@ WORLD_MAP = {'size': SIZE, 'layout_version': LAYOUT_VERSION, 'regions': REGIONS,
 
 def region_at(x, y):
     import math
+    for starter in WORLD_MAP.get('starter_regions',[]):
+        if math.hypot(x-starter['x'],y-starter['y'])<starter['radius']:return starter
     candidates = REGIONS[:4] if x < 256 and y < 256 else (REGIONS[4:9] or REGIONS[:4]) if x < 384 and y < 384 else (REGIONS[9:] or REGIONS[4:9] or REGIONS[:4])
     x, y = x + math.sin(y / 13) * 5, y + math.sin(x / 17) * 4
     return min(candidates, key=lambda r: ((x-r['x'])**2+(y-r['y'])**2)/r['radius']**2)
@@ -282,6 +284,43 @@ for region in warfront.REGIONS:
         POIS.append(dict(id='search:'+region['id']+':'+kind,x=round(x,2),y=round(y,2),kind='metal',site_type=kind,prop=prop,label=label,loot=loot,seconds=seconds))
 
 
+# Relocate after generation so unrelated authored landmarks keep their coordinates.
+TOWNS['vampire'].update(x=518.0, y=44.0, spawn=(518.0,46.0))
+for merchant in MERCHANTS:
+    if merchant['faction']=='vampire':merchant['x']+=342
+for node in POIS:
+    if node['id']=='vampire':node.update(x=518.0,y=57.0)
+ENEMY_SPAWNS[97]=(514.0,82.0)  # Keep patrols beyond the new walls.
+VAMPIRE_STARTER=dict(id='vampire_outskirts',name='생귀스 외곽',subtitle='혈족 초보 사냥터',x=518,y=44,radius=48,levels=[1,5],color='#51445c',terrain='forest')
+WORLD_MAP['starter_regions']=[VAMPIRE_STARTER]
+ROADS.append([[518,61],[514,82],[474,80]])
+
+
+def migrate_town_profile(profile):
+    player=profile.get('player',{})
+    if player.get('town_revision',1)>=2:return profile
+    # Move visitors only. Personal estates and outfield characters retain position.
+    for actor,xx,yy in [(player,'x','y'),(player.get('dungeon',{}),'return_x','return_y')]:
+        if actor.get(xx) is not None and actor.get(yy) is not None and math.hypot(actor[xx]-176,actor[yy]-44)<=17:
+            if actor is player and player.get('dungeon'):continue
+            actor[xx]+=342
+    player['town_revision']=2
+    return profile
+
+
+def migrate_town_world(world):
+    migrate_town_profile(world)
+    if world.get('town_revision',1)>=2:return
+    for npc in world.get('npcs',[]):
+        if npc['id']=='vampire':npc.update(x=518.0,y=57.0,home_x=518.0,home_y=57.0)
+    for enemy in world.get('enemies',[]):
+        if enemy['id'] in (96,97):
+            fresh=new_enemy(enemy['id'])
+            fresh['hp']=round(fresh['max_hp']*min(1,enemy['hp']/max(1,enemy['max_hp'])))
+            fresh['respawn']=enemy.get('respawn',0)
+            enemy.update(fresh)
+    world['town_revision']=2
+
 def migrate_profile_layout(profile, source_layout=None):
     """Move personal coordinates once; keep all equipment, resources and facilities."""
     player = profile.get('player', {})
@@ -294,7 +333,7 @@ def migrate_profile_layout(profile, source_layout=None):
                 if actor.get(key) is not None:
                     actor[key] = (expand_coordinate(actor[key]) if version == 1 else actor[key])*2
     player['map_layout'] = LAYOUT_VERSION
-    return profile
+    return migrate_town_profile(profile)
 
 
 def new_enemy(index):
@@ -303,15 +342,20 @@ def new_enemy(index):
     prof = ENEMY_PROFILES[index % len(ENEMY_PROFILES)]
     level = prof.get('level', region['levels'][0] + index % (region['levels'][1]-region['levels'][0]+1))
     # Both starter towns have low-level hunting pockets outside their walls.
-    if min(((x-t['x'])**2+(y-t['y'])**2)**.5 for t in TOWNS.values()) < 48:
+    starter = min(((x-t['x'])**2+(y-t['y'])**2)**.5 for t in TOWNS.values()) < 48
+    if starter:
         level = 1 + index % 5
     tier_mult = {'outskirts': 1, 'forest': 2, 'marsh': 4, 'works': 7}.get(region['id'], 7)
     hp = 60 + (level-1)*18*tier_mult
     damage = 8 + (level-1)*(2 if region['id'] == 'outskirts' else 4)
     monster = MONSTER_TYPES.get(prof.get('monster_type'), {})
-    if region.get('terrain'):
+    if region.get('terrain') and not starter:
         hp = round((1500 + level*55) * monster.get('hp_mult', 1))
         damage = round((15 + level*3.5) * monster.get('damage_mult', 1))
+    if starter:
+        hp=60+(level-1)*18
+        damage=8+(level-1)*2
+        tier_mult=1
     faction = prof['faction']
     name = prof['name']
     return {'id': index, 'x': x, 'y': y, 'hp': hp, 'max_hp': hp, 'level': level,

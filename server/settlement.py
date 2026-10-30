@@ -56,3 +56,34 @@ from . import frontier
 MATERIALS.update(frontier.MATERIALS)
 EXTRA_RECIPES.update(frontier.RECIPES)
 SEARCH_SITES.update(frontier.SEARCH_SITES)
+
+
+# Object scavenging exclusively supplies building and living resources.
+from .resources import FARM_MATERIALS, CRAFT_MATERIALS, DROP_ITEMS, ENHANCEMENT
+MATERIALS.update({k:v for k,v in FARM_MATERIALS.items() if k not in ('wood','metal','water','crop','herb','blood')})
+MATERIALS.update(CRAFT_MATERIALS)
+MATERIALS.update({k: v for k,v in DROP_ITEMS.items() if k not in ('gold','scroll','skillbook','medicine','elixir')})
+_new_farm=list(FARM_MATERIALS)[10:]
+for index,(kind,(label,prop,loot,seconds)) in enumerate(list(SEARCH_SITES.items())):
+    clean={k:v for k,v in loot.items() if k in FARM_MATERIALS}
+    for key in _new_farm[index::len(SEARCH_SITES)]:clean[key]=2
+    SEARCH_SITES[kind]=(label,prop,clean,seconds)
+for index,spec in enumerate(FACILITY_SPECS.values()):
+    spec['upgrade_cost']={key:1 for key in _new_farm[index::len(FACILITY_SPECS)]}
+for key,materials in {'greenhouse':['water','crop','herb'],'bloodbank':['blood']}.items():
+    FACILITY_SPECS[key]['upgrade_cost'].update(dict.fromkeys(materials,1))
+
+# Equipment and its components require combat loot, never scavenged building stock.
+_replacements={'metal':'iron_fragment','ore':'silver','wood':'bone','cloth':'spirit_fiber',
+               'chemicals':'arcane_dust','blood':'blood_pearl','water':'mutagen','circuits':'weapon_core'}
+for key,recipe in EXTRA_RECIPES.items():
+    if recipe.get('gear_slot') or recipe.get('output') in DROP_ITEMS:
+        cost={}
+        for item,amount in recipe['cost'].items():
+            item=_replacements.get(item,item)
+            cost[item]=cost.get(item,0)+amount
+        recipe['cost']=cost
+        if recipe.get('gear_slot'):
+            recipe['cost']['weapon_core' if recipe['gear_slot']=='weapon' else 'armor_plate']=1
+for key,amount in [('weapon_scroll',3),('armor_scroll',3),('blessed_scroll',8)]:
+    EXTRA_RECIPES['decode_'+key]=dict(name=DROP_ITEMS[key]+' 해독',facility='archive',cost={key:1},output='scroll',amount=amount,seconds=15)

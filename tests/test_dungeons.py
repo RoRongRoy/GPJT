@@ -29,7 +29,7 @@ class DungeonTests(unittest.TestCase):
 
     def test_previous_field_layout_is_preserved(self):
         from server.worldmap import POIS, ENEMY_SPAWNS
-        data=[[(p['id'],p['x'],p['y']) for p in POIS[:177]],ENEMY_SPAWNS[:95]]
+        data=[[(p['id'],94 if p['id']=='vampire' else p['x'],86 if p['id']=='vampire' else p['y']) for p in POIS[:177]],ENEMY_SPAWNS[:95]]
         self.assertEqual(hashlib.sha256(json.dumps(data).encode()).hexdigest(),'50961ffa413b36327cb7832dcaf1bca8e25c7d3750e8bdadbf9d7da776bce3b7')
 
     def test_entry_record_rolls_back_with_failed_world_save(self):

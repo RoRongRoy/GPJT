@@ -6,7 +6,7 @@ import secrets
 import sqlite3
 from pathlib import Path
 from .game import new_world
-from .worldmap import ENEMY_SPAWNS, new_enemy, LAYOUT_VERSION, new_npcs, migrate_profile_layout
+from .worldmap import ENEMY_SPAWNS, new_enemy, LAYOUT_VERSION, new_npcs, migrate_profile_layout, migrate_town_world
 
 
 def _hash_password(password, salt):
@@ -85,6 +85,7 @@ class Store:
             w.setdefault('npcs', new_npcs())
             w['encounter_version'] = 1
         w['player'].setdefault('mp', 100.0)
+        migrate_town_world(w)
         return w
 
     def save(self, world):

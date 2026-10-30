@@ -75,6 +75,7 @@ class WorldView {
  }
  project(x,y,z=0) { const {ox,oy,tw,th,scale}=this.projection; return [ox+(x-y)*tw,oy+(x+y)*th-z*scale]; }
  region(state,x,y) {
+  const starter=(state.map.starter_regions||[]).find(r=>Math.hypot(x-r.x,y-r.y)<r.radius);if(starter)return starter;
   const wx=x+Math.sin(y/13)*5,wy=y+Math.sin(x/17)*4;
   const regions=state.map.id?.startsWith('dungeon:')?state.map.regions:x<256&&y<256?state.map.regions.slice(0,4):x<384&&y<384?state.map.regions.slice(4,9):state.map.regions.slice(9);
   return (regions.length?regions:state.map.regions).reduce((a,b)=>((wx-a.x)**2+(wy-a.y)**2)/a.radius**2<=((wx-b.x)**2+(wy-b.y)**2)/b.radius**2?a:b);
