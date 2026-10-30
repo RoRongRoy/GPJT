@@ -10,9 +10,9 @@ from server.worldmap import SIZE, TOWNS, MERCHANTS, ENEMY_SPAWNS, migrate_profil
 
 class ExpansionV3Tests(unittest.TestCase):
     def test_area_density_starter_safety_and_level_coverage(self):
-        self.assertEqual(SIZE*SIZE, 384*384)
+        self.assertEqual(SIZE*SIZE, 544*544)
         enemies = new_world()['enemies']
-        self.assertEqual(len(enemies), 95)
+        self.assertEqual(len(enemies), 143)
         self.assertLess(len(enemies)/(SIZE*SIZE), 11/(128*128))
         self.assertGreaterEqual(len({e['name'] for e in enemies}), 17)
         self.assertEqual(max(e['level'] for e in enemies), 100)
@@ -50,7 +50,7 @@ class ExpansionV3Tests(unittest.TestCase):
                 self.assertEqual(restored['inventory'],w['inventory'])
                 self.assertEqual(restored['base']['facilities'],w['base']['facilities'])
                 self.assertEqual((restored['enemies'][0]['hp'],restored['enemies'][0]['respawn']), (0,500))
-                self.assertEqual(len(restored['enemies']),95)
+                self.assertEqual(len(restored['enemies']),143)
                 store.save(restored);self.assertEqual(store.load(), restored)
                 for migrated in (store.load_peers()['old-session'], store.load_account('legacy','test-password')):
                     self.assertEqual(migrated['player']['x'],116)

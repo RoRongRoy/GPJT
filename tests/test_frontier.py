@@ -24,9 +24,9 @@ class FrontierTests(unittest.TestCase):
         legacy=[[(p['id'],p['x'],p['y']) for p in POIS[:77]],ENEMY_SPAWNS[:35]]
         self.assertEqual(hashlib.sha256(json.dumps(legacy).encode()).hexdigest(),
                          '470ab71cf678c23ffcc61f06c87f595979a788d4e6d47f39a9671554fc13627d')
-        self.assertEqual(SIZE,384)
-        self.assertEqual(len(REGIONS),9)
-        self.assertEqual(len(POIS),177)
+        self.assertEqual(SIZE,544)
+        self.assertEqual(len(REGIONS),15)
+        self.assertEqual(len(POIS),249)
         for p in POIS[77:]:
             self.assertTrue(p['x']>=256 or p['y']>=256)
             self.assertLess(max(p['x'],p['y']),SIZE)
@@ -46,7 +46,7 @@ class FrontierTests(unittest.TestCase):
         w=self.world();w['enemies']=w['enemies'][:35];w['enemies'][0].update(hp=17,respawn=123)
         with tempfile.TemporaryDirectory() as d:
             store=Store(Path(d)/'save.sqlite3');store.save(w);loaded=store.load()
-            self.assertEqual(len(loaded['enemies']),95)
+            self.assertEqual(len(loaded['enemies']),143)
             for key in ('player','base','inventory','gear','equipment'):
                 self.assertEqual(loaded[key],w[key])
             self.assertEqual(loaded['enemies'][:35],w['enemies'])

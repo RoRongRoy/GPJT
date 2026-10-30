@@ -18,6 +18,7 @@ let activePanel=null, panelOpener=null, inventoryFilter='all', selectedRecipe='s
 const campPanels=new Set(['camp','craft','build','research','dispatch']);
 const campActions=new Set(['craft','build','enhance','research','convert','dispatch']);
 const panelInfo={
+ dungeons:['개인 던전','입장 가능한 던전을 선택하고 하루 도전 횟수를 확인하세요.','DAILY DUNGEONS'],
  settlement:['개인 아지트 건설','일반 필드의 현재 위치에 나만의 아지트를 건설하세요.','PERSONAL OUTPOST'],
  survival:['생존','내 상태를 살피고 필요한 소모품을 사용하세요.','SURVIVOR'],
  skills:['종족 스킬','종족·직업별 기술을 골라 배우고 1~6번 슬롯에 배치하세요.','SPECIES SKILLS'],
@@ -101,7 +102,7 @@ const poiContents={
 };
 let activeLoot=null,lootChecks=new Set(),inspectOnArrive=false;
 function searchContents(poi){return poi?.loot?Object.entries(poi.loot).map(([id,amount])=>[id,amount,'전문 재료']):poiContents[poi?.kind]||[[poi?.kind,3,'자원']];}
-function bagCapacity(w=state?.world){const sl=(w?.base&&w.base.established!==false)?(w.base.facilities?.storage||0):0;return w?160+sl*50+((w.player.combat_level||1)-1)*10:160;}
+function bagCapacity(w=state?.world){const sl=w?.player?.dungeon?.storage_level??((w?.base&&w.base.established!==false)?(w.base.facilities?.storage||0):0);return w?160+sl*50+((w.player.combat_level||1)-1)*10:160;}
 function bagUsed(w=state?.world){return w?Object.entries(w.inventory).reduce((sum,[id,amount])=>sum+(id==='gold'?0:amount),0)+(w.gear?.length||0)*4:0;}
 function isBagFull(w=state?.world){return !w||bagUsed(w)>=bagCapacity(w)||(w.gear?.length||0)>=20;}
 function toast(message) { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600); }
@@ -181,6 +182,7 @@ async function command(action, fields={}) {
   const result=await api('/api/action',{revision:state.world.revision,command:{action,...fields,...(state.movement?.enabled?{input_seq:movementInput.seq}:{})}});
   if(isMove)view.endMove(true);
   accept(result);
+  if(action==='dungeon_enter'||action==='dungeon_leave'){closePanel(false);toast(action==='dungeon_enter'?'던전 입장 · N키로 보상 수령과 귀환':'필드로 귀환했습니다.');}
   const drops=(result.world.gear||[]).filter(g=>!(before.gear||[]).some(old=>old.id===g.id));
   const killed=(before.enemies||[]).filter(old=>old.hp>0&&result.world.enemies.some(e=>e.id===old.id&&e.hp<=0));
   if(drops.length)toast('★ 장비 드랍 · '+drops.map(g=>itemName(g.id)).join(' · ')+' · 가방에 보관');
@@ -192,9 +194,10 @@ async function command(action, fields={}) {
   if(e.status===409){
    try{
     accept(await api('/api/state'));
-    if(['choose','new_adventurer','account_save','account_load','restore_local_save','learn_skill','change_class'].includes(action)){
+    if(['choose','new_adventurer','account_save','account_load','restore_local_save','learn_skill','change_class','dungeon_enter','dungeon_leave','dungeon_claim'].includes(action)){
      const retry=await api('/api/action',{revision:state.world.revision,command:{action,...fields,...(state.movement?.enabled?{input_seq:movementInput.seq}:{})}});
      accept(retry);
+     if(action==='dungeon_enter'||action==='dungeon_leave')closePanel(false);
      return;
     }
    }catch{if(!socket?.connected){connected=false;clearMovement();}}
@@ -351,20 +354,44 @@ updateWelcomeCustomizer();
 function accept(data,fromBroadcast=false) {
  if(!data?.world)return;
  if(!state || (data.world.revision >= state.world.revision&&(!data.snapshot_time||!state.snapshot_time||data.snapshot_time>=state.snapshot_time))) {
+  if(state&&(state.map.id||'field')!==(data.map.id||'field')){clearMovement();target=null;selected=null;autoHunt=false;view.resetInput();view.camera=null;view.combat=null;view.entityPositions.clear();}
   if(state && data.world.player.hp<state.world.player.hp)hurtUntil=performance.now()+350;
   // Prevent a delayed peer broadcast from snapping the local player's position backward while a move is in flight
   if(!data.movement?.enabled&&fromBroadcast && moveBusy && state?.world?.player){
    data.world.player.x=state.world.player.x;
    data.world.player.y=state.world.player.y;
   }
-  state=data;backupCurrentWorld(data.world);view.reconcileInput(data);update();
+  state=data;if(!data.world.player.dungeon)backupCurrentWorld(data.world);view.reconcileInput(data);update();
  }
+}
+let dungeonLayout='';
+function renderDungeons(){
+ if(!state||activePanel!=='dungeons')return;
+ const p=state.world.player,instance=p.dungeon;
+ const key=JSON.stringify([state.dungeon_day,state.dungeons,p.combat_level,instance?.id,instance?.cleared,instance?.enemies.map(e=>e.hp<=0),Math.ceil((instance?.remaining||0)/60),connected,state.world.paused,p.mounted]);
+ if(key===dungeonLayout)return;dungeonLayout=key;
+ $('dungeon-reset').textContent=`${state.dungeon_day||''} · 매일 00:00 (한국 시간) 입장 횟수 초기화`;
+ const current=$('dungeon-current');current.replaceChildren();
+ if(instance){
+  const left=instance.enemies.filter(e=>e.hp>0).length;
+  current.append(span('',`${state.dungeons[instance.id].name} · 남은 적 ${left} · 남은 시간 ${Math.ceil(instance.remaining/60)}분`));
+  const claim=document.createElement('button');claim.textContent=instance.cleared?'보상 수령 완료':'완료 보상 받기';claim.disabled=Boolean(left||instance.cleared||state.world.paused||!connected);claim.onclick=()=>manualAction('dungeon_claim');
+  const leave=document.createElement('button');leave.textContent='필드로 귀환';leave.disabled=!connected;leave.onclick=()=>manualAction('dungeon_leave');current.append(claim,leave);
+ }else current.append(span('','개인 던전은 다른 플레이어와 몬스터·전리품을 공유하지 않습니다.'));
+ $('dungeon-list').replaceChildren(...Object.entries(state.dungeons||{}).map(([id,spec])=>{
+  const card=document.createElement('div');card.className='skill-card dungeon-card';
+  const info=document.createElement('div'),title=document.createElement('strong');title.textContent=spec.name;
+  info.append(title,span('panel-note',`입장 Lv.${spec.level} · 남은 횟수 ${Math.max(0,spec.limit-spec.used)}/${spec.limit}`),span('panel-note','완료 보상: '+Object.entries(spec.reward).map(([k,v])=>`${state.items[k]} ${v}`).join(' · ')));
+  const button=document.createElement('button');button.textContent=instance?'탐험 중':(p.combat_level||1)<spec.level?`Lv.${spec.level} 필요`:spec.used>=spec.limit?'오늘 입장 완료':'입장';button.dataset.dungeon=id;
+  button.disabled=Boolean(instance||!connected||state.world.paused||p.mounted||!p.chosen||(p.combat_level||1)<spec.level||spec.used>=spec.limit);
+  button.onclick=()=>manualAction('dungeon_enter',{dungeon:id});card.append(info,button);return card;
+ }));
 }
 function span(className,text) { const n=document.createElement('span'); n.className=className; n.textContent=text; return n; }
 function update() {
  if(!state) return;
  const w=state.world,p=w.player;
- updateContext();
+ updateContext();renderDungeons();
  $('intro-art').hidden=p.chosen&&!welcomeForced;
  if(!p.chosen||welcomeForced)updateWelcomeAccountUI();
  document.body.dataset.species=p.chosen?p.species:'unchosen';
@@ -389,7 +416,7 @@ function update() {
   const row=document.createElement('div'), label=document.createElement('div');label.className='meter-label';label.append(span('',name),span('',String(Math.ceil(value))));
   const track=document.createElement('div'),fill=document.createElement('div'); track.className='track'; fill.className='fill'+(name==='감염'?' danger':name.includes('MP')?' mp-fill':'');fill.style.width=`${Math.max(0,Math.min(100,value))}%`;track.append(fill);row.append(label,track);return row;
  }));
- for(const [id,spec] of Object.entries(state.map.facilities||{}))facilityNames[id]=spec.name;
+ for(const [id,spec] of Object.entries(state.map.facilities||{}))facilityNames[id]=state.map.facility_themes?.[p.species]?.[id]||spec.name;
  renderInventory();updateSkills();
  for(const [id,name] of Object.entries(facilityNames)){
   if(!facilityRows.has(id)){
@@ -624,7 +651,7 @@ function openPanel(name,opener=null){
  updateSubnav(name);
  $('menu-context').textContent=campPanels.has(name)?'⌂ 아지트 안 · 벗어나면 이 메뉴는 닫힙니다.':'Esc로 닫기 · 메뉴를 연 동안에도 월드 시간은 흐릅니다.';
  if(!$('menu-dialog').open)$('menu-dialog').show();
- renderInventory();renderRecipe();if(name==='skills'){renderSkillsMenu();renderHotbarEditor();}if(name==='shop'){renderShop();}if(name==='settlement')renderSettlement();$('menu-title').focus({preventScroll:true});return true;
+ renderInventory();renderRecipe();if(name==='dungeons')renderDungeons();if(name==='skills'){renderSkillsMenu();renderHotbarEditor();}if(name==='shop'){renderShop();}if(name==='settlement')renderSettlement();$('menu-title').focus({preventScroll:true});return true;
 }
 function updateContext(){
  const {player:p,base:b}=state.world,hasBase=Boolean(b&&b.established!==false&&b.x!=null),atCamp=canUseCamp();
@@ -649,6 +676,7 @@ function updateContext(){
   if(campDockItem)campDockItem.hidden=!p.chosen;
  }
  document.querySelectorAll('[data-panel]').forEach(button=>button.disabled=(!p.chosen&&button.dataset.panel!=='account')||!connected);
+ if(p.dungeon){$('camp-access').hidden=true;document.querySelectorAll('[data-panel]').forEach(button=>{if(campPanels.has(button.dataset.panel)||button.dataset.panel==='settlement')button.disabled=true;});}
  $('auto-hunt').disabled=!p.chosen||!connected||state.world.paused;
  updateSprintUI();
  if(!connected&&autoHunt)setAutoHunt(false,true);
@@ -1533,7 +1561,7 @@ window.addEventListener('keydown',e=>{
  if(moveKeys.includes(k)){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closePanel(false);closeLootBox();target=null;held.add(k);stepMovement();}
  if(e.repeat)return;
  if(k==='escape'){e.preventDefault();if(autoHunt)setAutoHunt(false,true);closeLootBox();closePanel();clearMovement();pendingAction=null;clearTimeout(pendingTimer);}
- const shortcut={h:'survival',k:'skills',c:'equip',i:'bag',j:'journal',u:'account',b:'settlement'}[k];
+ const shortcut={n:'dungeons',h:'survival',k:'skills',c:'equip',i:'bag',j:'journal',u:'account',b:'settlement'}[k];
  if(shortcut){
   e.preventDefault();
   if(shortcut==='camp'){
@@ -1595,7 +1623,7 @@ function stepMovement(){
    const nearest=alive.reduce((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)<=Math.hypot(b.x-p.x,b.y-p.y)?a:b);
    const chosen=current&&Math.hypot(current.x-p.x,current.y-p.y)<=Math.hypot(nearest.x-p.x,nearest.y-p.y)+3?current:nearest;
    if(p.mounted){
-    if(!alive.some(e=>Math.hypot(e.x-p.x,e.y-p.y)<3)){command('mount');return;}
+    if(!p.dungeon&&!alive.some(e=>Math.hypot(e.x-p.x,e.y-p.y)<3)){command('mount');return;}
     dx=Math.sign(p.x-nearest.x)||1;dy=Math.sign(p.y-nearest.y)||1;lastMove=now;command('move',sprinting?{dx,dy,sprint:true}:{dx,dy});return;
    }
    target={x:chosen.x,y:chosen.y,id:'enemy:'+chosen.id};selected=target.id;
@@ -1671,7 +1699,7 @@ function updateGuide(){
    $('interact').disabled=w.paused||isBagFull(w);
    const nearTxt=isBagFull(w)?'🔍 가득':'🔍 확인';
    if(interactLbl)interactLbl.textContent=nearTxt;else $('interact').textContent=nearTxt;
-  }else{
+  }else if(state.pois.length){
    const nearest=[...state.pois].sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
    const distance=Math.hypot(nearest.x-p.x,nearest.y-p.y),close=distance<=(nearest.kind==='npc'?2.5:3.5);
    const cooldown=close?Math.max(0,Math.ceil((w.cooldowns[nearest.id]||0)-w.elapsed)):0;
@@ -1679,6 +1707,9 @@ function updateGuide(){
    $('interact').disabled=w.paused;
    const poiTxt=cooldown?`🔍 ${cooldown}s`:close?(nearest.kind==='npc'?'💬 보고':'🔍 파밍'):'🔍 파밍';
    if(interactLbl)interactLbl.textContent=poiTxt;else $('interact').textContent=poiTxt;
+  }else{
+   $('nearby-label').textContent='개인 던전 · N키로 진행 확인';$('interact').disabled=true;
+   if(interactLbl)interactLbl.textContent='탐험';
   }
  $('location-hint').textContent=autoHunt?'● 자동사냥 중'+(isBagFull(w)?' (가방 가득 참·루팅 제외)':' (자동 루팅 ON)')+' · '+p.x.toFixed(1)+' / '+p.y.toFixed(1):canUseCamp()?'● 안전지대 · 아지트':w.enemies.some(e=>e.hp>0&&(e.faction||'infected')!==p.species&&Math.hypot(p.x-e.x,p.y-e.y)<4.8)?'● 감염체 접근 · 공격하거나 후퇴하세요':'◇ 탐색 중 · '+p.x.toFixed(1)+' / '+p.y.toFixed(1);
 }

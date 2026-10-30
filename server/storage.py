@@ -26,7 +26,24 @@ class Store:
             'CREATE TABLE IF NOT EXISTS accounts ('
             'username TEXT PRIMARY KEY, salt TEXT NOT NULL, password_hash TEXT NOT NULL, value TEXT NOT NULL)'
         )
+        self.db.execute('CREATE TABLE IF NOT EXISTS dungeon_entries (owner TEXT, dungeon TEXT, day TEXT, used INTEGER NOT NULL, PRIMARY KEY(owner,dungeon,day))')
         self.db.commit()
+
+    def dungeon_usage(self, owner, day):
+        return dict(self.db.execute('SELECT dungeon,used FROM dungeon_entries WHERE owner=? AND day=?',(owner or '',day)))
+
+    def commit_action(self, world, peer=None, account=None, entry=None):
+        from .game import RuleError
+        encode=lambda value:json.dumps(value,ensure_ascii=False)
+        with self.db:
+            if entry:
+                owner,dungeon,day,limit=entry
+                used=self.dungeon_usage(owner,day).get(dungeon,0)
+                if used>=limit:raise RuleError('오늘의 던전 입장 횟수를 모두 사용했습니다. 한국 시간 자정에 초기화됩니다.')
+                self.db.execute('INSERT INTO dungeon_entries VALUES(?,?,?,1) ON CONFLICT(owner,dungeon,day) DO UPDATE SET used=used+1',(owner,dungeon,day))
+            self.db.execute('INSERT INTO world VALUES(1,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value',(encode(world),))
+            if peer:self.db.execute('INSERT INTO peers VALUES(?,?) ON CONFLICT(session) DO UPDATE SET value=excluded.value',(peer[0],encode(peer[1])))
+            if account:self.db.execute('UPDATE accounts SET value=? WHERE username=?',(encode(account[1]),account[0]))
 
     def load(self):
         row = self.db.execute('SELECT value FROM world WHERE id=1').fetchone()

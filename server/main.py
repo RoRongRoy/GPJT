@@ -1,7 +1,4 @@
 """Server-authoritative multiplayer development server with Socket.IO support."""
-from .settlement import MATERIALS
-from .frontier import CONSUMABLES
-
 import math
 import argparse
 import copy
@@ -19,6 +16,10 @@ from urllib.parse import urlparse
 if __name__ == '__main__' and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     __package__ = 'server'
+
+from .settlement import MATERIALS
+from .frontier import CONSUMABLES
+from . import dungeons
 
 from .game import act, tick, new_world, ensure_starter_gear, RuleError, POIS, ITEMS, RECIPES, COMBAT, JOB_SKILLS, CLASSES, GENDERS, live_pois, RARITIES, FACILITIES
 from .socketio_server import SocketIOHub
@@ -139,6 +140,7 @@ class Runtime:
             candidate['player'].setdefault('job', 'warrior')
             candidate['player'].setdefault('learned_skills', ['sweep', 'recover'])
             candidate.setdefault('inventory', {}).setdefault('skillbook', 0)
+            dungeons.leave(candidate, '계정 불러오기 · 던전에서 필드로 복귀했습니다.')
             ensure_starter_gear(candidate)
             candidate['cooldowns'] = {
                 ck: cv for ck, cv in candidate.get('cooldowns', {}).items() if cv <= candidate['elapsed'] + 60
@@ -160,6 +162,7 @@ class Runtime:
                 candidate['base'] = copy.deepcopy(backup_prof['base'])
                 candidate['base'].setdefault('facilities', dict.fromkeys(FACILITIES, 0))
             candidate['player']['chosen'] = True
+            dungeons.leave(candidate, '백업 복원 · 던전에서 필드로 복귀했습니다.')
             ensure_starter_gear(candidate)
             lvl = candidate['player'].get('combat_level', 1)
             acc_name = candidate['player'].get('account') or '로컬 백업'
@@ -226,7 +229,13 @@ class Runtime:
                     peer_prof = copy.deepcopy(self.peers[token])
                     for k in PROFILE_KEYS:
                         candidate[k] = peer_prof[k]
-                if not self._handle_account_action(candidate, command, is_peer, sess_info):
+                entry=None
+                if command.get('action')=='dungeon_enter':
+                    dungeons.enter(candidate,command.get('dungeon'))
+                    owner=candidate['player'].setdefault('adventurer_id',secrets.token_hex(16))
+                    spec=dungeons.DUNGEONS[candidate['player']['dungeon']['id']]
+                    entry=(owner,candidate['player']['dungeon']['id'],dungeons.calendar_day(),spec['limit'])
+                elif not self._handle_account_action(candidate, command, is_peer, sess_info):
                     act(candidate, command)
                     if command.get('action') in ('claim_base', 'relocate'):
                         base = candidate['base']
@@ -242,24 +251,19 @@ class Runtime:
                     self.movement.block_after_step(token, now)
                 acc_name = candidate['player'].get('account')
                 is_fast_move = isinstance(command, dict) and command.get('action') == 'move'
-                if acc_name and not is_fast_move:
-                    self.store.sync_account(
-                        acc_name,
-                        {k: copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS, 'next_gear_id') if k in candidate},
-                    )
+                account_update=(acc_name,{k:copy.deepcopy(candidate[k]) for k in (*PROFILE_KEYS,'next_gear_id') if k in candidate}) if acc_name and not is_fast_move else None
                 candidate['revision'] += 1
                 if is_peer:
                     updated_peer = {k: candidate[k] for k in PROFILE_KEYS}
                     for k in PROFILE_KEYS:
                         candidate[k] = self.world[k]
                     if not is_fast_move:
-                        self.store.save(candidate)
-                        self.store.save_peer(token, updated_peer)
+                        self.store.commit_action(candidate,peer=(token,updated_peer),account=account_update,entry=entry)
                     self.world = candidate
                     self.peers[token] = updated_peer
                 else:
                     if not is_fast_move:
-                        self.store.save(candidate)
+                        self.store.commit_action(candidate,account=account_update,entry=entry)
                     self.world = candidate
                     self.last_command = now
                 if self.world['paused']:
@@ -298,8 +302,9 @@ class Runtime:
                     'name': f"{acc}의 아지트",
                     'x': b['x'],
                     'y': b['y'],
-                    'facilities': b.get('facilities', {}),
+                    'facilities': b.get('facilities', {}), 'species':p.get('species','human'),
                 })
+            if p.get('dungeon'):continue
             others.append({
                 'id': tok[:8],
                 'name': acc,
@@ -314,18 +319,28 @@ class Runtime:
                 'mounted': p.get('mounted', False),
                 'unlocks': p.get('unlocks', {'human': 0, 'vampire': 0}),
             })
+        instance=dungeons.current(world_view)
+        map_view=dungeons.map_for(instance,WORLD_MAP) if instance else WORLD_MAP
+        pois=[] if instance else live_pois(world_view)
+        day=dungeons.calendar_day()
+        usage=self.store.dungeon_usage(world_view['player'].get('adventurer_id'),day)
+        if instance:
+            world_view=dungeons.view(world_view)
+            others=[];other_bases=[]
         return {
+            'dungeons':{key:{**spec,'used':usage.get(key,0)} for key,spec in dungeons.DUNGEONS.items()},
+            'dungeon_day':day,
             'world': world_view,
             'snapshot_time': time.time(),
             'movement': self.movement.snapshot(active_token, now),
             'others': others,
             'other_bases': other_bases,
             'online_count': max(1, online_count),
-            'pois': live_pois(world_view),
+            'pois': pois,
             'items': ITEMS,
             'materials': MATERIALS,
             'consumables': CONSUMABLES,
-            'map': WORLD_MAP,
+            'map': map_view,
             'recipes': RECIPES,
             'combat': COMBAT,
             'job_skills': {f'{sp}_{jb}': specs for (sp, jb), specs in JOB_SKILLS.items()},
@@ -399,7 +414,7 @@ def make_handler(runtime, access_key, sio=None):
                      '/art/human-male-warden.png': ('art/human-male-warden.png', 'image/png'),
                      '/art/vampire-female-scholar.png': ('art/vampire-female-scholar.png', 'image/png'),
                      '/style.css': ('style.css', 'text/css; charset=utf-8')}
-            for name in ('sprite-manifest', 'sprites', 'combat', 'socket.io'):
+            for name in ('sprite-manifest', 'sprites', 'combat', 'themes', 'socket.io'):
                 files['/'+name+'.js'] = (name+'.js', 'text/javascript; charset=utf-8')
             for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'human-male', 'vampire', 'vampire-female', 'ghoul', 'brute', 'props', 'earth', 'stone'):
                 files['/art/gameplay/'+name+'.png'] = ('art/gameplay/'+name+'.png', 'image/png')

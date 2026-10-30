@@ -1,6 +1,8 @@
 """Server-owned prototype rules. No HTTP, disk, browser, or wall-clock dependencies."""
 import math
 import random
+import uuid
+from . import dungeons
 
 from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at, TOWNS, MERCHANTS, MONSTER_TYPES
 
@@ -74,6 +76,7 @@ def trading_merchant(w, command):
 
 
 def in_safe_town(p, species=None):
+    if p.get('dungeon'):return False
     sp = species or p.get('species', 'human')
     town = TOWNS.get(sp)
     if not town:
@@ -400,6 +403,7 @@ def sync_starter_gear_names(w):
 
 def bag_capacity(w):
     storage_lvl = w['base']['facilities'].get('storage', 0) if (w.get('base') and w['base'].get('established', True)) else 0
+    if p_instance := dungeons.current(w):storage_lvl=p_instance.get('storage_level',0)
     return 160 + storage_lvl * 50 + (w['player'].get('combat_level', 1) - 1) * 10
 
 
@@ -471,7 +475,7 @@ def new_world():
                        'gender': 'male', 'job': 'warrior', 'chosen': False, 'map_layout': LAYOUT_VERSION,
                        'hp': 100.0, 'mp': 100.0, 'food': 90.0, 'water': 90.0, 'blood': 90.0, 'stability': 90.0,
                        'infection': 0.0, 'combat_level': 1, 'xp': 0, 'level': 0, 'pity': 0, 'mounted': False,
-                       'learned_skills': ['sweep', 'recover'],
+                       'learned_skills': ['sweep', 'recover'], 'adventurer_id': uuid.uuid4().hex,
                        'unlocks': {'human': 0, 'vampire': 0}},
             'base': {'x': START_BASE[0], 'y': START_BASE[1], 'facilities': dict.fromkeys(FACILITIES, 0)},
             'inventory': {'wood': 12, 'water': 12, 'crop': 8, 'herb': 8, 'blood': 8,
@@ -519,6 +523,29 @@ def cooldown(w, key, seconds):
 
 
 def act(w, command, rng=random.random):
+    require(isinstance(command, dict), '명령 형식 오류')
+    action=command.get('action')
+    if action=='dungeon_enter':
+        raise RuleError('던전 입장은 서버 입장 메뉴를 사용하세요.')
+    if action=='dungeon_leave':
+        require(dungeons.current(w), '현재 던전에 있지 않습니다.')
+        dungeons.leave(w);return
+    if action=='dungeon_claim':
+        require(not w['paused'], '일시정지를 해제하세요.')
+        dungeons.claim(w);return
+    if dungeons.current(w):
+        require(action in ('move','attack','skill','loot','consume','equip','unequip','pause','learn_skill'), '던전에서 귀환한 뒤 이용하세요.')
+        local=dungeons.view(w)
+        _act(local,command,rng)
+        instance=dungeons.current(w)
+        instance['enemies']=local['enemies'];instance['drops']=local['drops']
+        for key,value in local.items():
+            if key not in ('enemies','drops','npcs','base','_dungeon_view'):w[key]=value
+        return
+    _act(w,command,rng)
+
+
+def _act(w, command, rng=random.random):
     """Mutates a candidate world; caller commits only on success."""
     require(isinstance(command, dict), '명령 형식 오류')
     action = command.get('action')
@@ -986,7 +1013,9 @@ def tick(w, dt, extra_profiles=None):
     dt = min(1.0, max(0.0, dt))
     w['elapsed'] += dt
     for prof in chosen_profiles:
-        _tick_actor(w, prof, dt)
+        if dungeons.current(prof):dungeons.tick_instance(w,prof,dt)
+        else:_tick_actor(w,prof,dt)
+    chosen_profiles=[prof for prof in chosen_profiles if not dungeons.current(prof)]
     for index, npc in enumerate(w['npcs']):
         patrol(npc, {'x': npc['home_x'], 'y': npc['home_y']}, w['elapsed'], index+3, 1.8, dt)
     for e in w['enemies']:
@@ -1145,5 +1174,6 @@ def move_actor(profile, dx, dy, seconds, sprint=False):
     elif sprint:
         distance *= MOVEMENT['sprint_mult']
     norm = math.hypot(dx, dy)
-    p['x'] = max(1, min(SIZE-2, p['x']+dx/norm*distance))
-    p['y'] = max(1, min(SIZE-2, p['y']+dy/norm*distance))
+    size=dungeons.DUNGEON_SIZE if p.get('dungeon') else SIZE
+    p['x'] = max(1, min(size-2, p['x']+dx/norm*distance))
+    p['y'] = max(1, min(size-2, p['y']+dy/norm*distance))

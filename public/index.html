@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261030-frontier2"><style>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261030-themes1"><style>
  .welcome-quick-resume{background:rgba(217,79,112,0.15);border:1px solid rgba(217,79,112,0.45);border-radius:6px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
  .welcome-quick-resume strong{color:#ffcfd9;font-size:12.5px;display:block}
  .welcome-quick-resume strong .highlight{color:#ff5277;font-weight:bold}
@@ -109,6 +109,7 @@
       </button>
      </div>
 
+     <div class="dock-item" data-category="dungeons"><button id="menu-dungeons" data-panel="dungeons" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="개인 던전 (N)"><span class="dock-glyph">♜</span><span class="dock-name">던전</span><kbd>N</kbd></button></div>
      <div class="dock-item" data-category="journal">
       <button id="menu-journal" data-panel="journal" class="dock-major-btn" aria-controls="menu-dialog" aria-expanded="false" title="모험 수첩 (J)">
        <span class="dock-glyph">◇</span><span class="dock-name">모험</span><kbd>J</kbd>
@@ -199,6 +200,7 @@
    <div id="skills-list" class="equip-gear-list"></div>
    <p class="panel-note">각 직업 14종: 기본 2종은 즉시 사용, 나머지는 요구 레벨을 달성한 뒤 직접 선택해 습득합니다. 신규 Lv.2 스킬은 무료이고 다른 스킬은 고대 스킬북을 사용합니다. 선행 스킬 없이 원하는 순서로 배우세요. 전직·종족 변경 시 전용 스킬은 비활성화되며 돌아오면 다시 사용할 수 있습니다. 배우기만 해서는 슬롯에 자동 등록되지 않습니다.</p>
   </section>
+  <section data-view="dungeons" hidden><p id="dungeon-reset" class="panel-note"></p><div id="dungeon-current" class="equip-stats-box"></div><div id="dungeon-list" class="equip-gear-list"></div><p class="panel-note">캐릭터별 하루 입장 제한 · 한국 시간 자정 초기화 · 제한 시간 20분. 입장 시 횟수가 차감됩니다. 전투 불능·중도 퇴장 시 횟수는 돌아오지 않습니다. 귀환 전에 전리품을 회수하세요.</p></section>
   <section data-view="equip" hidden>
    <div class="equipment-showcase">
     <header class="equipment-identity"><span id="equip-character-kind"></span><h3 id="equip-character-class"></h3><p id="equip-character-level"></p></header>
@@ -347,5 +349,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261030-frontier2"></script><script src="/combat.js?v=20261028-6"></script><script src="/world.js?v=20261030-frontier2"></script><script src="/app.js?v=20261030-frontier2" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261028-6"></script><script src="/sprites.js?v=20261030-themes1"></script><script src="/combat.js?v=20261028-6"></script><script src="/themes.js?v=20261030-themes1"></script><script src="/world.js?v=20261030-themes1"></script><script src="/app.js?v=20261030-themes1" type="module"></script>
 </body></html>

@@ -56,7 +56,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hud-screenshots-${{ github.run_attempt }}
-          path: /tmp/hotbar-*.png
+          path: |
+            /tmp/hotbar-*.png
+            /tmp/town-theme-*.png
+            /tmp/dungeon-theme-*.png
           if-no-files-found: ignore
           retention-days: 7
 

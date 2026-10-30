@@ -2125,3 +2125,6 @@ body.field-ui{--hud-gold:#b9a16e;--hud-ink:#100f0dcc;overflow:hidden}
 
 /* Keep the expanded crafting catalog browsable above the selected recipe. */
 #recipe-choices{max-height:clamp(160px,28vh,300px);overflow-y:auto;overscroll-behavior:contain;padding:3px 6px 3px 0}
+
+.dungeon-card{gap:16px}.dungeon-card .panel-note{display:block;margin:8px 0}#dungeon-current button{margin:10px 8px 0 0}
+@media(max-width:900px){.menu-dock{grid-template-columns:repeat(7,minmax(0,1fr))!important}.field-ui .menu-dock .dock-major-btn{width:100%!important;min-width:0!important}}

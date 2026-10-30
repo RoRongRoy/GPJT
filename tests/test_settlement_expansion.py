@@ -53,7 +53,7 @@ class SettlementExpansionTests(unittest.TestCase):
 
     def test_search_tables_replenishment_and_injection_rejection(self):
         sites=[n for n in POIS if n.get('site_type')]
-        self.assertEqual(len(sites),148)
+        self.assertEqual(len(sites),220)
         for region in ('outskirts','forest','marsh','works'):
             self.assertEqual({n['site_type'] for n in sites if region_at(n['x'],n['y'])['id']==region},set(list(SEARCH_SITES)[:12]))
         for node in sites:
