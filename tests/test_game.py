@@ -24,8 +24,8 @@ class GameTests(unittest.TestCase):
         self.assertEqual(before, self.w)
         self.action('build', facility='kitchen')
         self.action('craft', recipe='soup')
-        self.assertEqual(self.w['inventory']['soup'], 3)
-        self.assertEqual(self.w['inventory']['crop'], 6)
+        self.assertEqual(self.w['inventory']['soup'], 2)
+        self.assertEqual(self.w['inventory']['crop'], 2)
 
     def test_conversion_roundtrip_keeps_base_and_research(self):
         self.action('build', facility='medical')

@@ -94,10 +94,10 @@ const inventoryGroups={all:['cloth','ore','chemicals','circuits','gold','wood','
 const facilityNames = {kitchen:'주방',alchemy:'연금대',medical:'의료실',storage:'저장고'};
 const poiContents={
  wood:[['wood',3,'주요 벌목 자재'],['metal',1,'회수한 건설 부품'],['herb',1,'야생 약초']],
- water:[['water',3,'정수된 식수'],['metal',1,'회수한 건설 부품'],['crop',1,'물가 작물']],
- crop:[['crop',3,'수확용 작물'],['metal',1,'회수한 건설 부품'],['water',1,'농업용 식수']],
- herb:[['herb',3,'야생 약초 다발'],['metal',1,'회수한 건설 부품'],['blood',1,'응고된 원혈']],
- blood:[['blood',3,'농축 원혈'],['metal',1,'회수한 건설 부품'],['herb',1,'정화 약초']],
+ water:[['water',1,'정수된 식수'],['metal',1,'회수한 건설 부품']],
+ crop:[['crop',1,'수확용 작물'],['metal',1,'회수한 건설 부품']],
+ herb:[['herb',2,'야생 약초 다발'],['metal',1,'회수한 건설 부품']],
+ blood:[['blood',1,'농축 원혈'],['metal',1,'회수한 건설 부품'],['herb',1,'정화 약초']],
  metal:[['metal',3,'고철 금속 부품'],['ore',1,'건설용 철광석'],['wood',1,'폐목재']],
 };
 let activeLoot=null,lootChecks=new Set(),inspectOnArrive=false;
@@ -410,6 +410,7 @@ function update() {
  $('level').textContent=`Lv.${p.combat_level||1} · EXP ${p.xp||0}/${(p.combat_level||1)>=(state.map.max_combat_level||100)?'MAX':(p.combat_level||1)*40} · 공격 사거리 ${cls.attack_range} · 공격력 +${((p.combat_level||1)-1)*3} · 방어력 +${Math.floor(((p.combat_level||1)-1)/2)} · 무기강화 +${p.level}`;
  $('day').textContent=`DAY ${String(1+Math.floor(w.elapsed/600)).padStart(2,'0')}`;
  $('time').textContent=`활동 ${Math.floor(w.elapsed/60)}분 ${Math.floor(w.elapsed%60)}초`;
+ $('survival-pressure').textContent=p.species==='human'?'야외에서 분당 포만도 5.4 · 수분 8.4 감소. 달리기는 추가 소모합니다. 25 이하에서는 MP 재생이 느려지며 고갈 시 체력이 감소합니다. 마을에서 보급을 준비하세요.':'야외에서 분당 혈액 7.2 · 안정도 3.9 감소. 흡혈은 체력만 회복합니다. 혈액·안정도가 25 이하이면 자동 재생이 멈추고 고갈 시 체력이 감소합니다. 체력 재생과 비행에도 혈액이 필요합니다.';
  $('base-pos').textContent=(w.base&&w.base.established!==false&&w.base.x!=null)?`${w.base.x} / ${w.base.y}`:'미선포 (필드에서 B 선포)';
  const meters=p.species==='human'?[['체력 (HP)',p.hp],['마나 (MP)',p.mp??100],['포만도',p.food],['수분',p.water],['감염',p.infection]]:[['체력 (HP · 자동재생/흡혈)',p.hp],['혈액량',p.blood],['안정도',p.stability],['감염',p.infection]];
  $('meters').replaceChildren(...meters.map(([name,value])=>{
@@ -930,9 +931,9 @@ $('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){if(sel
 let shopMode='buy';
 const shopCatalog={
  human:[
-  {item:'soup',name:'채소 수프',price:10,desc:'인간 소모품 · 포만도 +45 · 수분 +15'},
-  {item:'water',name:'정제된 식수',price:4,desc:'인간 소모품 · 수분 +40'},
-  {item:'crop',name:'신선한 작물',price:4,desc:'식재료 · 요리 및 파견'},
+  {item:'soup',name:'채소 수프',price:28,desc:'인간 소모품 · 포만도 +45 · 수분 +15'},
+  {item:'water',name:'정제된 식수',price:18,desc:'인간 소모품 · 수분 +40'},
+  {item:'crop',name:'신선한 작물',price:12,desc:'식재료 · 요리 및 파견'},
   {item:'wood',name:'벌목 목재',price:3,desc:'건축 자재 · 시설 건설 및 개선'},
   {item:'metal',name:'정밀 부품',price:4,desc:'기계 부품 · 시설 및 연구'},
   {item:'medicine',name:'치료제',price:15,desc:'공용 소모품 · 체력 +40 · 감염 −60'},
@@ -940,8 +941,8 @@ const shopCatalog={
   {item:'skillbook',name:'고대 스킬북',price:80,desc:'비전서 · 상위 직업 스킬 해금'}
  ],
  vampire:[
-  {item:'elixir',name:'안정화 혈액',price:10,desc:'혈족 소모품 · 혈액량 +40 · 안정도 +45'},
-  {item:'blood',name:'농축 원혈',price:4,desc:'혈족 소모품 · 혈액량 +30'},
+  {item:'elixir',name:'안정화 혈액',price:36,desc:'혈족 소모품 · 혈액량 +40 · 안정도 +45'},
+  {item:'blood',name:'농축 원혈',price:20,desc:'혈족 소모품 · 혈액량 +30'},
   {item:'herb',name:'정화 약초',price:4,desc:'연금 재료 · 치료제 및 안정화'},
   {item:'wood',name:'벌목 목재',price:3,desc:'건축 자재 · 시설 건설 및 개선'},
   {item:'metal',name:'정밀 부품',price:4,desc:'기계 부품 · 시설 및 연구'},

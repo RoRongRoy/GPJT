@@ -90,3 +90,8 @@ for key,amount in [('weapon_scroll',3),('armor_scroll',3),('blessed_scroll',8)]:
 
 from .scavenging import NEW_SITES
 SEARCH_SITES.update({key:(name,'metal',loot,seconds) for key,(name,loot,seconds) in NEW_SITES.items()})
+
+from .survival import limit_supply_sites
+limit_supply_sites(SEARCH_SITES)
+for key,amount,seconds in [('grow_crop',2,120),('purify_water',3,120),('culture_blood',2,180),('blood_batch',1,120)]:
+    EXTRA_RECIPES[key].update(amount=amount,seconds=seconds)

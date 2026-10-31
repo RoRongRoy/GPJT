@@ -96,14 +96,14 @@ class FactionsAndTownsTests(unittest.TestCase):
         self.w['inventory']['gold'] = 50
         self.w['inventory']['soup'] = 0
 
-        # Buy 1 soup (price 10)
+        # Buy 1 soup (price 28)
         self.action(action='shop_buy', item='soup', count=1)
-        self.assertEqual(self.w['inventory']['gold'], 40)
+        self.assertEqual(self.w['inventory']['gold'], 22)
         self.assertEqual(self.w['inventory']['soup'], 1)
 
         # Sell 1 soup (sell price 5)
         self.action(action='shop_sell', item='soup', count=1)
-        self.assertEqual(self.w['inventory']['gold'], 45)
+        self.assertEqual(self.w['inventory']['gold'], 27)
         self.assertEqual(self.w['inventory']['soup'], 0)
 
         # Test gear sell

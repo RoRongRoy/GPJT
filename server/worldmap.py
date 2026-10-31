@@ -403,3 +403,10 @@ def live_pois(world):
     def outside_base(node):
         return not (node.get('site_type') and base.get('established', True) and base.get('x') is not None and math.hypot(node['x']-base['x'], node['y']-base['y']) < 12)
     return [moving.get(n['id'], n) for n in POIS if outside_base(n)]
+
+# Publish the same limited stock and restock timer used by authoritative gathering.
+from .survival import RESOURCE_LOOT, RESOURCE_COOLDOWNS, DRAIN
+for node in POIS:
+    if not node.get('site_type') and node['kind'] in RESOURCE_LOOT:
+        node.update(loot=dict(RESOURCE_LOOT[node['kind']]),seconds=RESOURCE_COOLDOWNS[node['kind']])
+WORLD_MAP['survival_drain']=DRAIN

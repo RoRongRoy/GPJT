@@ -3,6 +3,7 @@ import math
 import random
 import uuid
 from . import dungeons
+from .survival import DRAIN, SPRINT_DRAIN, SUPPLY_PRICES, RESOURCE_LOOT
 
 from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at, TOWNS, MERCHANTS, MONSTER_TYPES
 
@@ -76,6 +77,10 @@ def trading_merchant(w, command):
     require(merchant, '거래할 아군 상인 가까이로 이동하세요.')
     return merchant
 
+
+for _stock in SHOP_BUY_CATALOG.values():
+    for _offer in _stock:
+        if _offer['item'] in SUPPLY_PRICES:_offer['price']=SUPPLY_PRICES[_offer['item']]
 
 def in_safe_town(p, species=None):
     if p.get('dungeon'):return False
@@ -348,6 +353,8 @@ POI_CONTENTS = {
     'blood': [('blood', 3), ('metal', 1), ('herb', 1)],
     'metal': [('metal', 3), ('ore', 1), ('wood', 1)],
 }
+POI_CONTENTS.update({key:list(loot.items()) for key,loot in RESOURCE_LOOT.items()})
+
 
 
 def ensure_starter_gear(w):
@@ -440,10 +447,9 @@ def damage_enemy(w, enemy, damage, rng=random.random):
         metal_drop = 2 + tier_bonus
         drop_items = {'scroll': scroll_drop, 'iron_fragment': metal_drop, 'gold': 4 + enemy.get('level', 1) * 2}
         drop_items.update({k:v for k,v in enemy.get('materials', {}).items() if k in DROP_ITEMS})
-        if tier_bonus >= 1:
-            supply_key = 'elixir'
-            drop_items[supply_key] = tier_bonus
         med_roll = rng()
+        if tier_bonus >= 1 and med_roll < .05:
+            drop_items['elixir'] = 1
         for key, amount in extra_drop(enemy, med_roll).items():
             drop_items[key] = drop_items.get(key, 0) + amount
         if med_roll < .2:
@@ -483,8 +489,8 @@ def new_world():
                        'learned_skills': ['sweep', 'recover'], 'adventurer_id': uuid.uuid4().hex,
                        'unlocks': {'human': 0, 'vampire': 0}},
             'base': {'x': START_BASE[0], 'y': START_BASE[1], 'facilities': dict.fromkeys(FACILITIES, 0)},
-            'inventory': {'wood': 12, 'water': 12, 'crop': 8, 'herb': 8, 'blood': 8,
-                          'metal': 6, 'scroll': 15, 'skillbook': 0, 'soup': 2, 'elixir': 2, 'medicine': 1, 'gold': 50, **dict.fromkeys(MATERIALS, 0)},
+            'inventory': {'wood': 12, 'water': 4, 'crop': 4, 'herb': 8, 'blood': 3,
+                          'metal': 6, 'scroll': 15, 'skillbook': 0, 'soup': 1, 'elixir': 1, 'medicine': 1, 'gold': 50, **dict.fromkeys(MATERIALS, 0)},
             'gear': [], 'equipment': {'weapon': None, 'armor': None}, 'next_gear_id': 1,
             'npcs': new_npcs(), 'encounter_version': 1,
             'milestones': [], 'cooldowns': {}, 'dispatch': None, 'quest': {'collected': 0, 'round': 0},
@@ -883,7 +889,7 @@ def _act(w, command, rng=random.random):
                 if is_vamp:
                     leeched = round(min(16.0, max(4.0, damage * leech_mult)), 1)
                     p['hp'] = min(100.0, p['hp'] + leeched)
-                    p['blood'] = min(100.0, p['blood'] + 1.5)
+                    # Lifesteal heals wounds; stored blood must come from supplies.
     elif action == 'quest':
         require(any(n['kind'] == 'npc' and dist(p, n) <= 2.5 for n in live_pois(w)), '진영 NPC 가까이 가세요.')
         require(w['quest']['collected'] >= 5, '자원 채집을 5회 완료하세요.')
@@ -990,17 +996,20 @@ def _tick_actor(w, prof, dt):
     keys = ('food', 'water') if p['species'] == 'human' else ('blood', 'stability')
     if not in_safe_town(p):
         for key in keys:
-            p[key] = max(0, p[key] - dt * .035)
+            p[key] = max(0, p[key] - dt * DRAIN[key])
     if p['species'] == 'human':
-        p['mp'] = min(100.0, p.get('mp', 100.0) + dt * 1.8)
-    elif p['hp'] > 0 and p.get('blood', 0) > 0:
-        p['hp'] = min(100.0, p['hp'] + dt * 1.2)
+        reserve=min(p['food'],p['water'])
+        p['mp'] = min(100.0, p.get('mp', 100.0) + dt * (0 if reserve<=0 else .35 if reserve<=25 else 1.8))
+    elif 0 < p['hp'] < 100 and p.get('blood',0)>25 and p.get('stability',0)>25:
+        healed=min(100-p['hp'],dt*.6)
+        p['hp']+=healed
+        p['blood']=max(0,p['blood']-healed*.25)
     if min(p[k] for k in keys) <= 0:
-        p['hp'] = max(1, p['hp'] - dt * .2)
+        p['hp'] = max(1, p['hp'] - dt * .8)
     if p['infection'] > 0:
         p['infection'] = min(100, p['infection'] + dt * .025)
     if prof.get('dispatch') and w['elapsed'] >= prof['dispatch']['ends']:
-        for key, value in {'wood': 5, 'metal': 3, 'scroll': 5, 'blood': 3, 'crop': 3}.items():
+        for key, value in {'wood': 5, 'metal': 3, 'scroll': 5, 'blood': 1, 'crop': 1}.items():
             prof['inventory'][key] += value
         prof['dispatch'] = None
         note(prof, '파견 복귀 · 자원을 창고에 보관했습니다.')
@@ -1180,5 +1189,10 @@ def move_actor(profile, dx, dy, seconds, sprint=False):
         distance *= MOVEMENT['sprint_mult']
     norm = math.hypot(dx, dy)
     size=dungeons.DUNGEON_SIZE if p.get('dungeon') else SIZE
+    old_x,old_y=p['x'],p['y']
     p['x'] = max(1, min(size-2, p['x']+dx/norm*distance))
     p['y'] = max(1, min(size-2, p['y']+dy/norm*distance))
+    if sprint and not in_safe_town(p):
+        active_seconds=seconds*min(1,math.hypot(p['x']-old_x,p['y']-old_y)/max(distance,.001))
+        for key in (('food','water') if p['species']=='human' else ('blood',)):
+            p[key]=max(0,p[key]-SPRINT_DRAIN[key]*active_seconds)
