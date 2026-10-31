@@ -419,7 +419,7 @@ def make_handler(runtime, access_key, sio=None):
                      '/style.css': ('style.css', 'text/css; charset=utf-8')}
             for name in ('sprite-manifest', 'sprites', 'combat', 'themes', 'socket.io'):
                 files['/'+name+'.js'] = (name+'.js', 'text/javascript; charset=utf-8')
-            for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'human-male', 'vampire', 'vampire-female', 'ghoul', 'brute', 'props', 'earth', 'stone'):
+            for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'human-male', 'vampire', 'vampire-female', 'ghoul', 'brute', 'props', 'earth', 'stone', 'settlements', 'wasteland', 'surfaces', 'grave-hound', 'iron-revenant'):
                 files['/art/gameplay/'+name+'.png'] = ('art/gameplay/'+name+'.png', 'image/png')
             for item in (*ITEMS, 'weapon', 'armor', 'pants', 'boots', 'gloves', 'necklace', 'ring'):
                 files['/icons/'+item+'.svg'] = ('icons/'+item+'.svg', 'image/svg+xml')

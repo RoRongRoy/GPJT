@@ -1,7 +1,10 @@
 /* Original cached isometric illustrations. No third-party artwork. */
 class FactionArt {
- constructor(context){this.c=context;this.cache=new Map();}
+ constructor(context,art){this.c=context;this.art=art;this.cache=new Map();}
  draw(x,y,scale,kind,faction='human',variant=0){
+  const models=faction==='vampire'?{keep:[6,330],bunker:[7,235],tent:[7,195],crypt:[7,250],tower:[8,300],cave:[9,200],grave:[7,130],wall:[11,135],radio:[8,210],supply:[10,115],drums:[10,95],monument:[10,160]}:{keep:[0,275],bunker:[1,220],headquarters:[0,275],tent:[2,170],radio:[3,240],truck:[4,145],supply:[5,85],drums:[5,70],tower:[3,240],monument:[5,88]};
+  const model=models[kind];
+  if(model&&this.art?.sprite('settlements',x,y,model[1]*scale,model[0]))return;
   const dark=faction==='vampire',key=[kind,dark,variant%4].join(':');
   if(!this.cache.has(key)){
    const canvas=document.createElement('canvas');canvas.width=340;canvas.height=360;

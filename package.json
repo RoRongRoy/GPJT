@@ -6,7 +6,7 @@
   "scripts": {
     "test": "npm run test:client && npm run test:browser",
     "test:client": "node --check public/themes.js && node --check public/app.js && node --check public/world.js && node --check public/gothic.js && node --check public/sprites.js && node --check public/sprite-manifest.js && node --check public/combat.js && node tests/combat_effects.cjs && node tests/field_art.cjs && node tests/client_navigation.cjs",
-    "test:browser": "node tests/new_adventurer_browser.cjs && node tests/hotbar_browser.cjs && node tests/dungeon_browser.cjs"
+    "test:browser": "node tests/new_adventurer_browser.cjs && node tests/hotbar_browser.cjs && node tests/dungeon_browser.cjs && node tests/nocturne_browser.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

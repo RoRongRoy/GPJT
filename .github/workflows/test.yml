@@ -60,6 +60,7 @@ jobs:
             /tmp/hotbar-*.png
             /tmp/town-theme-*.png
             /tmp/dungeon-theme-*.png
+            /tmp/nocturne-*.png
           if-no-files-found: ignore
           retention-days: 7
 

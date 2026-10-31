@@ -32,6 +32,7 @@ s.close()`,save],{cwd:root});
    },{session,species});
    await page.locator('#welcome').waitFor({state:'hidden'});
    await until(()=>page.locator('body').getAttribute('data-species').then(v=>v===species),'Species art');
+   await page.waitForFunction(()=>document.getElementById('world').dataset.art==='ready',{},{timeout:20000});
    await delay(800);await page.screenshot({path:`/tmp/town-theme-${species}.png`});
    await page.locator('#menu-dungeons').click();
    assert.equal(await page.locator('[data-dungeon]').count(),3);

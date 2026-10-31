@@ -41,7 +41,7 @@ class FieldArt extends GothicArt {
    const id=key+':'+frame;let raster=this.rasters.get(id);
    if(!raster){
     // Fixed, bounded runtime mip level. Original artwork files remain intact.
-    const h=Math.min(sh,['pine','dead-tree','refuge','ruin'].includes(key)?640:320);
+    const h=Math.min(sh,['pine','dead-tree','refuge','ruin','settlements','wasteland'].includes(key)?640:320);
     raster=document.createElement('canvas');raster.height=h;raster.width=Math.ceil(h*sw/sh);
     const g=raster.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(img,sx,sy,sw,sh,0,0,raster.width,raster.height);
     this.rasters.set(id,raster);
@@ -54,17 +54,19 @@ class FieldArt extends GothicArt {
  }
  shadow(x,y,width,scale){this.oval(x+4*scale,y+3*scale,width*scale,width*.34*scale,'#070b1080');}
  tree(x,y,scale,seed=.7){
+  const frame=seed>.45?5:4;
+  if(this.sprite('wasteland',x,y,(seed>.45?205:190)*(.88+seed*.18)*scale,frame,seed<.22))return;
   const key=seed>.45?'pine':'dead-tree',h=(key==='pine'?205:185)*( .88+seed*.18)*scale;
   this.shadow(x,y,28,scale);if(!this.sprite(key,x,y,h,0,seed<.22))super.tree(x,y,scale,seed);
  }
- ruin(x,y,scale,seed=0){this.shadow(x,y,64,scale);if(!this.sprite('ruin',x,y,(204+seed*18)*scale,0,false,24*scale))super.ruin(x,y,scale,seed);}
+ ruin(x,y,scale,seed=0){if(this.sprite('wasteland',x,y,(215+seed*18)*scale,0))return;this.shadow(x,y,64,scale);if(!this.sprite('ruin',x,y,(204+seed*18)*scale,0,false,24*scale))super.ruin(x,y,scale,seed);}
  refuge(x,y,scale){this.shadow(x,y,82,scale);if(!this.sprite('refuge',x,y,275*scale,0,false,35*scale))super.refuge(x,y,scale);}
  prop(id,x,y,scale){
   const props={water:[0,105],metal:[1,108],blood:[2,133],lantern:[3,120],kitchen:[4,67],alchemy:[5,65],medical:[6,75],storage:[7,56]};
   const [frame,h]=props[id];this.shadow(x,y,id==='metal'?37:21,scale);
   return this.sprite('props',x,y,h*scale,frame,false,6*scale);
  }
- lantern(x,y,scale){if(!this.prop('lantern',x,y,scale))super.lantern(x,y,scale);this.glow(x,y-101*scale,30*scale,'#e8b26924');}
+ lantern(x,y,scale){if(this.sprite('wasteland',x,y,125*scale,7)){this.glow(x,y-101*scale,40*scale,'#e8b26925');return;}if(!this.prop('lantern',x,y,scale))super.lantern(x,y,scale);this.glow(x,y-101*scale,30*scale,'#e8b26924');}
  facility(x,y,scale,id){if(!this.prop(id,x,y,scale))super.facility(x,y,scale,id);}
  // Keep the original artwork intact; drive its frames from actual travel.
  pose(id,x,y,now,paused=false,sprint=false,intent=null){
@@ -85,14 +87,19 @@ class FieldArt extends GothicArt {
  }
  // Base sheets: human = female, vampire = male. The opposite gender uses its own sheet.
  actorKey(species,options){const g=options.gender;if(options.npc||!g)return species;const female=g==='female';return species==='human'?(female?'human':'human-male'):(female?'vampire-female':'vampire');}
+ monsterKey(type,strong=false){
+  if(['hound','void_hound','ash_beast','stalker'].includes(type))return 'grave-hound';
+  if(['knight','sentinel','reaper','ancient_lord'].includes(type))return 'iron-revenant';
+  return strong?'brute':'ghoul';
+ }
  character(x,y,scale,species,moving,now,options={}){
   if(options.mounted)return super.character(x,y,scale,species,moving,now,options);
-  const key=options.enemy?(options.variant?'brute':'ghoul'):this.actorKey(species,options);
+  const key=options.enemy?this.monsterKey(options.monsterType,options.variant):this.actorKey(species,options);
   const pose=options.pose||{row:0,frame:0};
   // Human/ghoul sheets repeat the back-right view: mirror it for back-left.
   const repeated=['human','human-male','ghoul'].includes(key)&&pose.row>=2;
   const mirror=repeated&&pose.row===2;
-  const row=repeated?2:pose.row,h=(key==='brute'?89:key==='ghoul'?78:87)*scale;
+  const row=repeated?2:pose.row,h=(key==='grave-hound'?76:key==='iron-revenant'?105:key==='brute'?89:key==='ghoul'?78:87)*scale;
   this.shadow(x,y,options.enemy?18:15,scale);
   if(!this.sprite(key,x,y,h,row*4+pose.frame,mirror))return super.character(x,y,scale,species,moving,now,options);
   if(!options.enemy&&!options.npc){
@@ -132,7 +139,8 @@ class FieldArt extends GothicArt {
  ground(state,projection){
   if(!this.ready('earth')||!this.ready('stone')||typeof DOMMatrix==='undefined')return false;
   const {size}=state.map,{scale,tw,th,ox,oy,width,height}=projection,c=this.c,span=16;
-  if(this.terrainVersion!==state.map.layout_version){this.terrainChunks=new Map();this.terrainVersion=state.map.layout_version;}
+  const terrainVersion=[state.map.id,state.map.layout_version,state.map.art_version,this.ready('surfaces')].join(':');
+  if(this.terrainVersion!==terrainVersion){this.terrainChunks=new Map();this.terrainVersion=terrainVersion;}
   const inverse=(x,y)=>[((x-ox)/tw+(y-oy)/th)/2,((y-oy)/th-(x-ox)/tw)/2];
   const corners=[inverse(0,0),inverse(width,0),inverse(0,height),inverse(width,height)];
   const loX=Math.max(0,Math.floor(Math.min(...corners.map(p=>p[0]))/span)),hiX=Math.min(size/span-1,Math.floor(Math.max(...corners.map(p=>p[0]))/span));
@@ -162,9 +170,14 @@ class FieldArt extends GothicArt {
    if(!this[key+'Texture']){const tex=document.createElement('canvas');tex.width=tex.height=384;tex.getContext('2d').drawImage(this.images[key],0,0,384,384);this[key+'Texture']=tex;}
    patterns[key]=g.createPattern(this[key+'Texture'],'repeat');patterns[key].setTransform(new DOMMatrix().scale(8/384));
   }
+  if(this.ready('surfaces'))for(const [key,frame,repeat] of [['stone',0,2.8],['earth',1,4],['asphalt',2,5],['slate',3,3.5]]){
+   const id='surface:'+key;let tex=this.rasters.get(id);
+   if(!tex){tex=document.createElement('canvas');tex.width=tex.height=384;tex.getContext('2d').drawImage(this.images.surfaces,...FIELD_SPRITES.surfaces.frames[frame],0,0,384,384);this.rasters.set(id,tex);}
+   patterns[key]=g.createPattern(tex,'repeat');patterns[key].setTransform(new DOMMatrix().scale(repeat/384));
+  }
   g.fillStyle=patterns.earth;g.fillRect(x,y,w,h);g.fillStyle='#252b3228';g.fillRect(x,y,w,h);
   for(const r of map.regions){
-   const tint={outskirts:'#64606228',forest:'#1d474748',marsh:'#355c7260',works:'#67545e48'}[r.terrain||r.id]||r.color+'48';
+   const tint={outskirts:'#64606228',forest:'#26372d24',marsh:'#333d4328',works:'#48413d20'}[r.terrain||r.id]||r.color+'48';
    const gradient=g.createRadialGradient(r.x,r.y,3,r.x,r.y,r.radius);gradient.addColorStop(0,tint);gradient.addColorStop(1,tint.slice(0,7)+'00');g.fillStyle=gradient;g.fillRect(x,y,w,h);
   }
   g.lineJoin='round';g.lineCap='round';
@@ -173,6 +186,27 @@ class FieldArt extends GothicArt {
    for(let i=1;i<road.length-1;i++)g.quadraticCurveTo(...road[i],(road[i][0]+road[i+1][0])/2,(road[i][1]+road[i+1][1])/2);
    g.lineTo(...road[road.length-1]);g.globalAlpha=.25;g.strokeStyle='#a0927a';g.lineWidth=1.8;g.stroke();g.globalAlpha=.8;g.strokeStyle=patterns.stone;g.lineWidth=1.1;g.stroke();
   }
+  // Town materials are baked into bounded terrain chunks, never repainted per frame.
+  g.globalAlpha=1;
+  for(const town of Object.values(map.towns||{})){
+   if(town.x+13<x||town.x-13>x+w||town.y+13<y||town.y-13>y+h)continue;
+   g.save();g.translate(town.x,town.y);
+   g.fillStyle=town.faction==='human'?(patterns.asphalt||patterns.stone):(patterns.slate||patterns.stone);
+   g.fillRect(-12,-12,24,24);
+   g.strokeStyle='#121516';g.lineWidth=.3;g.strokeRect(-11.7,-11.7,23.4,23.4);
+   g.fillStyle=patterns.stone;g.fillRect(-2.3,-12,4.6,24);g.fillRect(-12,-2.3,24,4.6);g.fillRect(-4.5,-4.5,9,9);
+   g.strokeStyle=town.faction==='human'?'#7d705450':'#8b7a6840';g.lineWidth=.075;
+   for(const n of [-2.4,2.4]){g.beginPath();g.moveTo(n,-12);g.lineTo(n,12);g.moveTo(-12,n);g.lineTo(12,n);g.stroke();}
+   // An engraved plaza, with a quiet perimeter rather than a glowing disk.
+   g.strokeStyle='#a497762f';g.lineWidth=.065;g.beginPath();g.arc(0,0,2.5,0,Math.PI*2);g.stroke();
+   for(let i=0;i<150;i++){
+    const px=Math.sin(i*127.1)*11.3,py=Math.sin(i*311.7)*11.3;
+    if(Math.abs(px)<2.5||Math.abs(py)<2.5)continue;
+    g.fillStyle=i%3?'#0b101735':'#afa3882b';g.fillRect(px,py,.035+(i%4)*.025,.04);
+   }
+   g.restore();
+  }
+  if(map.dungeon_theme){g.globalAlpha=.8;g.fillStyle=map.dungeon_theme==='human'?(patterns.asphalt||patterns.stone):(patterns.slate||patterns.stone);g.fillRect(x,y,w,h);g.globalAlpha=1;}
   g.restore();
  }
  campGround(x,y,projection,radius=7){

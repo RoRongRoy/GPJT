@@ -59,3 +59,17 @@
 ## Resource economy icons (2026-10-30)
 
 `public/icons/`에 건설 자재 32개·전투 재료/주문서 15개용 자체 작성 SVG 아이콘 47개를 추가했습니다. 코드로 작성한 기하 도형과 색상을 사용하며 외부 게임 이미지를 포함하지 않습니다.
+
+## 2026-10-31 · Nocturne 환경과 몬스터 아트
+
+제작 도구: `image_gen`. BLOODFALL 전용 텍스트 설명으로 생성했으며 건물/야외 시트의 배치·투명 배경 보정에는 같은 도구를 사용했습니다. 생성된 PNG는 원본 그대로 보관하고 브라우저에서 검토한 소스 사각형을 샘플링합니다. 웹의 다크에덴 자료는 분석용으로만 열었고 외부 게임 원본·로고·코드는 포함하지 않았습니다.
+
+| 파일 | 크기 | bytes | SHA-256 |
+| --- | --- | --- | --- |
+| [settlements.png](public/art/gameplay/settlements.png) | 1254×1254 | 2,281,428 | `41f3e4eef06d790d659723c46f1463b8638fc06ebc8feaea9ca9fce6f25e7864` |
+| [wasteland.png](public/art/gameplay/wasteland.png) | 1536×1024 | 2,541,857 | `50f8174834f43a0de194ac695cb137426f09413aea6d8221097c2643a8be5fc4` |
+| [surfaces.png](public/art/gameplay/surfaces.png) | 1254×1254 | 4,111,904 | `d51d26ab7db343deba6e03961ced59700bc72eb646329f321b7f579f25209fca` |
+| [grave-hound.png](public/art/gameplay/grave-hound.png) | 1331×1182 | 1,813,202 | `69c3d8c28cbb5b3be1ff8a9d80362c55c4bfec97c81b181909260281dcf27eb7` |
+| [iron-revenant.png](public/art/gameplay/iron-revenant.png) | 1240×1269 | 1,683,769 | `7bf20e21492435d8f83fcce8362933050221e3e0bbb5ea483a0a8cb3a0fa8b79` |
+
+`settlements`는 군용/고딕 구조물 12종, `wasteland`는 폐건물·차량·비노골적인 덮인 유해·광석·고목·침엽수·묘지·가로등 8종, `surfaces`는 포석·흙·아스팔트·석판 4종입니다. `grave-hound`와 `iron-revenant`는 각각 4방향 × 이동 4프레임이며 기존 몬스터 유형의 표현에 연결됩니다. 기존 이용 정책을 유지합니다.
