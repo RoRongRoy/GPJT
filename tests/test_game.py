@@ -29,7 +29,8 @@ class GameTests(unittest.TestCase):
 
     def test_conversion_roundtrip_keeps_base_and_research(self):
         self.action('build', facility='medical')
-        self.w['inventory']['metal'] += 5  # previously gathered parts
+        self.w['inventory'].update(metal=30,wood=20,bolts=3,rubber=4,motor=2,battery=2)
+        self.action('build',facility='mobility')
         self.action('research')
         base = copy.deepcopy(self.w['base'])
         self.action('convert')

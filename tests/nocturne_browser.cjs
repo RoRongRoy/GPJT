@@ -14,10 +14,10 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 (async()=>{
  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,headless:true,args:['--no-sandbox']});
  try{
-  for(const scene of (process.env.ART_SCENES?.split(',')||['human','vampire','field','estate','salvage','cave','mobile'])){
+  for(const scene of (process.env.ART_SCENES?.split(',')||['human','vampire','field','estate','salvage','cave','bike','humvee','bat','giant','garage','roost','mobile'])){
    const fixture=structuredClone(original),p=fixture.world.player;
    p.food=42;p.water=73;p.blood=61;p.stability=82;
-   p.species=scene==='vampire'||scene==='estate'?'vampire':'human';
+   p.species=['vampire','estate','bat','giant','roost'].includes(scene)?'vampire':'human';
    const town=fixture.map.towns[p.species];p.x=town.spawn[0];p.y=town.spawn[1];fixture.world.base.established=false;
    if(scene==='field'||scene==='estate'){
     p.x=170;p.y=90;fixture.world.enemies=fixture.world.enemies.slice(0,3).map((e,i)=>({...e,x:173+i*3,y:92-i*2,faction:'infected',monster_type:['hound','sentinel','walker'][i]}));
@@ -31,6 +31,12 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
    if(scene==='cave'){
     const cave=fixture.pois.find(n=>n.id==='salvage:vampire:bat_cave');
     p.x=cave.x;p.y=cave.y+1;fixture.world.enemies=[];fixture.pois=[cave];
+   }
+   if(['bike','humvee','bat','giant','garage','roost'].includes(scene)){
+    p.x=170;p.y=90;fixture.world.enemies=[];
+    p.mounted=!['garage','roost'].includes(scene);p.unlocks[p.species]=['humvee','giant'].includes(scene)?1:0;
+    fixture.pois=[];
+    if(!p.mounted){fixture.world.base={x:p.x,y:p.y,established:true,facilities:{mobility:1}};for(const key of Object.keys(fixture.items))fixture.world.inventory[key]=100;}
    }
    let gathered=null;
    if(scene==='estate')fixture.world.base={x:170,y:90,established:true,facilities:Object.fromEntries(Object.keys(fixture.map.facilities).map(k=>[k,2]))};
@@ -67,6 +73,14 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
    // A roomy threshold catches repeated full-atlas decoding/rasterization, not GPU speed.
    assert.ok(stats.median<100,`Render loop stalled: ${JSON.stringify(stats)}`);
    await page.screenshot({path:`/tmp/nocturne-${scene}.png`});
+   if(scene==='garage'||scene==='roost'){
+    await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
+    await page.locator('[data-view=camp] [data-panel=research]').click();
+    assert.match(await page.locator('#mount-upgrade-name').innerText(),scene==='garage'?/험비/:/거대/);
+    assert.ok(await page.locator('#mount-upgrade').isEnabled());
+    assert.match(await page.locator('#mount-upgrade-description').innerText(),/시설 준비 완료/);
+    await page.screenshot({path:`/tmp/nocturne-${scene}-research.png`});
+   }
    if(scene==='cave'){
     await page.keyboard.press('e');await page.locator('#loot-box').waitFor({state:'visible'});
     assert.match(await page.locator('#loot-title').innerText(),/박쥐 동굴/);

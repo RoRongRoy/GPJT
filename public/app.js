@@ -430,8 +430,9 @@ function update() {
   row.hidden=Boolean($('build-category').value&&$('build-category').value!==spec.category);
   const costs=Object.entries({...spec.cost,...(level?spec.upgrade_cost||{}:{})}).map(([key,value])=>[key,value*(level+1)]);
   title.textContent=`${name} · Lv.${level} · ${spec.description}`;
-  cost.textContent=level>=3?'최대 레벨':costs.map(([key,value])=>`${state.items[key]} ${value}`).join(' · ');
-  button.textContent=level?'개선':'건설';button.disabled=!canUseCamp()||!connected||level>=3||w.paused||costs.some(([key,value])=>(w.inventory[key]||0)<value);button.title=cost.textContent;
+  const maxLevel=spec.max_level||3;
+  cost.textContent=level>=maxLevel?'최대 레벨':costs.map(([key,value])=>`${state.items[key]} ${value}`).join(' · ');
+  button.textContent=level?'개선':'건설';button.disabled=!canUseCamp()||!connected||level>=maxLevel||w.paused||costs.some(([key,value])=>(w.inventory[key]||0)<value);button.title=cost.textContent;
 
  }
  renderActivityLog();
@@ -439,8 +440,17 @@ function update() {
  $('quest-progress').textContent=`채집 ${Math.min(5,w.quest.collected)} / 5 · 완료 ${w.quest.round}회`;
  $('dispatch-cost').textContent=p.species==='human'?'파견 비용 · 작물 1':'파견 비용 · 원혈 1';
  $('dispatch').textContent=w.dispatch?`파견 복귀까지 ${Math.ceil(w.dispatch.ends-w.elapsed)}초`:'파견 대기 · 완료 시 자원 자동 보관';
- const tier=p.unlocks[p.species],forms=p.species==='human'?['슬레이어 스카우트 바이크','슬레이어 나이트크루저','아머드 배틀 크루저']:['블러드 배트 변신','나이트메어 광폭 박쥐','아크데몬 군주 박쥐'];
- $('mobility').textContent=`다크에덴 이동 형태: ${forms[tier]} · ${p.mounted?'탑승·변신 중 (고속 이동)':'미사용 (M키 즉시 탑승)'}`;
+ const tier=Math.min(1,p.unlocks[p.species]),mobility=state.map.mobility?.[p.species],forms=mobility?.forms||(p.species==='human'?['정찰 오토바이','장갑 험비']:['혈익 박쥐','거대 혈익 박쥐']);
+ const speed=(state.map.movement.mount_base+tier*state.map.movement.mount_tier).toFixed(1);
+ $('mobility').textContent=`Lv.${tier+1} ${forms[tier]} · 도보 대비 ${speed}배 · ${p.mounted?'탑승 중':'M키로 탑승'}`;
+ const upgrade=$('mount-upgrade');
+ if(upgrade&&mobility){
+  const built=w.base.facilities?.mobility>0,cost=Object.entries(mobility.cost).map(([k,v])=>`${state.items[k]} ${v}`).join(' · ');
+  $('mount-upgrade-name').textContent=tier?'2단계 해금 완료':`${forms[0]} → ${forms[1]}`;
+  $('mount-upgrade-description').textContent=tier?`${forms[1]} · 도보 대비 4.2배`:`${built?'시설 준비 완료':mobility.facility+' 건설 필요'} · ${cost}`;
+  upgrade.disabled=Boolean(tier||!built||!canUseCamp()||!connected||w.paused||Object.entries(mobility.cost).some(([k,v])=>(w.inventory[k]||0)<v));
+ }
+
  const mountLbl=$('mount-label');const mountTxt=p.mounted?'⏬ 하차':p.species==='human'?'🏍 탑승':'🦇 변신';if(mountLbl)mountLbl.textContent=mountTxt;else $('mount-toggle').textContent=mountTxt;
  document.querySelectorAll('[data-item]').forEach(b=>{const id=b.dataset.item;b.disabled=w.paused||!w.inventory[id]||(p.species==='human'?['blood','elixir'].includes(id):['soup','water'].includes(id));});
  renderRecipe();renderLootBox();
@@ -483,6 +493,7 @@ function handleCanvasPoint(e,allowNode=true){
  const r=canvas.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top,p=state.world.player;
  const node=allowNode?view.points.map(n=>({...n,d:Math.hypot(n.x-cx,n.y-cy)})).filter(n=>cx>=n.left&&cx<=n.right&&cy>=n.top&&cy<=n.bottom).sort((a,b)=>a.d-b.d)[0]:null;
  if(node){
+  if(node.id==='mobility-station'){inspectOnArrive=false;if(canUseCamp())openPanel('research');else navigate(state.world.base.x,state.world.base.y);return;}
   if(node.id==='base'){inspectOnArrive=false;if(canUseCamp()){openPanel('camp');return;}if(state.world.base?.x!=null)navigate(state.world.base.x,state.world.base.y);}
   else if(node.id.startsWith('merchant:')){const mid=node.id.replace('merchant:','');const m=(state.map?.merchants||[]).find(x=>x.id===mid);if(m){if(Math.hypot(m.x-p.x,m.y-p.y)<=3.5){clearMovement();openMerchant(m);return;}inspectOnArrive=true;navigate(m.x,m.y,node.id);}}
   else if(node.id.startsWith('enemy:')){inspectOnArrive=false;const enemy=state.world.enemies.find(n=>n.id===Number(node.id.split(':')[1]));if(enemy)navigate(enemy.x,enemy.y,node.id);}
@@ -1652,7 +1663,7 @@ function stepMovement(){
  if(busy||moveBusy||pendingAction)return;
  const now=performance.now(),sprinting=isSprinting(),moveGap=state.world.player.mounted?(sprinting?58:76):(sprinting?62:84);
  if(now-lastMove<moveGap||now-lastCommandAt<75)return;
- let {dx,dy}=screenDirection();
+ let {dx,dy}=screenDirection(),pace=1;
  if(autoHunt&&!dx&&!dy){
   const w=state.world,p=w.player;
   if(p.hp<=35&&w.inventory.medicine>0){command('consume',{item:'medicine'});return;}
@@ -1686,8 +1697,10 @@ function stepMovement(){
   const npc=state.pois.find(n=>n.id===target.id&&n.kind==='npc');if(npc){target.x=npc.x;target.y=npc.y;}
   if(enemy){if(enemy.hp<=0){target=null;return;}target.x=enemy.x;target.y=enemy.y;}
   if(target.id?.startsWith('drop:')){if(!drop){target=null;return;}target.x=drop.x;target.y=drop.y;}
-  const mult=p.mounted?(m.mount_base+p.unlocks[p.species]*m.mount_tier)*(sprinting?1.25:1):(sprinting?(m.sprint_mult||1.65):1);
-  const distance=Math.hypot(target.x-p.x,target.y-p.y),step=m.step*mult;
+  const mult=p.mounted?(m.mount_base+Math.min(p.unlocks[p.species],m.mount_max_tier??2)*m.mount_tier)*(sprinting?1.25:1):(sprinting?(m.sprint_mult||1.65):1);
+  const distance=Math.hypot(target.x-p.x,target.y-p.y),fullStep=m.step*mult;
+  if(distance<fullStep*2)pace=Math.min(1,.65/fullStep);
+  const step=fullStep*pace;
   const enemyStop=(p.job||'warrior')==='ranged'?3.4:1.5;
   const arriveDist=target.id?(inspectOnArrive||target.id.startsWith('drop:')?2.2:target.id.startsWith('enemy:')?enemyStop:1.5):step*.8;
   if(distance<=arriveDist){
@@ -1713,7 +1726,7 @@ function stepMovement(){
   dx=Math.abs(target.x-p.x)>step*.42?Math.sign(target.x-p.x):0;
   dy=Math.abs(target.y-p.y)>step*.42?Math.sign(target.y-p.y):0;
  }
- if(dx||dy){lastMove=now;command('move',sprinting?{dx,dy,sprint:true}:{dx,dy});}
+ if(dx||dy){lastMove=now;command('move',{dx,dy,...(sprinting?{sprint:true}:{}),...(pace<1?{pace}:{})});}
 }
 setInterval(stepMovement,20);
 function updateGuide(){

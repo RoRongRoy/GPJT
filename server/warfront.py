@@ -13,3 +13,6 @@ FACILITY_THEMES={
  'vampire': dict(zip(['kitchen','alchemy','medical','storage','forge','tailor','jeweler','workshop','greenhouse','purifier','bloodbank','archive'],
                     ['혈족 연회당','금단의 연금탑','재생의 납골묘','지하 보물고','혈철 대장간','밤의 의복실','혈석 세공소','고대 장치실','독초 정원','암흑 우물','피의 성소','금서 서고']))
 }
+
+FACILITY_THEMES['human']['mobility']='차량 개조고'
+FACILITY_THEMES['vampire']['mobility']='혈익 사육장'

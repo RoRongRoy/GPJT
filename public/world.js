@@ -5,12 +5,12 @@ class WorldView {
   this.entityPositions=new Map();this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;
  }
  playCombat(before,after,kind,spec=null){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0,spec);}
- predictMove(state,{dx,dy,sprint}){
+ predictMove(state,{dx,dy,sprint,pace=1}){
   this.streamInput=null;this.streamPosition=null;
   const p=state.world.player,m=state.map.movement;
   const mounted=p.mounted&&!(p.species==='vampire'&&p.blood<=5);
-  const mult=mounted?(m.mount_base+p.unlocks[p.species]*m.mount_tier)*(sprint?1.25:1):(sprint?(m.sprint_mult||1.65):1);
-  const step=m.step*mult,norm=Math.hypot(dx,dy);
+  const mult=mounted?(m.mount_base+Math.min(p.unlocks[p.species],m.mount_max_tier??2)*m.mount_tier)*(sprint?1.25:1):(sprint?(m.sprint_mult||1.65):1);
+  const step=m.step*mult*pace,norm=Math.hypot(dx,dy);
   if(!norm)return;
   this.prediction={x:Math.max(1,Math.min(state.map.size-2,p.x+dx/norm*step)),y:Math.max(1,Math.min(state.map.size-2,p.y+dy/norm*step))};
  }
@@ -33,7 +33,7 @@ class WorldView {
   if(!input||!position||!a)return null;
   const p=state.world.player,m=state.map.movement,norm=Math.hypot(input.dx,input.dy);
   const mounted=p.mounted&&!(p.species==='vampire'&&p.blood<=5);
-  const speedFor=sprint=>m.step/m.interval*(mounted?(m.mount_base+p.unlocks[p.species]*m.mount_tier)*(sprint?1.25:1):(sprint?m.sprint_mult:1));
+  const speedFor=sprint=>m.step/m.interval*(mounted?(m.mount_base+Math.min(p.unlocks[p.species],m.mount_max_tier??2)*m.mount_tier)*(sprint?1.25:1):(sprint?m.sprint_mult:1));
   const speed=speedFor(input.sprint);
   const horizon=a.lease+Math.min(.2,this.inputLatency||0);
   const stale=now-a.received>700;
@@ -272,7 +272,9 @@ class WorldView {
     labels.push([e.name||'생존자 거점',sx,sy-250*scale,'#7dd3fc']);
    }
    if(e.type==='facility'){
-    const spec=state.map.facilities?.[e.id];if(this.themes){const models=p.species==='human'?{kitchen:'tent',alchemy:'radio',medical:'tent',storage:'bunker',forge:'headquarters',tailor:'tent',jeweler:'radio',workshop:'bunker',greenhouse:'tent',purifier:'supply',bloodbank:'bunker',archive:'radio'}:{kitchen:'crypt',alchemy:'tower',medical:'crypt',storage:'keep',forge:'keep',tailor:'crypt',jeweler:'monument',workshop:'tower',greenhouse:'cave',purifier:'monument',bloodbank:'monument',archive:'tower'};const model=models[e.id]||(p.species==='human'?'tent':'crypt');this.themes.draw(sx,sy,scale*.55,model,p.species,e.id==='medical'?1:0);art.prop(spec?.prop||e.id,sx+30*scale,sy+8*scale,scale*.35);}else art.prop(spec?.prop||e.id,sx,sy,scale*.9);
+    const spec=state.map.facilities?.[e.id];if(this.themes){const models=p.species==='human'?{kitchen:'tent',alchemy:'radio',medical:'tent',storage:'bunker',forge:'headquarters',tailor:'tent',jeweler:'radio',workshop:'bunker',greenhouse:'tent',purifier:'supply',bloodbank:'bunker',archive:'radio',mobility:'bunker'}:{kitchen:'crypt',alchemy:'tower',medical:'crypt',storage:'keep',forge:'keep',tailor:'crypt',jeweler:'monument',workshop:'tower',greenhouse:'cave',purifier:'monument',bloodbank:'monument',archive:'tower',mobility:'cave'};const model=models[e.id]||(p.species==='human'?'tent':'crypt');this.themes.draw(sx,sy,scale*.55,model,p.species,e.id==='medical'?1:0);art.prop(spec?.prop||e.id,sx+30*scale,sy+8*scale,scale*.35);}else art.prop(spec?.prop||e.id,sx,sy,scale*.9);
+    if(e.id==='mobility')art.character(sx+35*scale,sy+15*scale,scale*.5,p.species,false,now,{mounted:true,tier:1,pose:{row:0,frame:0,phase:0}});
+    if(e.id==='mobility')this.points.push({x:sx,y:sy-20*scale,id:'mobility-station',left:sx-55*scale,right:sx+55*scale,top:sy-125*scale,bottom:sy+12*scale});
     labels.push([`${state.map.facility_themes?.[p.species]?.[e.id]||spec?.name||e.id} Lv.${e.level}`,sx,sy-108*scale,'#d3c7a3']);
    }
    if(e.type==='drop'){
@@ -395,7 +397,7 @@ class WorldView {
    if(e.type==='player'){
     c.strokeStyle=p.species==='vampire'?'#ca8d9d':'#c4bd9d';c.lineWidth=1.2;c.beginPath();c.ellipse(sx,sy+2*scale,14*scale,7*scale,0,0,Math.PI*2);c.stroke();
     paintPlayer(sx,sy);
-    const barY=sy-(p.mounted?112:102)*scale;
+    const barY=sy-(p.mounted?(p.species==='vampire'&&p.unlocks[p.species]>0?160:135):102)*scale;
     c.fillStyle='#121822dd';c.fillRect(sx-19*scale,barY,38*scale,p.species==='human'?9*scale:5*scale);
     c.fillStyle=p.species==='vampire'?'#d94f70':'#68c97a';
     c.fillRect(sx-18*scale,barY+1*scale,36*scale*Math.min(1,Math.max(0,p.hp||0)/100),3.2*scale);

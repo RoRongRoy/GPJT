@@ -19,7 +19,7 @@ BASE_SPAWN_SITES = [
     (102, 36),  # 제10 야영지: 잿빛 소나무숲 동남부 캠프
     (108, 22),  # 제11 야영지: 잿빛 소나무숲 심층 거점
 ]
-MOVEMENT = {'step': .48, 'interval': .08, 'sprint_mult': 1.65, 'mount_base': 1.65, 'mount_tier': .20}
+MOVEMENT = {'step': .48, 'interval': .08, 'sprint_mult': 1.65, 'mount_base': 2.8, 'mount_tier': 1.4, 'mount_max_tier': 1}
 REGIONS = [
     {'id': 'outskirts', 'name': '버려진 외곽', 'subtitle': '저렙 지역 · 넓은 공터와 약한 감염체 출몰지',
      'x': 27, 'y': 26, 'radius': 47, 'color': '#565962'},
@@ -410,3 +410,6 @@ for node in POIS:
     if not node.get('site_type') and node['kind'] in RESOURCE_LOOT:
         node.update(loot=dict(RESOURCE_LOOT[node['kind']]),seconds=RESOURCE_COOLDOWNS[node['kind']])
 WORLD_MAP['survival_drain']=DRAIN
+
+from .mobility import MOBILITY
+WORLD_MAP['mobility']=MOBILITY

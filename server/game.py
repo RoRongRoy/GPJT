@@ -3,6 +3,7 @@ import math
 import random
 import uuid
 from . import dungeons
+from .mobility import MOBILITY
 from .survival import DRAIN, SPRINT_DRAIN, SUPPLY_PRICES, RESOURCE_LOOT
 
 from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at, TOWNS, MERCHANTS, MONSTER_TYPES
@@ -630,8 +631,10 @@ def _act(w, command, rng=random.random):
         dx, dy = command.get('dx'), command.get('dy')
         sprint = bool(command.get('sprint'))
         require(type(dx) is int and type(dy) is int and dx in (-1, 0, 1) and dy in (-1, 0, 1) and (dx or dy), '이동 입력 오류')
+        pace=command.get('pace',1)
+        require(type(pace) in (int,float) and math.isfinite(pace) and 0<pace<=1, '이동 속도 입력 오류')
         cooldown(w, 'move', MOVEMENT['interval'])
-        move_actor(w, dx, dy, MOVEMENT['interval'], sprint)
+        move_actor(w, dx, dy, MOVEMENT['interval']*pace, sprint)
     elif action == 'gather':
         node = next((n for n in live_pois(w) if n['id'] == command.get('id')), None)
         require(node and node['kind'] != 'npc', '채집 지점 오류')
@@ -771,7 +774,7 @@ def _act(w, command, rng=random.random):
         name = command.get('facility')
         require(name in FACILITIES, '시설 오류')
         level = w['base']['facilities'].get(name, 0)
-        require(level < 3, '시설 최대 레벨입니다.')
+        require(level < FACILITY_SPECS[name].get('max_level',3), '시설 최대 레벨입니다.')
         spend(w, facility_cost(FACILITY_SPECS[name], level))
         w['base']['facilities'][name] = level + 1
         note(w, f'{FACILITIES[name]} Lv.{level + 1}')
@@ -916,18 +919,19 @@ def _act(w, command, rng=random.random):
     elif action == 'research':
         at_base(w)
         tier = p['unlocks'][p['species']]
-        require(tier < 2, '상위 형태는 후속 개발입니다.')
-        cost = {'metal': 5*(tier+1), 'wood': 3} if p['species'] == 'human' else {'blood': 5*(tier+1), 'herb': 3}
-        spend(w, cost)
-        p['unlocks'][p['species']] += 1
-        note(w, '이동수단 연구 완료')
+        require(tier < 1, '이미 2단계 이동수단을 보유하고 있습니다.')
+        spec=MOBILITY[p['species']]
+        require(w['base']['facilities'].get('mobility',0)>0, spec['facility']+' 건설이 필요합니다.')
+        spend(w, spec['cost'])
+        p['unlocks'][p['species']] = 1
+        note(w, spec['forms'][1]+' 해금 · 이동속도 도보 대비 4.2배')
     elif action == 'mount':
         require(not threat(w), '적과 거리를 벌린 뒤 탑승·변신하세요.')
         if not p['mounted'] and p['species'] == 'vampire':
             require(p['blood'] > 5, '혈액이 부족합니다.')
             p['blood'] -= 2
         p['mounted'] = not p['mounted']
-        form_name = ('다크에덴 슬레이어 바이크' if p['unlocks']['human'] < 2 else '아머드 배틀 크루저') if p['species'] == 'human' else ('블러드 배트 변신' if p['unlocks']['vampire'] < 2 else '아크데몬 군주 변신')
+        form_name = MOBILITY[p['species']]['forms'][min(1,p['unlocks'][p['species']])]
         note(w, f"{form_name} {'탑승·변신 (이동속도 상승)' if p['mounted'] else '해제'}")
     elif action == 'rescue':
         require(p['hp'] <= 30 or p['infection'] >= 60, '위급할 때 이용할 수 있습니다.')
@@ -1180,7 +1184,7 @@ def move_actor(profile, dx, dy, seconds, sprint=False):
         p['mounted'] = False
         note(profile, '혈액이 부족해 안전하게 착지했습니다.')
     if p['mounted']:
-        distance *= MOVEMENT['mount_base'] + p['unlocks'][p['species']]*MOVEMENT['mount_tier']
+        distance *= MOVEMENT['mount_base'] + min(1,p['unlocks'][p['species']])*MOVEMENT['mount_tier']
         if sprint:
             distance *= 1.25
         if p['species'] == 'vampire':

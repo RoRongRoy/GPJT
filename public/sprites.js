@@ -93,7 +93,20 @@ class FieldArt extends GothicArt {
   return strong?'brute':'ghoul';
  }
  character(x,y,scale,species,moving,now,options={}){
-  if(options.mounted)return super.character(x,y,scale,species,moving,now,options);
+  if(options.mounted){
+   if(!this.ready('mounts'))return super.character(x,y,scale,species,moving,now,{...options,tier:options.tier>0?2:0});
+   const upgraded=(options.tier||0)>0,vamp=species==='vampire',row=options.pose?.row||0;
+   const reduced=Boolean(typeof window!=='undefined'&&window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+   const phase=options.pose?.phase??now/170,bob=reduced?0:vamp?Math.sin(phase)*3:moving?Math.sin(phase*2)*.8:0;
+   const model=vamp?(upgraded?3:2):(upgraded?1:0),height=[112,125,83,132][model]*scale;
+   // Bike back views share a silhouette; mirror NW. Humvee rear views swap columns.
+   const direction=!vamp&&upgraded&&row>=2?(row===2?3:2):row;
+   this.shadow(x,y,upgraded?34:22,scale);
+   const c=this.c;c.save();c.translate(x,y-(vamp?16*scale:0)+bob*scale);
+   if(vamp&&!reduced){const wing=Math.sin(phase)*.035;c.scale(1+wing,1-wing);}
+   this.sprite('mounts',0,0,height,model*4+direction,!vamp&&!upgraded&&row===2);
+   c.restore();return;
+  }
   const key=options.enemy?this.monsterKey(options.monsterType,options.variant):this.actorKey(species,options);
   const pose=options.pose||{row:0,frame:0};
   // Human/ghoul sheets repeat the back-right view: mirror it for back-left.

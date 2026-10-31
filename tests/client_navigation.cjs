@@ -16,7 +16,7 @@ const originalCommand=vm.runInContext('command',sandbox);
 const python=process.env.PYTHON || 'python';
 const fixture=JSON.parse(execFileSync(python,['-c',"import json;from server.game import new_world,POIS,ITEMS,RECIPES,COMBAT;from server.worldmap import WORLD_MAP;print(json.dumps({'world':new_world(),'pois':POIS,'items':ITEMS,'map':WORLD_MAP,'recipes':RECIPES,'combat':COMBAT}))"],{encoding:'utf8'}));
 sandbox.fixture=fixture;
-vm.runInContext('state=fixture;connected=true;state.world.player.chosen=true;command=(action,fields={})=>{if(action===\'move\'){const p=state.world.player,m=state.map.movement,s=m.step*(p.mounted?m.mount_base+p.unlocks[p.species]*m.mount_tier:1),n=Math.hypot(fields.dx,fields.dy);p.x+=fields.dx/n*s;p.y+=fields.dy/n*s;}else globalThis.lastAction={action,...fields};};update();',sandbox);
+vm.runInContext('state=fixture;connected=true;state.world.player.chosen=true;command=(action,fields={})=>{if(action===\'move\'){const p=state.world.player,m=state.map.movement,s=m.step*(p.mounted?m.mount_base+Math.min(p.unlocks[p.species],m.mount_max_tier??2)*m.mount_tier:1),n=Math.hypot(fields.dx,fields.dy);p.x+=fields.dx/n*s*(fields.pace??1);p.y+=fields.dy/n*s*(fields.pace??1);}else globalThis.lastAction={action,...fields};};update();',sandbox);
 for(const mounted of [false,true])for(const destination of [[1,1],[20,20],[1,20],[20,1],[6.2,7.1],[8,4],[126,126],[1,126],[126,1],[43,15],[9,51],[55,52]]){
  sandbox.destination=destination;sandbox.mounted=mounted;
  vm.runInContext('state.world.player.x=6;state.world.player.y=7;state.world.player.mounted=mounted;state.world.player.unlocks.human=2;navigate(...destination);',sandbox);
