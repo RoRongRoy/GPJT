@@ -55,9 +55,9 @@ class SettlementExpansionTests(unittest.TestCase):
 
     def test_search_tables_replenishment_and_injection_rejection(self):
         sites=[n for n in POIS if n.get('site_type')]
-        self.assertEqual(len(sites),220)
+        self.assertEqual(len(sites),281)
         for region in ('outskirts','forest','marsh','works'):
-            self.assertEqual({n['site_type'] for n in sites if region_at(n['x'],n['y'])['id']==region},set(list(SEARCH_SITES)[:12]))
+            self.assertEqual({n['site_type'] for n in sites if n['id'].startswith('search:') and region_at(n['x'],n['y'])['id']==region},set(list(SEARCH_SITES)[:12]))
         for node in sites:
             w=self.world();w['inventory']={k:0 for k in ITEMS};w['player'].update(x=node['x'],y=node['y'])
             before=copy.deepcopy(w)

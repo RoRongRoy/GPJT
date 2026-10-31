@@ -1456,7 +1456,7 @@ function renderLootBox(){
   const poi=state.pois.find(n=>n.id===activeLoot.id);
   if(!poi||Math.hypot(poi.x-p.x,poi.y-p.y)>3.6){closeLootBox();return;}
   const cd=Math.max(0,Math.ceil((w.cooldowns[poi.id]||0)-w.elapsed));
-  $('loot-eyebrow').textContent='OBJECT INSPECTION · 오브젝트 선택 파밍';
+  $('loot-eyebrow').textContent=['bat_cave','mine_entrance','sewer'].includes(poi.site_type)?'EXPLORATION · 동굴·터널 입구 수색':'OBJECT INSPECTION · 오브젝트 선택 파밍';
   $('loot-title').textContent=poi.label;
   $('loot-subtitle').textContent=cd?`재생성 대기 중 (${cd}초) · 내부 자원을 확인하세요`:`원하는 자원을 체크해 선택 파밍하거나 단독 파밍하세요`;
   const contents=searchContents(poi);

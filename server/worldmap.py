@@ -242,7 +242,7 @@ for zone_index, region in enumerate(frontier.REGIONS):
 _candidates=[(x+math.sin(y)*2,y+math.cos(x)*2) for x in range(12,384-8,14) for y in range(12,384-8,14) if x>=262 or y>=262]
 _candidates.sort(key=lambda xy: math.sin(xy[0]*12.3+xy[1]*7.1))
 for region in frontier.REGIONS:
-    allowed=[kind for kind in SEARCH_SITES if frontier.SITE_LEVELS.get(kind,1)<=region['levels'][0]]
+    allowed=[kind for kind in list(SEARCH_SITES)[:20] if frontier.SITE_LEVELS.get(kind,1)<=region['levels'][0]]
     kinds=(allowed+allowed)[:20]
     used={}
     for x,y in _candidates:
@@ -294,6 +294,34 @@ ENEMY_SPAWNS[97]=(514.0,82.0)  # Keep patrols beyond the new walls.
 VAMPIRE_STARTER=dict(id='vampire_outskirts',name='생귀스 외곽',subtitle='혈족 초보 사냥터',x=518,y=44,radius=48,levels=[1,5],color='#51445c',terrain='forest')
 WORLD_MAP['starter_regions']=[VAMPIRE_STARTER]
 ROADS.append([[518,61],[514,82],[474,80]])
+
+
+# Add sparse, usable salvage, keeping all pre-existing landmark coordinates stable.
+from .scavenging import NEW_SITES, SITE_ART, LEGACY_ART
+_usage = dict.fromkeys(NEW_SITES, 0)
+for region in REGIONS:
+    terrain = region.get('terrain', region['id'])
+    keys = list(NEW_SITES)
+    pool = keys[:10]+keys[17:19] if terrain in ('works','outskirts') else keys[9:]
+    for slot in range(4):
+        kind = min(pool, key=lambda k: (_usage[k], keys.index(k)))
+        for attempt in range(180):
+            angle = (attempt*2.39996 + slot*1.7)
+            radius = 14 + (attempt*7 % max(15,int(region['radius']*.7)))
+            x,y = round(region['x']+math.cos(angle)*radius,2),round(region['y']+math.sin(angle)*radius,2)
+            if not (2<x<SIZE-2 and 2<y<SIZE-2) or region_at(x,y)['id']!=region['id']: continue
+            if any(math.hypot(x-t['x'],y-t['y'])<t['radius']+6 for t in TOWNS.values()): continue
+            if any(math.hypot(x-n['x'],y-n['y'])<10 for n in POIS): continue
+            label,prop,loot,seconds = SEARCH_SITES[kind]
+            POIS.append(dict(id=f'salvage:{region["id"]}:{kind}:{slot}',x=x,y=y,kind='metal',site_type=kind,prop=prop,label=label,loot=loot,seconds=seconds))
+            _usage[kind]+=1
+            break
+# The village bat cave is an actual searchable landmark, not a decorative facade.
+_town=TOWNS['vampire']
+_label,_prop,_loot,_seconds=SEARCH_SITES['bat_cave']
+POIS.append(dict(id='salvage:vampire:bat_cave',x=_town['x']+8,y=_town['y'],kind='metal',site_type='bat_cave',prop=_prop,label=_label,loot=_loot,seconds=_seconds))
+WORLD_MAP['site_art']={**{key:SITE_ART[value] for key,value in LEGACY_ART.items()},**SITE_ART}
+WORLD_MAP['scavenging_types']=len(SEARCH_SITES)
 
 
 def migrate_town_profile(profile):

@@ -73,3 +73,7 @@
 | [iron-revenant.png](public/art/gameplay/iron-revenant.png) | 1240×1269 | 1,683,769 | `7bf20e21492435d8f83fcce8362933050221e3e0bbb5ea483a0a8cb3a0fa8b79` |
 
 `settlements`는 군용/고딕 구조물 12종, `wasteland`는 폐건물·차량·비노골적인 덮인 유해·광석·고목·침엽수·묘지·가로등 8종, `surfaces`는 포석·흙·아스팔트·석판 4종입니다. `grave-hound`와 `iron-revenant`는 각각 4방향 × 이동 4프레임이며 기존 몬스터 유형의 표현에 연결됩니다. 기존 이용 정책을 유지합니다.
+
+## 2026-10-31 · 파밍 오브젝트 아틀라스
+
+[salvage.png](public/art/gameplay/salvage.png): 1402×1122 RGBA, 독립 실루엣 20종. `image_gen`으로 새로 생성했으며 원본 PNG를 수정하지 않고 런타임 프레임 영역으로 표시합니다. SHA-256: `63a83c220570575f805bdb02db71f06738ec9e72c32618f6d57515d2b6601022`. 원작 이미지 파일은 사용하지 않았습니다.

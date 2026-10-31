@@ -87,3 +87,6 @@ for key,recipe in EXTRA_RECIPES.items():
             recipe['cost']['weapon_core' if recipe['gear_slot']=='weapon' else 'armor_plate']=1
 for key,amount in [('weapon_scroll',3),('armor_scroll',3),('blessed_scroll',8)]:
     EXTRA_RECIPES['decode_'+key]=dict(name=DROP_ITEMS[key]+' 해독',facility='archive',cost={key:1},output='scroll',amount=amount,seconds=15)
+
+from .scavenging import NEW_SITES
+SEARCH_SITES.update({key:(name,'metal',loot,seconds) for key,(name,loot,seconds) in NEW_SITES.items()})

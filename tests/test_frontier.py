@@ -26,8 +26,8 @@ class FrontierTests(unittest.TestCase):
                          '470ab71cf678c23ffcc61f06c87f595979a788d4e6d47f39a9671554fc13627d')
         self.assertEqual(SIZE,544)
         self.assertEqual(len(REGIONS),15)
-        self.assertEqual(len(POIS),249)
-        for p in POIS[77:]:
+        self.assertEqual(len(POIS),310)
+        for p in POIS[77:249]:
             self.assertTrue(p['x']>=256 or p['y']>=256)
             self.assertLess(max(p['x'],p['y']),SIZE)
             region=region_at(p['x'],p['y'])

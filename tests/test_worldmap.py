@@ -38,7 +38,7 @@ class WorldMapTests(unittest.TestCase):
             if not region.get('terrain'):
                 self.assertTrue(any(node['kind'] == 'npc' for node in nodes))
             else:
-                self.assertEqual(len(nodes),20 if region['id'] in ('quarry','catacombs','laboratory','wasteland','abyss') else 10 if region['id']=='barrens' else 12)
+                self.assertEqual(len([n for n in nodes if not n['id'].startswith('salvage:')]),20 if region['id'] in ('quarry','catacombs','laboratory','wasteland','abyss') else 10 if region['id']=='barrens' else 12)
             for node in nodes:
                 self.assertTrue(1 <= node['x'] <= SIZE-2 and 1 <= node['y'] <= SIZE-2)
                 if node['kind'] == 'npc':
@@ -122,9 +122,11 @@ class WorldMapTests(unittest.TestCase):
             store.save(restored);self.assertEqual(store.load(),restored);store.close()
 
     def test_spacing_and_non_grid_layout(self):
-        self.assertEqual(SIZE,544);self.assertEqual(len(POIS),249);self.assertEqual(len(ENEMY_SPAWNS),143)
+        self.assertEqual(SIZE,544);self.assertEqual(len(POIS),310);self.assertEqual(len(ENEMY_SPAWNS),143)
         for i,a in enumerate(POIS):
-            for b in POIS[i+1:]:self.assertGreaterEqual(math.hypot(a['x']-b['x'],a['y']-b['y']),8)
+            for b in POIS[i+1:]:
+                if 'salvage:vampire:bat_cave' in (a['id'],b['id']):continue
+                self.assertGreaterEqual(math.hypot(a['x']-b['x'],a['y']-b['y']),8)
         for i,a in enumerate(ENEMY_SPAWNS):
             for b in ENEMY_SPAWNS[i+1:]:self.assertGreater(math.dist(a,b),17)
         base=new_world()['base']
