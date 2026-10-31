@@ -2,9 +2,9 @@
 class WorldView {
  constructor(canvas, minimap) {
   this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.minimap=minimap;this.art=new FieldArt(this.ctx);this.themes=typeof FactionArt!=='undefined'?new FactionArt(this.ctx,this.art):null;
-  this.entityPositions=new Map();this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;
+  this.entityPositions=new Map();this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;this.combatEffects=[];
  }
- playCombat(before,after,kind,spec=null){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0,spec);}
+ playCombat(before,after,kind,spec=null){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0,spec);this.combatEffects=[...(this.combatEffects||[]).filter(e=>e.active(performance.now())),this.combat].slice(-8);}
  predictMove(state,{dx,dy,sprint,pace=1}){
   this.streamInput=null;this.streamPosition=null;
   const p=state.world.player,m=state.map.movement;
@@ -104,7 +104,9 @@ class WorldView {
   this.camera.x+=(this.player.x-this.camera.x)*(1-Math.exp(-22*dt));
   this.camera.y+=(this.player.y-this.camera.y)*(1-Math.exp(-22*dt));
   const scale=this.zoom*(width<600?.85:1),tw=34*scale,th=17*scale;
-  this.projection={scale,tw,th,width,height,ox:width/2-(this.camera.x-this.camera.y)*tw,oy:height*.52-(this.camera.x+this.camera.y)*th};
+  const shake=this.combat?.shake(now)||{x:0,y:0};
+  this.projection={scale,tw,th,width,height,ox:width/2-(this.camera.x-this.camera.y)*tw+shake.x*scale,oy:height*.52-(this.camera.x+this.camera.y)*th+shake.y*scale};
+  this.combatEffects=(this.combatEffects||[]).filter(e=>e.active(now));
   if(this.combat&&!this.combat.active(now))this.combat=null;
   const art=this.art;art.sky(width,height,now);
   this.canvas.dataset.environmentArt=art.ready('settlements')&&art.ready('wasteland')&&art.ready('surfaces')?'ready':'loading';
@@ -377,7 +379,9 @@ class WorldView {
     if(high){c.strokeStyle=boss?'#ff525288':'#d68c7766';c.lineWidth=boss?2:1.3;c.beginPath();c.ellipse(sx,sy+2*scale,(boss?24:19)*scale,(boss?11:9)*scale,0,0,Math.PI*2);c.stroke();}
     const monster=state.map.monster_types?.[e.monster_type];
     c.save();if(eFac==='infected'&&monster)c.filter=`saturate(.7) hue-rotate(${monster.hue*.25}deg)`;
-    art.character(sx,sy+eBob,scale*(monster?.scale||(boss?1.15:high?1.06:1)),specForArt,pose.moving,now,{enemy:eFac==='infected',monsterType:e.monster_type,variant:e.monster_type==='juggernaut'||high,pose,gender:'male',job:e.monster_type==='wraith'?'ranged':'warrior'});c.restore();
+    const reaction=this.combatEffects.map(fx=>fx.reaction(e.id,now)).findLast(r=>r.flash||r.x||r.y)||{x:0,y:0,flash:false};
+    if(reaction.flash)c.filter=(c.filter==='none'?'':c.filter+' ')+'brightness(1.65)';
+    art.character(sx+reaction.x*scale,sy+eBob+reaction.y*scale,scale*(monster?.scale||(boss?1.15:high?1.06:1)),specForArt,pose.moving,now,{enemy:eFac==='infected',monsterType:e.monster_type,variant:e.monster_type==='juggernaut'||high,pose,gender:'male',job:e.monster_type==='wraith'?'ranged':'warrior'});c.restore();
     c.fillStyle='#151c29';c.fillRect(sx-18*scale,sy-98*scale,36*scale,4*scale);
     c.fillStyle=isFriendly?'#38bdf8':boss?'#ff5c5c':high?'#d9734e':'#ad5866';
     c.fillRect(sx-18*scale,sy-98*scale,36*scale*Math.min(1,Math.max(0,e.hp)/(e.max_hp||60)),4*scale);
@@ -414,7 +418,7 @@ class WorldView {
    paintPlayer(px,py);c.restore();
   }
   for(const args of labels)label(...args);
-  this.combat?.draw(c,project,scale,now);
+  for(const effect of this.combatEffects)effect.draw(c,project,scale,now,art);
   art.atmosphere(width,height,now);
   if(now<(effects.hurtUntil||0)){c.fillStyle='#9e294b2b';c.fillRect(0,0,width,height);}
   if(!this.lastMinimap||now-this.lastMinimap>=100){this.drawMinimap(state,target);this.lastMinimap=now;}

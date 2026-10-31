@@ -61,6 +61,7 @@ jobs:
             /tmp/town-theme-*.png
             /tmp/dungeon-theme-*.png
             /tmp/nocturne-*.png
+            /tmp/skill-fx-*.png
           if-no-files-found: ignore
           retention-days: 7
 

@@ -188,7 +188,7 @@ async function command(action, fields={}) {
   if(drops.length)toast('★ 장비 드랍 · '+drops.map(g=>itemName(g.id)).join(' · ')+' · 가방에 보관');
   else if(result.world.player.combat_level>before.player.combat_level)toast(`전투 레벨 상승 · Lv.${result.world.player.combat_level}`);
   else if(killed.length)toast(result.world.log[0]||'몬스터 처치 · 전리품 획득');
-  if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':(activeSkillSpec(fields.skill)?.visual||fields.skill),action==='skill'?activeSkillSpec(fields.skill):null);
+  if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':(activeSkillSpec(fields.skill)?.visual||fields.skill),action==='skill'?{...activeSkillSpec(fields.skill),id:fields.skill}:null);
  }catch(e){
   if(isMove)view.endMove(false,e.status===409||e.status===429||e.status===408||e.status===503);
   if(e.status===409){
