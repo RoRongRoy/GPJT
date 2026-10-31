@@ -193,6 +193,16 @@ class FieldArt extends GothicArt {
    const tint={outskirts:'#64606228',forest:'#26372d24',marsh:'#333d4328',works:'#48413d20'}[r.terrain||r.id]||r.color+'48';
    const gradient=g.createRadialGradient(r.x,r.y,3,r.x,r.y,r.radius);gradient.addColorStop(0,tint);gradient.addColorStop(1,tint.slice(0,7)+'00');g.fillStyle=gradient;g.fillRect(x,y,w,h);
   }
+  const city=map.towns?.human;
+  if(city&&!map.dungeon_theme){
+   g.fillStyle=patterns.asphalt||patterns.stone;g.fillRect(city.x-39,city.y-39,78,78);
+   g.strokeStyle='#7e80755e';g.lineWidth=.15;
+   for(let d=-36;d<=36;d+=12){
+    g.fillStyle='#66676055';g.fillRect(city.x+d-2.7,city.y-39,5.4,78);g.fillRect(city.x-39,city.y+d-2.7,78,5.4);
+    g.fillStyle=patterns.asphalt||patterns.stone;g.fillRect(city.x+d-2,city.y-39,4,78);g.fillRect(city.x-39,city.y+d-2,78,4);
+    g.setLineDash([.8,1.2]);g.beginPath();g.moveTo(city.x+d,city.y-39);g.lineTo(city.x+d,city.y+39);g.moveTo(city.x-39,city.y+d);g.lineTo(city.x+39,city.y+d);g.stroke();g.setLineDash([]);
+   }
+  }
   g.lineJoin='round';g.lineCap='round';
   for(const road of map.roads){
    g.beginPath();g.moveTo(...road[0]);

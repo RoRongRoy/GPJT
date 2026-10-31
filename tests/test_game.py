@@ -54,15 +54,16 @@ class GameTests(unittest.TestCase):
             self.action('build', facility='kitchen')
 
     def test_pity_and_no_downgrade(self):
-        self.w['player'].update(level=9, pity=0)
+        gear=next(g for g in self.w['gear'] if g['id']==self.w['equipment']['weapon'])
+        gear.update(enhancement=9, enhancement_pity=0)
         self.w['inventory']['scroll'] = 25
         for _ in range(4):
             act(self.w, {'action': 'enhance'}, rng=lambda: 1)
-        self.assertEqual(self.w['player']['level'], 9)
+        self.assertEqual(self.w['gear'][0]['enhancement'], 9)
         act(self.w, {'action': 'enhance'}, rng=lambda: 1)
-        self.assertEqual(self.w['player']['level'], 10)
+        self.assertEqual(self.w['gear'][0]['enhancement'], 10)
         self.assertEqual(self.w['inventory']['scroll'], 0)
-        self.assertEqual(self.w['player']['pity'], 0)
+        self.assertEqual(self.w['gear'][0]['enhancement_pity'], 0)
 
     def test_negative_or_teleport_input_rejected(self):
         for dx in [999, 0.5, '1', True]:

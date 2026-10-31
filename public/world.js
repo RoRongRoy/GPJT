@@ -59,6 +59,16 @@ class WorldView {
   for(let gy=3;gy<state.map.size;gy+=3)for(let gx=3;gx<state.map.size;gx+=3){
    const x=gx+(this.noise(gx,gy)-.5)*1.8,y=gy+(this.noise(gy,gx)-.5)*1.8;
    if(landmarks.some(n=>Math.hypot(x-n.x,y-n.y)<3.8)||this.nearRoad(state.map,x,y))continue;
+   const human=state.map.towns?.human;
+   const urban=human&&!state.map.dungeon_theme&&Math.abs(x-human.x)<39&&Math.abs(y-human.y)<39;
+   if(urban){
+    const dx=gx-human.x,dy=gy-human.y;
+    if(Math.abs(dx)<14&&Math.abs(dy)<14)continue;
+    if(Math.abs(dx%12)<3||Math.abs(dy%12)<3)continue;
+    if(this.scenery.some(e=>e.type==='urban'&&Math.hypot(x-e.x,y-e.y)<6))continue;
+    if(this.noise(gx+47,gy+13)>.55)this.scenery.push({x,y,type:'urban',seed:this.noise(gx,gy),model:this.noise(gy,gx)>.55?'bunker':'headquarters'});
+    continue;
+   }
    const regionInfo=this.region(state,x,y),region=regionInfo.terrain||regionInfo.id,n=this.noise(gx+47,gy+13);
    const cluster=(Math.sin(x/8)+Math.cos(y/11)+Math.sin((x+y)/17))/3;
    if(region==='marsh'&&n>.82)this.ponds.push({x,y});
@@ -225,19 +235,19 @@ class WorldView {
   const otherBases=(state.other_bases||[]).map(b=>({...b,type:'other_base'}));
   const merchants=(state.map.merchants||[]).map(m=>({...m,type:'merchant',kind:'merchant'}));
   const baseEntity=hasBase?[{...w.base,type:'base'}]:[];
-  const townBuildings=towns.flatMap(t=>[[-6,-7,'storage',t.faction==='human'?'보급 천막':'지하 보물고'],[6,-7,'storage',t.faction==='human'?'병기 정비고':'혈철 공방'],[-6,8,'alchemy',t.faction==='human'?'작전 통신소':'금서 첨탑'],[6,8,'medical',t.faction==='human'?'야전 의무 텐트':'혈족 대성당'],[-8,0,'kitchen',t.faction==='human'?'취사 야영지':'혈족 연회당'],[8,0,'medical',t.faction==='human'?'야전 사령부':'박쥐 동굴']].map(([dx,dy,prop,title],i)=>({x:t.x+dx,y:t.y+dy,type:'town_building',prop,title,faction:t.faction,model:t.faction==='human'?['tent','bunker','radio','tent','tent','headquarters'][i]:['crypt','crypt','tower','keep','crypt','cave'][i],variant:i})).filter(e=>!(t.faction==='vampire'&&e.model==='cave')));
+  const townBuildings=towns.flatMap(t=>[[-6,-7,'storage',t.faction==='human'?'도시 보급 창고':'지하 보물고'],[6,-7,'storage',t.faction==='human'?'병기 정비고':'혈철 공방'],[-6,8,'alchemy',t.faction==='human'?'작전 통신소':'금서 첨탑'],[6,8,'medical',t.faction==='human'?'격리 병원':'혈족 대성당'],[-8,0,'kitchen',t.faction==='human'?'생존자 배급소':'혈족 연회당'],[8,0,'medical',t.faction==='human'?'야전 사령부':'박쥐 동굴']].map(([dx,dy,prop,title],i)=>({x:t.x+dx,y:t.y+dy,type:'town_building',prop,title,faction:t.faction,model:t.faction==='human'?['bunker','bunker','radio','headquarters','bunker','headquarters'][i]:['crypt','crypt','tower','keep','crypt','cave'][i],variant:i})).filter(e=>!(t.faction==='vampire'&&e.model==='cave')));
   const townProps=towns.flatMap(t=>[[-5,-9],[-3,-8],[5,7],[7,4],[-5,7],[3,-10]].map(([dx,dy],i)=>({x:t.x+dx,y:t.y+dy,type:'theme_prop',faction:t.faction,model:t.faction==='human'?['supply','drums','truck','supply','drums','radio'][i]:['grave','grave','monument','grave','crypt','grave'][i],seed:i})));
   if(state.map.dungeon_theme)for(const [x,y] of [[14,18],[28,10],[42,20],[18,38],[36,44],[52,48]])townProps.push({x,y,type:'theme_prop',faction:state.map.dungeon_theme,model:state.map.dungeon_theme==='human'?'supply':'grave',seed:x});
   const townLamps=towns.flatMap(t=>[[-3,-5],[3,-5],[-3,5],[3,5],[-9,-3],[9,3]].map(([dx,dy])=>({x:t.x+dx,y:t.y+dy,type:'lantern'})));
   const estateWalls=[];
-  if(hasBase)for(let n=-10;n<=10;n+=4)for(const sign of [-1,1])if(Math.abs(n)>2){estateWalls.push({x:w.base.x+n,y:w.base.y+sign*11,type:'town_wall',faction:p.species});estateWalls.push({x:w.base.x+sign*11,y:w.base.y+n,type:'town_wall',faction:p.species});}
-  if(state.map.dungeon_theme)for(let n=2;n<=62;n+=4)for(const side of [2,62]){estateWalls.push({x:n,y:side,type:'town_wall',faction:state.map.dungeon_theme});estateWalls.push({x:side,y:n,type:'town_wall',faction:state.map.dungeon_theme});}
+  if(hasBase)for(let n=-11;n<11;n+=1)for(const sign of [-1,1])if(Math.abs(n)>2){estateWalls.push({x:w.base.x+n,y:w.base.y+sign*11,type:'town_wall',faction:p.species});estateWalls.push({x:w.base.x+sign*11,y:w.base.y+n,axis:'y',type:'town_wall',faction:p.species});}
+  if(state.map.dungeon_theme)for(let n=2;n<62;n+=1)for(const side of [2,62]){estateWalls.push({x:n,y:side,type:'town_wall',faction:state.map.dungeon_theme});estateWalls.push({x:side,y:n,axis:'y',type:'town_wall',faction:state.map.dungeon_theme});}
 
   const townWalls=towns.flatMap(t=>{
    const pieces=[];
-   for(let n=-12;n<=12;n+=2)for(const side of [-1,1])if(Math.abs(n)>2){
+   for(let n=-12;n<12;n+=1)for(const side of [-1,1])if(Math.abs(n)>2){
     pieces.push({x:t.x+n,y:t.y+side*12,type:'town_wall',faction:t.faction});
-    pieces.push({x:t.x+side*12,y:t.y+n,type:'town_wall',faction:t.faction});
+    pieces.push({x:t.x+side*12,y:t.y+n,axis:'y',type:'town_wall',faction:t.faction});
    }
    for(const dx of [-12,12])for(const dy of [-12,12])pieces.push({x:t.x+dx,y:t.y+dy,type:'town_tower',faction:t.faction});
    pieces.push({x:t.x,y:t.y,type:'town_monument',faction:t.faction,title:t.name});
@@ -335,6 +345,27 @@ class WorldView {
     if(focus||near<8)labels.push([poiLabel,sx,sy-(e.site_type?siteHeight+15:e.kind==='wood'?214:e.kind==='blood'?140:e.kind==='water'||e.kind==='metal'?116:96)*scale,focus?'#ffe5aa':'#e0e4d2']);
     const halfWidth=Math.max((e.kind==='wood'?66:e.kind==='metal'?72:45)*scale,e.label.length*5.5);
     this.points.push({x:sx,y:sy-22*scale,id:e.id,left:sx-halfWidth,right:sx+halfWidth,top:sy-(e.site_type?siteHeight+15:e.kind==='wood'?210:e.kind==='blood'?137:110)*scale,bottom:sy+12*scale});
+   }
+   if(e.type==='urban'&&this.themes){this.themes.draw(sx,sy,scale*.8,e.model,'human');continue;}
+   if(e.type==='town_wall'){
+    const [ex,ey]=project(e.x+(e.axis==='y'?0:1),e.y+(e.axis==='y'?1:0));
+    const dark=e.faction!=='human',h=(dark?47:30)*scale;
+    c.beginPath();c.moveTo(sx,sy);c.lineTo(ex,ey);c.lineTo(ex,ey-h);c.lineTo(sx,sy-h);c.closePath();
+    c.fillStyle=dark?(e.axis==='y'?'#322e3c':'#514855'):'#45505270';c.fill();
+    if(dark&&art.ready('stone')){
+     c.save();c.clip();c.globalAlpha=.32;c.drawImage(art.images.stone,Math.min(sx,ex),Math.min(sy,ey)-h,Math.abs(ex-sx)+1,h+Math.abs(ey-sy));c.restore();
+    }
+    c.strokeStyle=dark?'#897780':'#939a8d';c.lineWidth=2*scale;
+    c.beginPath();c.moveTo(sx,sy-h);c.lineTo(ex,ey-h);c.stroke();
+    c.lineWidth=scale;c.strokeStyle=dark?'#282633':'#778579';
+    for(let j=1;j<4;j++){c.beginPath();c.moveTo(sx,sy-h*j/4);c.lineTo(ex,ey-h*j/4);c.stroke();}
+    c.beginPath();c.moveTo(sx,sy);c.lineTo(sx,sy-h-5*scale);c.stroke();
+    if(dark){
+     c.fillStyle='#766675';c.fillRect(sx-3*scale,sy-h-6*scale,6*scale,6*scale);
+     c.beginPath();c.moveTo(sx,sy-h);c.lineTo(ex,ey-h);c.lineTo(ex+4*scale,ey-h-3*scale);c.lineTo(sx+4*scale,sy-h-3*scale);c.closePath();c.fillStyle='#82767b';c.fill();
+     for(let j=0;j<4;j++){const t=j%2?.7:.35;c.beginPath();c.moveTo(sx+(ex-sx)*t,sy+(ey-sy)*t-h*j/4);c.lineTo(sx+(ex-sx)*t,sy+(ey-sy)*t-h*(j+1)/4);c.stroke();}
+    }
+    continue;
    }
    if((e.type==='town_wall'||e.type==='town_tower')&&this.themes){this.themes.draw(sx,sy,scale*.6,e.type==='town_tower'?'tower':e.faction==='human'?'wire':'wall',e.faction);continue;}
    if(e.type==='town_wall'||e.type==='town_tower'){

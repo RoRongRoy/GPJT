@@ -407,7 +407,7 @@ function update() {
  $('pause-overlay').hidden=!w.paused;
  $('pause').textContent=w.paused?'계속하기':'일시정지';
 
- $('level').textContent=`Lv.${p.combat_level||1} · EXP ${p.xp||0}/${(p.combat_level||1)>=(state.map.max_combat_level||100)?'MAX':(p.combat_level||1)*40} · 공격 사거리 ${cls.attack_range} · 공격력 +${((p.combat_level||1)-1)*3} · 방어력 +${Math.floor(((p.combat_level||1)-1)/2)} · 무기강화 +${p.level}`;
+ $('level').textContent=`Lv.${p.combat_level||1} · EXP ${p.xp||0}/${(p.combat_level||1)>=(state.map.max_combat_level||100)?'MAX':(p.combat_level||1)*40} · 공격 사거리 ${cls.attack_range} · 공격력 +${((p.combat_level||1)-1)*3} · 방어력 +${Math.floor(((p.combat_level||1)-1)/2)} · 기존 강화 보너스 +${p.level}`;
  $('day').textContent=`DAY ${String(1+Math.floor(w.elapsed/600)).padStart(2,'0')}`;
  $('time').textContent=`활동 ${Math.floor(w.elapsed/60)}분 ${Math.floor(w.elapsed%60)}초`;
  $('survival-pressure').textContent=p.species==='human'?'야외에서 분당 포만도 5.4 · 수분 8.4 감소. 달리기는 추가 소모합니다. 25 이하에서는 MP 재생이 느려지며 고갈 시 체력이 감소합니다. 마을에서 보급을 준비하세요.':'야외에서 분당 혈액 7.2 · 안정도 3.9 감소. 흡혈은 체력만 회복합니다. 혈액·안정도가 25 이하이면 자동 재생이 멈추고 고갈 시 체력이 감소합니다. 체력 재생과 비행에도 혈액이 필요합니다.';
@@ -532,7 +532,7 @@ function setAutoHunt(active,silent=false){
 $('auto-hunt').onclick=()=>{if(!state?.world.player.chosen||!connected)return;if(state.world.paused){toast('일시정지를 해제하세요.');return;}closePanel(false);setAutoHunt(!autoHunt);if(autoHunt)stepMovement();};
 function manualAction(action,fields={}){if(action==='attack'||action==='skill')closePanel(false);clearMovement();pendingAction=null;clearTimeout(pendingTimer);command(action,fields);}
 $('pause').onclick=()=>manualAction('pause');if($('flyout-pause'))$('flyout-pause').onclick=()=>manualAction('pause');
-document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action,b.dataset.action==='enhance'?{catalyst:$('enhancement-catalyst').value}:{}));
+document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>manualAction(b.dataset.action,b.dataset.action==='enhance'?{catalyst:$('enhancement-catalyst').value,gear_id:$('enhancement-gear').value}:{}));
 document.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>manualAction('consume',{item:b.dataset.item}));
 $('craft-submit').onclick=()=>manualAction('craft',{recipe:selectedRecipe});
 document.querySelectorAll('button[data-species]').forEach(b=>b.onclick=()=>{welcomeForced=false;manualAction('choose',{species:b.dataset.species,gender:selectedGender,job:selectedJob});});
@@ -737,8 +737,8 @@ const itemInfo={
  metal:['제작 재료','시설과 이동 연구에 필요한 금속 부품.','아지트 → 시설·연구에서 사용'],
  crop:['식재료','따뜻한 수프를 만드는 기본 식재료.','아지트 → 제작 → 요리'],
  herb:['약재','치료제와 안정화 혈액, 종족 전환에 필요한 약초.','아지트 → 제작·연구에서 사용'],
- scroll:['강화 재료','현재 무기의 공격력을 강화하는 주문서.','아지트 → 연구·성장 → 장비 강화'],
- skillbook:['스킬 해금 비전서','몬스터에게서 낮은 확률로 드랍되는 고대 스킬북. 상위 직업 스킬을 해금할 때 소모됩니다.','스킬 메뉴(K) → 상위 직업 스킬 해금에 사용'],
+ scroll:['강화 재료','선택한 무기·방어구·장신구를 강화하는 주문서.','아지트 → 연구·성장 → 장비 강화'],
+ skillbook:['구형 비전서 · 판매용','기존에 보유한 공용 스킬북입니다. 현재 기술 학습에는 사용하지 않습니다.','스킬 상인에게 판매 가능 · 새 스킬은 해당 전용 스킬북 필요'],
  soup:['인간 소모품','야채와 물로 끓인 따뜻한 식사.','포만도 +45 · 수분 +15'],
  water:['인간 소모품 / 재료','마실 수 있는 깨끗한 물. 제작에도 사용합니다.','수분 +40'],
  blood:['뱀파이어 소모품 / 재료','뱀파이어의 갈증을 달래는 원혈.','혈액량 +30'],
@@ -746,6 +746,8 @@ const itemInfo={
  medicine:['공용 소모품','상처와 감염을 치료하는 약품.','체력 +40 · 감염 −60'],
 };
 function expandedItemInfo(id){
+ const book=state.skill_books?.[id];
+ if(book)return ['전용 스킬북',`${book.species==='human'?'인간':'뱀파이어'} · ${book.job==='warrior'?'근접':'원거리'} · Lv.${book.level} 필요`,`${state.items[id]} 1권 사용 시 해당 기술만 습득 · 자동 슬롯 등록 없음`];
  const category=state.item_categories?.[id];
  if(category){
   const places=[...new Set((state.pois||[]).filter(n=>n.loot?.[id]||n.kind===id).map(n=>n.label))];
@@ -770,7 +772,15 @@ function itemUseReason(id){
  if(gearItem(id)&&!equippedSlot(gearItem(id))&&(w.player.combat_level||1)<(gearItem(id).min_level||1))return `착용 Lv.${gearItem(id).min_level} 필요`;
  if(gearItem(id))return !connected?'서버 연결을 기다리세요.':w.paused?'일시정지를 해제하세요.':'';
  if(!id)return '아이템을 선택하세요.';
- if(id==='skillbook')return !connected?'서버 연결을 기다리세요.':!w.inventory.skillbook?'보유한 스킬북이 없습니다.':'';
+ if(id==='skillbook')return '구형 공용 스킬북은 스킬 상인에게 판매할 수 있습니다.';
+ const book=state.skill_books?.[id];
+ if(book){
+  if(!connected||w.paused)return '연결 및 일시정지 상태를 확인하세요.';
+  if(book.species!==w.player.species||book.job!==(w.player.job||'warrior'))return '현재 진영·직업의 스킬북이 아닙니다.';
+  if((w.player.combat_level||1)<book.level)return `전투 Lv.${book.level} 필요`;
+  if(skillStatus(book.skill).learned)return '이미 습득한 스킬입니다. 중복 스킬북은 판매할 수 있습니다.';
+  return w.inventory[id]>0?'':'해당 스킬북이 없습니다.';
+ }
  if(!['soup','water','blood','elixir','medicine'].includes(id)&&!state.consumables?.[id])return '직접 사용할 수 없는 제작·강화 재료입니다.';
  if(!connected)return '서버 연결을 기다리세요.';
  if(w.paused)return '일시정지를 해제하세요.';
@@ -792,8 +802,8 @@ function gearRarity(g){
  const id=g?.rarity==='common'?'normal':g?.rarity;
  return state?.rarities?.[id]||{name:id==='normal'?'일반':'미확인',color:'#c6c9c5'};
 }
-function itemName(id){const g=gearItem(id);return g?`[${gearRarity(g).name}] ${g.name}`:state.items[id];}
-function itemIcon(id){return gearItem(id)?.slot||id;}
+function itemName(id){const g=gearItem(id);return g?`[${gearRarity(g).name}] ${g.name}${g.enhancement?' +'+g.enhancement:''}`:state.items[id];}
+function itemIcon(id){return id?.startsWith('skillbook_')?'skillbook':gearItem(id)?.slot||id;}
 function makeEquippedSlotCard(slot,mode='equip'){
  const g=gearItem(state.world.equipment?.[slot]),rarity=g?gearRarity(g):null;
  const card=document.createElement('div');card.className='equip-slot-card';
@@ -805,7 +815,7 @@ function makeEquippedSlotCard(slot,mode='equip'){
  const nameEl=document.createElement('strong');nameEl.textContent=g?itemName(g.id):'장착된 장비 없음';
  if(rarity)nameEl.style.color=rarity.color;
  titleBox.append(slotLabel,nameEl);head.append(img,titleBox);
- const stat=span('equip-slot-stat',g?(slot==='weapon'?`공격력 +${g.power} (무기강화 +${state.world.player.level||0})`:`방어력 +${g.power} (피해 감소 -${g.power})`):(slot==='weapon'?'무기를 장착해 공격력을 높이세요':'방어구를 장착해 받는 피해를 줄이세요'));
+ const stat=span('equip-slot-stat',g?(slot==='weapon'?`공격력 +${g.power} (기존 강화 보너스 +${state.world.player.level||0})`:`방어력 +${g.power} (피해 감소 -${g.power})`):(slot==='weapon'?'무기를 장착해 공격력을 높이세요':'방어구를 장착해 받는 피해를 줄이세요'));
  const actions=document.createElement('div');actions.className='equip-slot-actions';
  if(g){
   if(mode==='bag'){
@@ -845,7 +855,7 @@ function renderEquipmentShowcase(){
   button.title=equipmentSlots[slot]+' · '+(g?itemName(g.id):'미착용');
   if(rarity)button.style.setProperty('--gear-color',rarity.color);
   const icon=document.createElement('img');icon.src='/icons/'+slotIcon(slot)+'.svg';icon.alt='';
-  button.append(span('paperdoll-slot-label',equipmentSlots[slot]),icon,span('paperdoll-slot-value',g?'+'+g.power:'비어 있음'));
+  button.append(span('paperdoll-slot-label',equipmentSlots[slot]),icon,span('paperdoll-slot-value',g?'+'+(g.enhancement||0):'비어 있음'));
   button.onclick=()=>{selectedEquipmentSlot=slot;renderEquipmentShowcase();$('equip-selected').scrollIntoView({block:'nearest'});};return button;
  }));
  if(focusedSlot)$('equip-paperdoll').querySelector(`[data-equipment-slot="${focusedSlot}"]`)?.focus({preventScroll:true});
@@ -857,7 +867,7 @@ function renderEquippedViews(){
  const wep=gearItem(w.equipment?.weapon);
  const lvl=p.combat_level||1,lvlAtk=(lvl-1)*3,lvlDef=Math.floor((lvl-1)/2);
  const wepPow=wep?.power||0,armPow=totalArmor();
- $('equip-stats-summary').textContent=`전투 Lv.${lvl} · 총 공격력 보너스 +${lvlAtk+wepPow} (레벨 +${lvlAtk} / 무기 +${wepPow}) · 무기강화 +${p.level||0} · 총 방어력 +${lvlDef+armPow} (레벨 +${lvlDef} / 방어구 +${armPow})`;
+ $('equip-stats-summary').textContent=`전투 Lv.${lvl} · 총 공격력 보너스 +${lvlAtk+wepPow} (레벨 +${lvlAtk} / 무기 +${wepPow}) · 기존 강화 보너스 +${p.level||0} · 총 방어력 +${lvlDef+armPow} (레벨 +${lvlDef} / 방어구 +${armPow})`;
  renderEquipmentShowcase();
  $('bag-equipped-slots').replaceChildren(...Object.keys(equipmentSlots).map(slot=>makeEquippedSlotCard(slot,'bag')));
  $('survival-equipped').replaceChildren(...Object.keys(equipmentSlots).map(slot=>makeEquippedSlotCard(slot,'survival')));
@@ -894,7 +904,21 @@ function renderInventory(){
  inventoryGroups.materials=Object.keys(categories).filter(k=>categories[k].origin==='farming');
  inventoryGroups.monster=Object.keys(categories).filter(k=>categories[k].origin==='monster');
  for(const group of ['crafting','scrolls','currency'])inventoryGroups[group]=Object.keys(categories).filter(k=>categories[k].category===group);
- inventoryGroups.growth=['skillbook',...Object.keys(state.enhancement_materials||{})];
+ inventoryGroups.growth=['skillbook',...Object.keys(state.skill_books||{}),...Object.keys(state.enhancement_materials||{})];
+ const select=$('enhancement-gear'),selection=select.value;
+ const gearSignature=JSON.stringify([state.world.gear,state.world.equipment]);
+ if(select.dataset.signature!==gearSignature){
+  select.replaceChildren(...(state.world.gear||[]).map(g=>{
+   const o=document.createElement('option');o.value=g.id;
+   o.textContent=`[${gearTypeNames[g.slot]}] ${g.name} +${g.enhancement||0}${Object.values(state.world.equipment||{}).includes(g.id)?' · 착용 중':''}`;return o;
+  }));
+  select.value=(state.world.gear||[]).some(g=>g.id===selection)?selection:state.world.equipment?.weapon||select.options?.[0]?.value||'';
+  select.dataset.signature=gearSignature;
+ }
+ const preview=()=>{
+  const g=gearItem(select.value),lv=g?.enhancement||0,cost=lv<3?1:lv<6?2:lv<9?3:5;
+  $('enhancement-preview').textContent=g?lv>=10?'최대 강화 단계':`+${lv} → +${lv+1} · 주문서 ${cost}개 · 기본 성공률 ${lv<3?100:lv<6?80:lv<9?60:40}% · 성공 시 ${g.slot==='weapon'?'공격력 +2':'방어력 +1'} · 실패 누적 ${g.enhancement_pity||0}`:'보유 장비가 없습니다.';
+ };select.onchange=preview;preview();
  const catalyst=$('enhancement-catalyst'),chosen=catalyst.value;
  const catalystSignature=JSON.stringify(Object.entries(state.enhancement_materials||{}).map(([id,s])=>[id,s.name,s.bonus,state.world.inventory[id]||0]));
  if(catalyst.dataset.signature!==catalystSignature){
@@ -935,7 +959,7 @@ function renderInventory(){
  $('item-category').style.color=rarity?.color||'';
  $('item-owned').textContent=g?(equipped?'현재 착용 중':'가방에 보관 중'):selectedItem?'보유 수량 · '+(state.world.inventory[selectedItem]||0):'';
  $('ring-target-label').hidden=!(g?.slot==='ring'&&!equipped);
- const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent=g?(equipped?'착용 해제':'착용'):selectedItem==='skillbook'?'스킬 메뉴 열기 (K)':'1개 사용';$('item-use-reason').textContent=reason||(g?'같은 부위의 장비는 교체되며 가방에 보존됩니다.':selectedItem==='skillbook'?'스킬 메뉴에서 스킬북을 사용해 직업 스킬을 해금합니다.':'선택한 아이템 1개를 사용합니다.');
+ const reason=itemUseReason(selectedItem);$('item-use').disabled=Boolean(reason);$('item-use').textContent=g?(equipped?'착용 해제':'착용'):state.skill_books?.[selectedItem]?'스킬북 사용 · 습득':'1개 사용';$('item-use-reason').textContent=reason||(g?'같은 부위의 장비는 교체되며 가방에 보존됩니다.':state.skill_books?.[selectedItem]?'이 책 1권을 사용해 해당 기술을 습득합니다.':'선택한 아이템 1개를 사용합니다.');
 }
 $('ring-target').onchange=()=>renderInventory();
 $('item-use').onclick=()=>{if(selectedItem&&!itemUseReason(selectedItem)){if(selectedItem==='skillbook'){openPanel('skills');return;}const g=gearItem(selectedItem);if(g)useGear(g,g.slot==='ring'?$('ring-target').value:g.slot);else manualAction('consume',{item:selectedItem});}};
@@ -948,8 +972,7 @@ const shopCatalog={
   {item:'wood',name:'벌목 목재',price:3,desc:'건축 자재 · 시설 건설 및 개선'},
   {item:'metal',name:'정밀 부품',price:4,desc:'기계 부품 · 시설 및 연구'},
   {item:'medicine',name:'치료제',price:15,desc:'공용 소모품 · 체력 +40 · 감염 −60'},
-  {item:'scroll',name:'강화 주문서',price:25,desc:'강화 재료 · 무기 공격력 강화'},
-  {item:'skillbook',name:'고대 스킬북',price:80,desc:'비전서 · 상위 직업 스킬 해금'}
+  {item:'scroll',name:'강화 주문서',price:25,desc:'강화 재료 · 선택 장비의 공격력/방어력 강화'},
  ],
  vampire:[
   {item:'elixir',name:'안정화 혈액',price:36,desc:'혈족 소모품 · 혈액량 +40 · 안정도 +45'},
@@ -958,25 +981,25 @@ const shopCatalog={
   {item:'wood',name:'벌목 목재',price:3,desc:'건축 자재 · 시설 건설 및 개선'},
   {item:'metal',name:'정밀 부품',price:4,desc:'기계 부품 · 시설 및 연구'},
   {item:'medicine',name:'치료제',price:15,desc:'공용 소모품 · 체력 +40 · 감염 −60'},
-  {item:'scroll',name:'강화 주문서',price:25,desc:'강화 재료 · 무기 공격력 강화'},
-  {item:'skillbook',name:'고대 스킬북',price:80,desc:'비전서 · 상위 직업 스킬 해금'}
+  {item:'scroll',name:'강화 주문서',price:25,desc:'강화 재료 · 선택 장비의 공격력/방어력 강화'},
  ]
 };
 for(const catalog of Object.values(shopCatalog))catalog.push({item:'shop_weapon',name:'민병대 무기',price:120,desc:'일반 무기 · 공격력 +4'},{item:'shop_armor',name:'민병대 방호복',price:100,desc:'일반 상의 · 방어력 +2'});
 for(const catalog of Object.values(shopCatalog))for(const slot of ['pants','boots','gloves','necklace','ring'])catalog.push({item:'shop_'+slot,name:'민병대 '+gearTypeNames[slot],price:80,desc:'일반 '+gearTypeNames[slot]+' · 방어력 +2'});
-function merchantRole(item){return item.startsWith('shop_')?'equipment':item==='scroll'?'scroll':item==='skillbook'?'skill':'supplies';}
+function merchantRole(item){return item.startsWith('shop_')?'equipment':item==='scroll'?'scroll':(item==='skillbook'||item.startsWith('skillbook_'))?'skill':'supplies';}
 let activeMerchantId=null,shopRenderKey='';
 function openMerchant(m){if(!m)return;activeMerchantId=m.id;shopMode='buy';openPanel('shop');}
 const shopSellPrices={wood:1,metal:2,crop:2,herb:2,blood:2,water:2,scroll:10,soup:5,elixir:5,medicine:7,skillbook:30};
 function renderShop(){
  if(!state)return;
  const w=state.world,p=w.player,gold=w.inventory.gold||0;
+ Object.assign(shopSellPrices,Object.fromEntries(Object.entries(state.skill_books||{}).map(([k,v])=>[k,v.sell_price])));
  const merchant=(state.map.merchants||[]).find(m=>m.id===activeMerchantId);
  const trading=Boolean(merchant&&merchant.faction===p.species&&Math.hypot(merchant.x-p.x,merchant.y-p.y)<=5);
  const renderKey=JSON.stringify([activeMerchantId,shopMode,trading,connected,w.paused,w.inventory,w.gear,w.equipment,bagCapacity(w)]);
  if(renderKey===shopRenderKey)return;shopRenderKey=renderKey;
  $('shop-merchant-name').textContent=merchant?merchant.name:'거래할 상인에게 말을 거세요';
- $('shop-hint').textContent=trading?'이 상인의 전문 품목만 구매·판매할 수 있습니다.':'상인에게 가까이 가서 대화하세요. 다른 상점은 해당 상인을 직접 방문하세요.';
+ $('shop-hint').textContent=trading?(merchant.role==='skill'?'전용 스킬북은 몬스터에게서 획득합니다. 판매 탭에서 중복·구형 스킬북을 판매할 수 있습니다.':'이 상인의 전문 품목만 구매·판매할 수 있습니다.'):'상인에게 가까이 가서 대화하세요. 다른 상점은 해당 상인을 직접 방문하세요.';
  const goldEl=$('shop-gold-amount');if(goldEl)goldEl.textContent=`${gold} G`;
  const buyTab=$('shop-tab-buy'),sellTab=$('shop-tab-sell'),buyView=$('shop-buy-view'),sellView=$('shop-sell-view');
  if(buyTab&&sellTab){
@@ -1228,28 +1251,28 @@ function skillStatus(id){
  const meter=isVamp?'blood':'food',cost=spec.cost||0;
  const mpCost=spec.mp_cost??cost,hpCost=spec.hp_cost??6;
  const unlockLevel=spec.unlock_level||1,levelMet=(p.combat_level||1)>=unlockLevel;
- const bookCost=spec.book_cost??0,booksHave=w.inventory?.skillbook||0;
+ const bookCost=spec.book_id?1:0,booksHave=w.inventory?.[spec.book_id]||0;
  const learnedList=p.learned_skills||['sweep','recover'];
- const learned=(!spec.requires_learning&&bookCost<=0)||learnedList.includes(id);
+ const learned=(!spec.requires_learning&&bookCost<=0)||learnedList.includes(id)||learnedList.includes(`${p.species}:${job}:${id}`);
  const unlocked=levelMet&&learned;
- const canLearn=levelMet&&!learned&&booksHave>=bookCost;
+ const canLearn=levelMet&&!learned&&Boolean(spec.book_id)&&booksHave>=1;
  const isHeal=Boolean(spec.heal);
  const effRange=isHeal?0:spec.range;
  const remaining=Math.max(0,(w.cooldowns['skill:'+id]||0)-w.elapsed,!isHeal?(w.cooldowns.attack||0)-w.elapsed:0);
- const reason=!connected?'연결 중':w.paused?'일시정지':!levelMet?`Lv.${unlockLevel} 필요`:!learned?(bookCost?`스킬북 ${bookCost}권 필요`:'먼저 무료 습득'):p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':isHeal&&p.hp>=100&&(!spec.cleanse||(p.infection||0)<=0)?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&(e.faction||'infected')!==p.species&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
+ const reason=!connected?'연결 중':w.paused?'일시정지':!levelMet?`Lv.${unlockLevel} 필요`:!learned?`${spec.book_name||'전용 스킬북'} 필요`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':isHeal&&p.hp>=100&&(!spec.cleanse||(p.infection||0)<=0)?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&(e.faction||'infected')!==p.species&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
  return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,levelMet,learned,bookCost,booksHave,canLearn,isHeal,effRange};
 }
 if($('skill-filter'))$('skill-filter').onchange=()=>{skillFilter=$('skill-filter').value;renderSkillsMenu();};
 function renderSkillsMenu(){
  if(!state||activePanel!=='skills'||!$('skills-list'))return;
  const w=state.world,p=w.player,isVamp=p.species==='vampire',job=p.job||'warrior',gender=p.gender||'male',lvl=p.combat_level||1;
- const cls=classInfo(p.species,job),gName=genderName(gender),booksHave=w.inventory?.skillbook||0;
+ const cls=classInfo(p.species,job),gName=genderName(gender),booksHave=Object.entries(w.inventory||{}).filter(([k])=>k.startsWith('skillbook_')).reduce((n,[,v])=>n+v,0);
  const wepPow=gearItem(w.equipment?.weapon)?.power||0,lvlAtk=(lvl-1)*3,enhMult=1+(p.level||0)*.02;
- const layout=JSON.stringify([p.species,job,gender,lvl,p.level,wepPow,booksHave,p.learned_skills,connected,w.paused,hotbarMap,skillFilter]);
+ const layout=JSON.stringify([p.species,job,gender,lvl,p.level,wepPow,w.inventory,p.learned_skills,connected,w.paused,hotbarMap,skillFilter]);
  if(layout===skillsLayout)return;
  skillsLayout=layout;
  const learnedCount=skillIds().filter(id=>skillStatus(id).unlocked).length;
- $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어':'☀ 인간'} · ${gName} [${cls.style}] ${cls.name} (${cls.weapon_type} · 기본 사거리 ${cls.attack_range}) · 전투 Lv.${lvl} · 습득 스킬 ${learnedCount}/${skillIds().length}개 · 📖 보유 고대 스킬북: ${booksHave}권  · Lv.2 기술은 무료 선택 습득 · 나머지는 스킬북으로 원하는 순서대로 학습`;
+ $('skills-summary').textContent=`${isVamp?'☾ 뱀파이어':'☀ 인간'} · ${gName} [${cls.style}] ${cls.name} · 전투 Lv.${lvl} · 습득 ${learnedCount}/${skillIds().length} · 전용 스킬북 ${booksHave}권 · 해당 기술의 책 1권을 사용해 습득 (레벨·직업 조건 필요)`;
  if($('class-switcher')){
   const gBar=document.createElement('div');gBar.className='gender-bar';
   gBar.append(span('custom-label',`현재 성별: ${gName} (${gender==='female'?'♀':'♂'})`));
@@ -1311,7 +1334,7 @@ function renderSkillsMenu(){
   const txt=document.createElement('div');txt.className='equip-gear-text';
   const head=document.createElement('div');head.className='skill-card-head';
   const title=document.createElement('strong');title.textContent=name;
-  const badgeText=unlocked?(spec.requires_learning||bookCost>0?`✓ 습득 완료 (Lv.${unlockLevel})`:`✓ 기본 직업 스킬`):!levelMet?`🔒 Lv.${unlockLevel} + 📖 스킬북 ${bookCost}권 필요`:bookCost===0?'무료로 선택 습득 가능':`📖 스킬북 ${bookCost}권으로 해금 가능 (보유 ${booksHave}/${bookCost})`;
+  const badgeText=unlocked?`✓ 습득 완료 (Lv.${unlockLevel})`:`${!levelMet?'🔒 Lv.'+unlockLevel+' 필요 · ':''}${spec.book_name||'전용 스킬북'} · 보유 ${booksHave}권`;
   const badge=span('skill-badge'+(unlocked?'':' locked'),badgeText);
   head.append(title,badge);
   const sub=document.createElement('small');
@@ -1327,7 +1350,7 @@ function renderSkillsMenu(){
   const btn=document.createElement('button');btn.type='button';
   if(!learned){
    btn.className=canLearn?'accent':'';
-   btn.textContent=!levelMet?`🔒 Lv.${unlockLevel} 달성 필요`:canLearn?(bookCost===0?'무료로 배우기':`📖 선택 습득 (스킬북 ${bookCost}권)`):`📖 스킬북 부족 (${booksHave}/${bookCost})`;
+   btn.textContent=!levelMet?`🔒 Lv.${unlockLevel} 달성 필요`:canLearn?'📖 전용 스킬북 사용':'해당 스킬북 미보유';
    btn.disabled=!connected||w.paused||!canLearn;
    btn.onclick=()=>manualAction('learn_skill',{skill:id});
   }else{
@@ -1377,7 +1400,7 @@ function updateSkills(){
   if(lockIcon)lockIcon.hidden=unlocked;
   if(!unlocked)el.classList.add('skill-locked');else el.classList.remove('skill-locked');
   el.disabled=unlocked?Boolean(reason):false;
-  el.title=name+(!levelMet?` · 전투 Lv.${unlockLevel} 및 고대 스킬북 ${bookCost}권 필요`:!learned?` · 클릭하여 스킬 메뉴에서 고대 스킬북 ${bookCost}권으로 해금`:' · '+(spec.damage?`사거리 ${effRange.toFixed(1)} 피해 ${spec.damage}`:`체력 +${spec.heal}`)+' · 재사용 '+spec.cooldown+'초 · '+costText);
+  el.title=name+(!levelMet?` · 전투 Lv.${unlockLevel} 및 해당 전용 스킬북 1권 필요`:!learned?` · 클릭하여 스킬 메뉴에서 해당 전용 스킬북 1권으로 해금`:' · '+(spec.damage?`사거리 ${effRange.toFixed(1)} 피해 ${spec.damage}`:`체력 +${spec.heal}`)+' · 재사용 '+spec.cooldown+'초 · '+costText);
  }
  renderHotbarSlots();
  setupHotbarDragDrop();
@@ -1392,7 +1415,7 @@ function useSkill(id){
  if(!unlocked){
   if(canLearn){manualAction('learn_skill',{skill:id});return;}
   openPanel('skills');
-  toast(!levelMet?`전투 Lv.${unlockLevel} 달성 및 고대 스킬북 ${bookCost}권이 필요한 스킬입니다.`:`고대 스킬북 ${bookCost}권이 필요합니다. 몬스터를 처치해 스킬북을 획득하세요!`);
+  toast(!levelMet?`전투 Lv.${unlockLevel} 달성 및 해당 전용 스킬북 1권이 필요한 스킬입니다.`:`해당 전용 스킬북 1권이 필요합니다. 몬스터를 처치해 스킬북을 획득하세요!`);
   return;
  }
  if(reason){toast(reason);return;}

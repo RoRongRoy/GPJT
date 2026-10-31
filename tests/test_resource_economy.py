@@ -29,7 +29,7 @@ class ResourceEconomyTests(unittest.TestCase):
         with self.assertRaises(RuleError):act(w,dict(action='gather',id=node['id'],items=['scroll']))
         self.assertEqual(w,before)
 
-    def test_monster_loot_has_32_reachable_types_without_building_materials(self):
+    def test_monster_loot_has_79_reachable_types_without_building_materials(self):
         found=set();w=new_world()
         for level in (1,15,35,60,100):
             for step in range(100):
@@ -37,7 +37,11 @@ class ResourceEconomyTests(unittest.TestCase):
                 damage_enemy(w,enemy,1,lambda:step/400)
                 drop=w['drops'].pop()['items'];found.update(drop)
                 self.assertLessEqual(set(drop),set(DROP_ITEMS))
-        self.assertEqual(found,set(DROP_ITEMS));self.assertEqual(len(found),32)
+        from server.game import SKILL_BOOKS
+        from server.skillbooks import roll_book
+        for faction in ('human','vampire'):
+            found.update(roll_book(SKILL_BOOKS,faction,100,i/100) for i in range(101))
+        self.assertEqual(found,set(DROP_ITEMS));self.assertEqual(len(found),79)
         self.assertFalse(set(FARM_MATERIALS)&set(DROP_ITEMS))
         for r in RECIPES.values():
             if r.get('gear_slot'):self.assertLessEqual(set(r['cost']),set(DROP_ITEMS))
@@ -46,9 +50,13 @@ class ResourceEconomyTests(unittest.TestCase):
     def test_catalysts_raise_chance_and_spend_atomically(self):
         for key in ENHANCEMENT:
             w=new_world();w['player'].update(chosen=True,x=w['base']['x'],y=w['base']['y'],level=6,pity=0)
+            from server.game import ensure_starter_gear
+            ensure_starter_gear(w)
+            w['player'].update(x=w['base']['x'],y=w['base']['y'])
+            w['gear'][0].update(enhancement=6,enhancement_pity=0)
             w['inventory'].update(scroll=3,**{key:1})
             act(w,dict(action='enhance',catalyst=key),lambda:.61)
-            self.assertEqual(w['player']['level'],7)
+            self.assertEqual(w['gear'][0]['enhancement'],7)
             self.assertEqual(w['inventory'][key],0);self.assertEqual(w['inventory']['scroll'],0)
             before=copy.deepcopy(w)
             with self.assertRaises(RuleError):act(w,dict(action='enhance',catalyst=key))

@@ -23,7 +23,7 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
    const url=new URL(route.request().url());
    if(url.pathname.includes('socket.io'))return route.fulfill({contentType:'text/javascript',body:''});
    if(url.pathname.startsWith('/api/')){
-    if(url.pathname==='/api/action'){const cmd=route.request().postDataJSON().command;commands.push(cmd);fixture.world.revision++;if(cmd.action==='learn_skill'){fixture.world.player.learned_skills.push(cmd.skill);fixture.world.inventory.skillbook-=fixture.combat[cmd.skill].book_cost;}}
+    if(url.pathname==='/api/action'){const cmd=route.request().postDataJSON().command;commands.push(cmd);fixture.world.revision++;if(cmd.action==='learn_skill'){const p=fixture.world.player; p.learned_skills.push(p.species+':'+p.job+':'+cmd.skill);fixture.world.inventory[fixture.job_skills[p.species+'_'+p.job][cmd.skill].book_id]--;}}
     fixture.snapshot_time=Date.now()/1000;
     return route.fulfill({json:fixture});
    }
@@ -154,7 +154,8 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
    assert.equal(await page.locator('#shop-merchant-name').textContent(),merchant.name);
    assert.equal(await page.locator('[data-shop-category]').count(),0,'Another merchant must require a visit');
    const count=await page.locator('#shop-buy-list .shop-item-card').count();
-   assert.equal(count,role==='equipment'?7:role==='supplies'?6:1);
+   assert.equal(count,role==='equipment'?7:role==='supplies'?6:role==='skill'?0:1);
+   if(role==='skill'){await page.keyboard.press('Escape');continue;}
    await page.locator('#shop-buy-list .shop-buy-btn').first()[mobile?'tap':'click']();await delay(150);
    assert.equal(commands.at(-1)?.merchant_id,merchant.id);
    assert.equal(commands.at(-1)?.action,'shop_buy');
@@ -175,13 +176,13 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   await until(()=>page.locator('#coordinates').textContent().then(t=>t==='58 / 14'),'Return to own camp');
   await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
   await page.locator('[data-view=camp] [data-panel=build]').click();
-  assert.equal(await page.locator('#facilities .facility').count(),12);
+  assert.equal(await page.locator('#facilities .facility').count(),13);
   await page.locator('#build-category').selectOption('장비');assert.equal(await page.locator('#facilities .facility:visible').count(),3);
   await page.locator('#facilities .facility:visible button').first()[mobile?'tap':'click']();await delay(200);
   assert.equal(commands.at(-1)?.action,'build');assert.equal(commands.at(-1)?.facility,'forge');
   await page.keyboard.press('Escape');await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
   await page.locator('[data-view=camp] [data-panel=craft]').click();
-  assert.equal(await page.locator('#recipe-choices button').count(),75);
+  assert.equal(await page.locator('#recipe-choices button').count(),74);
   await page.locator('#craft-category').selectOption('장비');assert.equal(await page.locator('#recipe-choices button').count(),47);
   await page.locator('[data-craft=make_ring]').click();await page.locator('#craft-submit')[mobile?'tap':'click']();await delay(200);
   assert.equal(commands.at(-1)?.recipe,'make_ring');
@@ -196,14 +197,14 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   assert.equal(commands.at(-1)?.id,mine.id);assert.deepEqual(commands.at(-1)?.items,Object.keys(mine.loot));
   await page.keyboard.press('Escape');
   fixture.world.player.species='human';fixture.world.player.job='warrior';fixture.world.player.combat_level=30;
-  fixture.world.player.learned_skills=['sweep','recover'];fixture.world.inventory.skillbook=10;
+  fixture.world.player.learned_skills=['sweep','recover'];fixture.world.inventory.skillbook=10;fixture.world.inventory.skillbook_human_warrior_hw_slash=1;fixture.world.inventory.skillbook_human_warrior_hw_execution=1;
   await page.keyboard.press('k');
   await until(()=>page.locator('#skills-list .skill-card').count().then(n=>n===14),'14 skills for the active class');
   assert.equal(await page.locator('#skills-list [data-skill=hr_shot]').count(),0);
   await page.locator('#skill-filter').selectOption('available');
-  await until(()=>page.locator('#skills-list [data-skill=hw_slash] > button').isEnabled(),'Free skill ready');
+  await until(()=>page.locator('#skills-list [data-skill=hw_slash] > button').isEnabled(),'Named book ready');
   await page.locator('#skills-list [data-skill=hw_slash] > button').click();
-  await until(()=>Promise.resolve(fixture.world.player.learned_skills.includes('hw_slash')),'Explicit free learning request');
+  await until(()=>Promise.resolve(fixture.world.player.learned_skills.includes('human:warrior:hw_slash')),'Explicit named-book learning');
   assert.equal(fixture.world.inventory.skillbook,10);
   await page.locator('#skill-filter').selectOption('learned');
   await until(()=>page.locator('[data-select-skill=hw_slash]').isEnabled(),'Learned skill assignable');
@@ -214,8 +215,8 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   assert.equal((await mapping())['1'],'hw_slash','New skill mapping survives reload');
   await page.keyboard.press('k');await page.locator('#skill-filter').selectOption('all');
   await page.locator('#skills-list [data-skill=hw_execution] > button').click();
-  await until(()=>Promise.resolve(fixture.world.player.learned_skills.includes('hw_execution')),'High level skill can be chosen without prerequisites');
-  assert.equal(fixture.world.inventory.skillbook,7);
+  await until(()=>Promise.resolve(fixture.world.player.learned_skills.includes('human:warrior:hw_execution')),'High level skill can be chosen without prerequisites');
+  assert.equal(fixture.world.inventory.skillbook,10);
   await page.locator('#skill-filter').selectOption('heal');
   assert.equal(await page.locator('#skills-list .skill-card').count(),4);
   await page.screenshot({path:`/tmp/skills-expanded-${layout}.png`});

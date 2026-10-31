@@ -66,7 +66,7 @@ class ExpansionV3Tests(unittest.TestCase):
         for faction in ('human','vampire'):
             w=new_world();act(w,{'action':'choose','species':faction})
             w['inventory']={k:0 for k in w['inventory']};w['inventory']['gold']=10000
-            offers={'supplies':'medicine','equipment':'shop_boots','scroll':'scroll','skill':'skillbook'}
+            offers={'supplies':'medicine','equipment':'shop_boots','scroll':'scroll'}
             for role,item in offers.items():
                 m=next(m for m in MERCHANTS if m['faction']==faction and m['role']==role)
                 w['player'].update(x=m['x'],y=m['y'])

@@ -36,6 +36,10 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request('/api/state', key='wrong')[0], 401)
         self.assertEqual(self.request('/')[0], 200)
         self.assertEqual(self.request('/world.js')[0], 200)
+        for name in ('mounts', 'salvage', 'skill-fx'):
+            code, body=self.request('/art/gameplay/'+name+'.png')
+            self.assertEqual(code,200)
+            self.assertTrue(body.startswith(bytes([137,80,78,71])))
         self.assertEqual(self.request('/socket.io/socket.io.js')[0], 200)
         self.assertEqual(self.request('/../data/access.key')[0], 404)
         status, body = self.request('/api/state')

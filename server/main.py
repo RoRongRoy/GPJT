@@ -1,4 +1,5 @@
 """Server-authoritative multiplayer development server with Socket.IO support."""
+from .game import SKILL_BOOKS
 import math
 import argparse
 import copy
@@ -346,6 +347,7 @@ class Runtime:
             'map': map_view,
             'recipes': RECIPES,
             'combat': COMBAT,
+            'skill_books': SKILL_BOOKS,
             'job_skills': {f'{sp}_{jb}': specs for (sp, jb), specs in JOB_SKILLS.items()},
             'classes': CLASSES,
             'genders': GENDERS,
@@ -419,7 +421,7 @@ def make_handler(runtime, access_key, sio=None):
                      '/style.css': ('style.css', 'text/css; charset=utf-8')}
             for name in ('sprite-manifest', 'sprites', 'combat', 'themes', 'socket.io'):
                 files['/'+name+'.js'] = (name+'.js', 'text/javascript; charset=utf-8')
-            for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'human-male', 'vampire', 'vampire-female', 'ghoul', 'brute', 'props', 'earth', 'stone', 'settlements', 'wasteland', 'surfaces', 'grave-hound', 'iron-revenant'):
+            for name in ('refuge', 'pine', 'dead-tree', 'ruin', 'human', 'human-male', 'vampire', 'vampire-female', 'ghoul', 'brute', 'props', 'earth', 'stone', 'settlements', 'wasteland', 'surfaces', 'grave-hound', 'iron-revenant', 'salvage', 'mounts', 'skill-fx'):
                 files['/art/gameplay/'+name+'.png'] = ('art/gameplay/'+name+'.png', 'image/png')
             for item in (*ITEMS, 'weapon', 'armor', 'pants', 'boots', 'gloves', 'necklace', 'ring'):
                 files['/icons/'+item+'.svg'] = ('icons/'+item+'.svg', 'image/svg+xml')

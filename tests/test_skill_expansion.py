@@ -13,6 +13,7 @@ class SkillExpansionTests(unittest.TestCase):
         w['player'].update(chosen=True, species=species, job=job, combat_level=level,
                            x=100, y=100, hp=50, food=100, blood=100, mp=100)
         w['inventory']['skillbook'] = 30
+        w['inventory'].update({s['book_id']:1 for s in JOB_SKILLS[(species,job)].values() if s.get('book_id')})
         for e in w['enemies']:
             e.update(x=200, y=200, hp=1000, max_hp=1000, faction='infected')
         w['enemies'][0].update(x=101, y=100)
@@ -27,7 +28,7 @@ class SkillExpansionTests(unittest.TestCase):
                     with self.assertRaises(RuleError):
                         act(copy.deepcopy(w), {'action': 'skill', 'skill': key})
                     act(w, {'action': 'learn_skill', 'skill': key})
-                    self.assertEqual(w['inventory']['skillbook'], 30-spec['book_cost'])
+                    self.assertEqual(w['inventory']['skillbook'], 30)
                     before = copy.deepcopy(w)
                     act(w, {'action': 'skill', 'skill': key})
                     if spec.get('heal'):
@@ -49,16 +50,16 @@ class SkillExpansionTests(unittest.TestCase):
                 with self.assertRaises(RuleError):
                     act(w, {'action': action, 'skill': key})
                 self.assertEqual(w, before)
-        w = self.world();w['inventory']['skillbook'] = 0
+        w = self.world();w['inventory']['skillbook_human_warrior_hw_execution'] = 0
         with self.assertRaises(RuleError):
             act(w, {'action': 'learn_skill', 'skill': 'hw_execution'})
         # A higher level skill has no mandatory prerequisite chain.
-        w['inventory']['skillbook'] = 3
+        w['inventory']['skillbook_human_warrior_hw_execution'] = 1
         act(w, {'action': 'learn_skill', 'skill': 'hw_execution'})
         self.assertNotIn('hw_slash', w['player']['learned_skills'])
-        self.assertEqual(w['inventory']['skillbook'], 0)
+        self.assertEqual(w['inventory']['skillbook_human_warrior_hw_execution'], 0)
 
-    def test_free_skill_is_explicit_and_persists_across_job_changes_and_save(self):
+    def test_named_skill_is_explicit_and_persists_across_job_changes_and_save(self):
         w = self.world(level=2);w['inventory']['skillbook'] = 0
         act(w, {'action': 'learn_skill', 'skill': 'hw_slash'})
         w['player']['job'] = 'ranged'
@@ -66,7 +67,7 @@ class SkillExpansionTests(unittest.TestCase):
             act(w, {'action': 'skill', 'skill': 'hw_slash'})
         with tempfile.TemporaryDirectory() as d:
             store = Store(Path(d)/'save.sqlite3');store.save(w);loaded=store.load();store.close()
-        self.assertIn('hw_slash', loaded['player']['learned_skills'])
+        self.assertIn('human:warrior:hw_slash', loaded['player']['learned_skills'])
         loaded['player']['job'] = 'warrior'
         act(loaded, {'action': 'skill', 'skill': 'hw_slash'})
         self.assertEqual(loaded['inventory']['skillbook'], 0)

@@ -99,25 +99,24 @@ class CombatTests(unittest.TestCase):
             self.action(action='skill', skill='strike')
         with self.assertRaises(RuleError):
             self.action(action='learn_skill', skill='strike')
-        # Monster kill drops skillbook at low probability (rng=0.01 < 0.04)
+        # Named book drop is lootable but does not automatically teach the skill.
         e_drop = self.w['enemies'][3]
-        e_drop.update(x=20, y=20, hp=10)
+        e_drop.update(x=20, y=20, hp=10, level=3)
         damage_enemy(self.w, e_drop, 50, rng=lambda: 0.01)
-        self.assertEqual(self.w['drops'][-1]['items'].get('skillbook'), 1)
-        self.action(action='loot', id=self.w['drops'][-1]['id'], item='skillbook')
-        self.assertEqual(self.w['inventory']['skillbook'], 1)
-        # Learn Lv.3 strike using 1 skillbook and cast it
-        self.action(action='learn_skill', skill='strike')
-        self.assertEqual(self.w['inventory']['skillbook'], 0)
-        self.assertIn('strike', self.w['player']['learned_skills'])
+        book='skillbook_human_warrior_strike'
+        self.assertEqual(self.w['drops'][-1]['items'].get(book), 1)
+        self.action(action='loot', id=self.w['drops'][-1]['id'], item=book)
+        self.action(action='consume', item=book)
+        self.assertEqual(self.w['inventory'][book], 0)
+        self.assertIn('human:warrior:strike', self.w['player']['learned_skills'])
         self.action(action='skill', skill='strike')
         self.assertLess(self.w['enemies'][0]['hp'], 60)
         self.assertEqual(self.w['enemies'][1]['hp'], 60)
         # Give skillbooks for Lv.5 ranged (1 book), Lv.8 purify (2 books), Lv.12 ultimate (3 books)
-        self.w['inventory']['skillbook'] = 6
+        self.w['inventory'].update(skillbook_human_warrior_ranged=1, skillbook_human_warrior_purify=1, skillbook_vampire_ranged_ultimate=1)
         self.w['player']['combat_level'] = 5
         self.action(action='learn_skill', skill='ranged')
-        self.assertEqual(self.w['inventory']['skillbook'], 5)
+        self.assertEqual(self.w['inventory']['skillbook_human_warrior_ranged'], 0)
         self.w['elapsed'] += 10
         self.w['enemies'][0]['hp'] = 0
         self.w['enemies'][1]['hp'] = 0
@@ -127,14 +126,14 @@ class CombatTests(unittest.TestCase):
         # Unlock Lv.8 purify (2 skillbooks, heals HP and cleanses infection)
         self.w['player'].update(combat_level=8, hp=60, infection=50, mp=100, food=90)
         self.action(action='learn_skill', skill='purify')
-        self.assertEqual(self.w['inventory']['skillbook'], 3)
+        self.assertEqual(self.w['inventory']['skillbook_human_warrior_purify'], 0)
         self.action(action='skill', skill='purify')
         self.assertEqual(self.w['player']['hp'], 90)
         self.assertEqual(self.w['player']['infection'], 15)
         # Unlock Lv.12 ultimate (3 skillbooks, explosion around distant target)
         self.w['player'].update(combat_level=12, species='vampire', job='ranged', hp=80, blood=90)
         self.action(action='learn_skill', skill='ultimate')
-        self.assertEqual(self.w['inventory']['skillbook'], 0)
+        self.assertEqual(self.w['inventory']['skillbook_vampire_ranged_ultimate'], 0)
         self.w['elapsed'] += 20
         self.w['enemies'][0].update(x=22, y=20, hp=200)
         self.w['enemies'][1].update(x=23, y=21, hp=200)

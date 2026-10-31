@@ -4,6 +4,7 @@ import random
 import uuid
 from . import dungeons
 from .mobility import MOBILITY
+from .skillbooks import register_books, has_skill, learned_key, roll_book
 from .survival import DRAIN, SPRINT_DRAIN, SUPPLY_PRICES, RESOURCE_LOOT
 
 from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at, TOWNS, MERCHANTS, MONSTER_TYPES
@@ -38,7 +39,7 @@ SHOP_BUY_CATALOG = {
         {'item': 'wood', 'name': '벌목 목재', 'price': 3, 'desc': '건축 자재 · 시설 건설 및 개선'},
         {'item': 'metal', 'name': '정밀 부품', 'price': 4, 'desc': '기계 부품 · 시설 및 연구'},
         {'item': 'medicine', 'name': '치료제', 'price': 15, 'desc': '공용 소모품 · 체력 +40 · 감염 −60'},
-        {'item': 'scroll', 'name': '강화 주문서', 'price': 25, 'desc': '강화 재료 · 무기 공격력 강화'},
+        {'item': 'scroll', 'name': '강화 주문서', 'price': 25, 'desc': '강화 재료 · 선택 장비의 공격력/방어력 강화'},
         {'item': 'skillbook', 'name': '고대 스킬북', 'price': 80, 'desc': '비전서 · 상위 직업 스킬 해금'},
     ],
     'vampire': [
@@ -48,7 +49,7 @@ SHOP_BUY_CATALOG = {
         {'item': 'wood', 'name': '벌목 목재', 'price': 3, 'desc': '건축 자재 · 시설 건설 및 개선'},
         {'item': 'metal', 'name': '정밀 부품', 'price': 4, 'desc': '기계 부품 · 시설 및 연구'},
         {'item': 'medicine', 'name': '치료제', 'price': 15, 'desc': '공용 소모품 · 체력 +40 · 감염 −60'},
-        {'item': 'scroll', 'name': '강화 주문서', 'price': 25, 'desc': '강화 재료 · 무기 공격력 강화'},
+        {'item': 'scroll', 'name': '강화 주문서', 'price': 25, 'desc': '강화 재료 · 선택 장비의 공격력/방어력 강화'},
         {'item': 'skillbook', 'name': '고대 스킬북', 'price': 80, 'desc': '비전서 · 상위 직업 스킬 해금'},
     ],
 }
@@ -61,7 +62,7 @@ for catalog in SHOP_BUY_CATALOG.values():
     catalog.extend({'item': 'shop_'+slot, 'name': '민병대 '+SLOT_NAMES[slot], 'price': 80, 'desc': '일반 '+SLOT_NAMES[slot]+' · 방어력 +2'} for slot in ('pants', 'boots', 'gloves', 'necklace', 'ring'))
 
 def merchant_role(item):
-    return 'equipment' if item.startswith('shop_') else 'scroll' if item == 'scroll' else 'skill' if item == 'skillbook' else 'supplies'
+    return 'equipment' if item.startswith('shop_') else 'scroll' if item == 'scroll' else 'skill' if item == 'skillbook' or item.startswith('skillbook_') else 'supplies'
 
 
 SHOP_SELL_PRICES = {
@@ -335,6 +336,17 @@ COMBAT = {
 register_skills(COMBAT, JOB_SKILLS)
 configure_ranged_skills(JOB_SKILLS)
 
+SKILL_BOOKS=register_books(JOB_SKILLS)
+DROP_ITEMS.pop("skillbook", None)
+DROP_ITEMS.update({key:spec["name"] for key,spec in SKILL_BOOKS.items()})
+ITEMS.update({key:spec['name'] for key,spec in SKILL_BOOKS.items()})
+SHOP_SELL_PRICES.update({key:spec['sell_price'] for key,spec in SKILL_BOOKS.items()})
+for _catalog in SHOP_BUY_CATALOG.values():
+    _catalog[:]=[offer for offer in _catalog if offer['item']!='skillbook']
+from .resources import ITEM_CATEGORIES
+ITEM_CATEGORIES.update({key:dict(origin='monster',category='books',label='전용 스킬북 · 사용 시 해당 기술 습득') for key in SKILL_BOOKS})
+ITEMS['skillbook']='구형 고대 스킬북 (판매용)'
+
 
 def resolve_skill_spec(species, job, skill):
     base = COMBAT[skill]
@@ -458,7 +470,8 @@ def damage_enemy(w, enemy, damage, rng=random.random):
         item = roll_equipment(w, enemy, rng, collect=False)
         book_chance = min(.15, SKILLBOOK_DROP_CHANCE + max(0, (enemy.get('level', 1) - 1) // 4) * 0.015)
         if med_roll < book_chance:
-            drop_items['skillbook'] = 1
+            book=roll_book(SKILL_BOOKS,w['player']['species'],enemy.get('level',1),rng())
+            if book:drop_items[book] = 1
         gain_xp(w, enemy['xp'])
         drop_id = 'drop:' + str(w.get('next_drop_id', 1))
         w['next_drop_id'] = w.get('next_drop_id', 1) + 1
@@ -470,7 +483,7 @@ def damage_enemy(w, enemy, damage, rng=random.random):
             'items': drop_items,
             'gear': [item] if item else [],
         })
-        extra_note = ' · 📖 고대 스킬북 드랍!' if 'skillbook' in drop_items else ''
+        extra_note = ' · 📖 전용 스킬북 드랍!' if any(k in SKILL_BOOKS for k in drop_items) else ''
         if item:
             note(w, f"{enemy['name']} Lv.{enemy.get('level', 1)} 처치 · EXP +{enemy['xp']} · [{RARITIES[item['rarity']]['name']}] {item['name']} 필드 드랍!{extra_note}")
         else:
@@ -617,15 +630,14 @@ def _act(w, command, rng=random.random):
         job = p.get('job', 'warrior')
         spec = resolve_skill_spec(p['species'], job, skill)
         learned = p.setdefault('learned_skills', ['sweep', 'recover'])
-        require(skill not in learned, '이미 습득한 스킬입니다.')
+        require(not has_skill(p,skill), '이미 습득한 스킬입니다.')
         req_lvl = spec.get('unlock_level', 1)
         require(p.get('combat_level', 1) >= req_lvl, f'전투 Lv.{req_lvl} 이상 달성해야 습득할 수 있습니다.')
-        book_cost = spec.get('book_cost', 1)
-        if book_cost > 0:
-            spend(w, {'skillbook': book_cost})
-        learned.append(skill)
-        cls = CLASSES.get(p['species'], CLASSES['human']).get(job, CLASSES['human']['warrior'])
-        note(w, f"📖 [{cls['name']}] '{spec['name']}' 스킬 습득 완료! (고대 스킬북 {book_cost}권 사용)")
+        book=spec.get('book_id')
+        require(book in SKILL_BOOKS, '기본 지급 스킬입니다.')
+        spend(w, {book:1})
+        learned.append(learned_key(p['species'],job,skill))
+        note(w, f"📖 {ITEMS[book]} 사용 · '{spec['name']}' 습득 완료")
         return
     if action == 'move':
         dx, dy = command.get('dx'), command.get('dy')
@@ -679,7 +691,7 @@ def _act(w, command, rng=random.random):
                 space = max(0, bag_capacity(w) - bag_used(w))
                 take = min(drop['items'][target_item], space)
                 require(take > 0, '인벤토리가 가득 찼습니다.')
-                w['inventory'][target_item] += take
+                w['inventory'][target_item] = w['inventory'].get(target_item, 0) + take
                 drop['items'][target_item] -= take
                 if drop['items'][target_item] <= 0:
                     del drop['items'][target_item]
@@ -748,6 +760,11 @@ def _act(w, command, rng=random.random):
         note(w, recipe['name'] + ' 제작 완료')
     elif action == 'consume':
         item = command.get('item')
+        if isinstance(item,str) and item in SKILL_BOOKS:
+            book=SKILL_BOOKS[item]
+            require((p['species'],p.get('job','warrior'))==(book['species'],book['job']), '현재 진영·직업의 스킬북이 아닙니다.')
+            _act(w,{'action':'learn_skill','skill':book['skill']},rng)
+            return
         require(isinstance(item, str) and (item in ('soup', 'water', 'blood', 'elixir', 'medicine') or item in CONSUMABLES), '소모품 오류')
         consumable = CONSUMABLES.get(item)
         if consumable and consumable.get('species'):
@@ -806,7 +823,11 @@ def _act(w, command, rng=random.random):
             note(w, f'🚩 [{r_name}] ({x:.1f}, {y:.1f}) 구역에 나만의 아지트를 선포했습니다! 이제 시설을 건설할 수 있습니다.')
     elif action == 'enhance':
         at_base(w)
-        level = p['level']
+        gear_id = command.get('gear_id', w.get('equipment', {}).get('weapon'))
+        require(isinstance(gear_id, str), '강화할 장비를 선택하세요.')
+        target = next((g for g in w.get('gear', []) if g['id'] == gear_id), None)
+        require(target is not None, '보유하지 않은 장비입니다.')
+        level = target.get('enhancement', 0)
         require(level < 10, '최대 강화 단계입니다.')
         cost, chance, pity = (1, 1, 0) if level < 3 else (2, .8, 2) if level < 6 else (3, .6, 3) if level < 9 else (5, .4, 4)
         catalyst = command.get('catalyst', '')
@@ -816,13 +837,14 @@ def _act(w, command, rng=random.random):
             costs[catalyst] = 1
             chance = min(1, chance + ENHANCEMENT[catalyst]['bonus'])
         spend(w, costs)
-        if p['pity'] >= pity or rng() < chance:
-            p['level'] += 1
-            p['pity'] = 0
-            note(w, f"강화 성공 +{p['level']}")
+        if target.get('enhancement_pity', 0) >= pity or rng() < chance:
+            target['enhancement'] = level + 1
+            target['enhancement_pity'] = 0
+            target['power'] += 2 if target['slot'] == 'weapon' else 1
+            note(w, f"{target['name']} 강화 성공 +{target['enhancement']}")
         else:
-            p['pity'] += 1
-            note(w, f"강화 실패 · 단계 유지 · 누적 {p['pity']}")
+            target['enhancement_pity'] = target.get('enhancement_pity', 0) + 1
+            note(w, f"{target['name']} 강화 실패 · 단계 유지 · 누적 {target['enhancement_pity']}")
     elif action in ('attack', 'skill'):
         require(not p['mounted'], '하차·변신 해제 후 사용하세요.')
         skill = command.get('skill') if action == 'skill' else 'attack'
@@ -835,7 +857,7 @@ def _act(w, command, rng=random.random):
             require(p.get('combat_level', 1) >= req_lvl, f'전투 Lv.{req_lvl} 달성 시 해금되는 스킬입니다.')
             learned = p.setdefault('learned_skills', ['sweep', 'recover'])
             if spec.get('requires_learning') or spec.get('book_cost', 0) > 0:
-                require(skill in learned, '스킬 메뉴에서 먼저 선택해 배우세요.')
+                require(has_skill(p,skill), '해당 스킬북을 사용해 먼저 배우세요.')
         is_vamp = (p['species'] == 'vampire')
         meter = 'blood' if is_vamp else 'food'
         require(p[meter] >= spec.get('cost', 0), '포만도 또는 혈액량이 부족합니다.')
