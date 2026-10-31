@@ -4,7 +4,7 @@ class WorldView {
   this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.minimap=minimap;this.art=new FieldArt(this.ctx);this.themes=typeof FactionArt!=='undefined'?new FactionArt(this.ctx,this.art):null;
   this.entityPositions=new Map();this.zoom=1; this.camera=null; this.player=null; this.points=[]; this.projection=null; this.lastFrame=0;this.prediction=null;
  }
- playCombat(before,after,kind){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0);}
+ playCombat(before,after,kind,spec=null){this.combat=new CombatEffects(before,after,kind,performance.now(),this.art.actors.get('player')?.row||0,spec);}
  predictMove(state,{dx,dy,sprint}){
   this.streamInput=null;this.streamPosition=null;
   const p=state.world.player,m=state.map.movement;

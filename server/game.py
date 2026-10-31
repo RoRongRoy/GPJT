@@ -10,7 +10,7 @@ from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOT
 
 from .settlement import FACILITY_SPECS, EXTRA_RECIPES, MATERIALS
 from .resources import DROP_ITEMS, ENHANCEMENT, extra_drop, facility_cost
-from .skills import register_skills
+from .skills import register_skills, configure_ranged_skills
 from .frontier import MAX_COMBAT_LEVEL, CONSUMABLES
 
 RECIPES = {
@@ -327,6 +327,7 @@ COMBAT = {
 
 
 register_skills(COMBAT, JOB_SKILLS)
+configure_ranged_skills(JOB_SKILLS)
 
 
 def resolve_skill_spec(species, job, skill):

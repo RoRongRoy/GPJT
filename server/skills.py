@@ -75,3 +75,25 @@ def register_skills(combat, jobs):
             spec.update(species=species, job=job, key=key)
             combat[key] = spec
             jobs[(species, job)][key] = spec
+
+
+def configure_ranged_skills(jobs):
+    """All offensive ranged skills cast at distant targets, never caster-centred."""
+    for species in ('human','vampire'):
+        for key,spec in jobs[(species,'ranged')].items():
+            if not spec.get('damage'):
+                continue
+            spec['category']='원거리'
+            spec['visual']='ranged'
+            spec['range']=max(6.0,spec['range'])
+            spec['aoe']=False
+            if key=='sweep':spec.update(range=6.0,blast_radius=2.0)
+            elif key=='ultimate':spec.update(range=8.0,blast_radius=3.0)
+            elif key=='strike':spec['range']=6.5
+            elif key=='ranged':spec['range']=8.0
+            details=[f"사거리 {spec['range']:g} · 기본 피해 {spec['damage']}"]
+            if spec.get('blast_radius'):details.append(f"원거리 대상 중심 반경 {spec['blast_radius']:g} 폭발")
+            else:details.append('원거리 단일 대상 타격')
+            if spec.get('stun'):details.append(f"적 행동 {spec['stun']:g}초 중단")
+            if spec.get('leech_mult'):details.append(f"피해의 {round(spec['leech_mult']*100)}% 흡혈 (대상당 4~16)")
+            spec['desc']=' · '.join(details)+'.'

@@ -16,6 +16,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
  try{
   for(const scene of (process.env.ART_SCENES?.split(',')||['human','vampire','field','estate','mobile'])){
    const fixture=structuredClone(original),p=fixture.world.player;
+   p.food=42;p.water=73;p.blood=61;p.stability=82;
    p.species=scene==='vampire'||scene==='estate'?'vampire':'human';
    const town=fixture.map.towns[p.species];p.x=town.spawn[0];p.y=town.spawn[1];fixture.world.base.established=false;
    if(scene==='field'||scene==='estate'){
@@ -34,6 +35,13 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
    await page.goto('http://art.test');
    await page.waitForFunction(()=>document.getElementById('world').dataset.art==='ready',{},{timeout:20000}).catch(async e=>{console.error(scene,errors,await page.locator('#world').getAttribute('data-art'));await page.screenshot({path:'/tmp/nocturne-error.png'});throw e;});
    assert.equal(await page.locator('#world').getAttribute('data-environment-art'),'ready');
+   assert.equal(await page.locator('#field-food-bar').evaluate(e=>e.style.width),p.species==='human'?'42%':'61%');
+   assert.equal(await page.locator('#field-water-bar').evaluate(e=>e.style.width),p.species==='human'?'73%':'82%');
+   assert.equal(await page.locator('#field-mp-wrap').isVisible(),p.species==='human');
+   const food=await page.locator('#field-food-wrap').boundingBox(),water=await page.locator('#field-water-wrap').boundingBox();
+   assert.ok(food.width>60&&water.x>=food.x+food.width&&food.y===water.y);
+   assert.ok(food.y>=(await page.locator(p.species==='human'?'#field-mp-wrap':'#field-health-bar').boundingBox()).y);
+
    await page.evaluate(()=>{
     const draw=WorldView.prototype.draw;
     window.__drawTimes=[];

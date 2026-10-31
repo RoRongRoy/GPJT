@@ -82,6 +82,44 @@ class SkillExpansionTests(unittest.TestCase):
         self.assertEqual(w['enemies'][2]['hp'], 1000)
         self.assertEqual(w['enemies'][3]['hp'], 1000)
 
+    def test_every_ranged_attack_reaches_distant_targets(self):
+        for species in ('human', 'vampire'):
+            for key, spec in JOB_SKILLS[(species, 'ranged')].items():
+                if not spec.get('damage'):
+                    continue
+                with self.subTest(species=species, skill=key):
+                    w = self.world(species, 'ranged')
+                    w['enemies'][0].update(x=105.5, y=100)
+                    if key not in w['player']['learned_skills']:
+                        act(w, {'action': 'learn_skill', 'skill': key})
+                    act(w, {'action': 'skill', 'skill': key})
+                    self.assertLess(w['enemies'][0]['hp'], 1000)
+                    self.assertEqual(spec['visual'], 'ranged')
+                    self.assertFalse(spec.get('aoe'))
+
+    def test_legacy_ranged_blasts_use_target_center_and_respect_range(self):
+        for species in ('human', 'vampire'):
+            for key in ('sweep', 'ultimate'):
+                with self.subTest(species=species, skill=key):
+                    w = self.world(species, 'ranged')
+                    radius = JOB_SKILLS[(species, 'ranged')][key]['range']
+                    w['enemies'][0].update(x=100+radius, y=100)
+                    w['enemies'][1].update(x=101+radius, y=100)
+                    w['enemies'][2].update(x=100+radius, y=101, faction=species)
+                    if key not in w['player']['learned_skills']:
+                        act(w, {'action': 'learn_skill', 'skill': key})
+                    saved = copy.deepcopy(w)
+                    act(w, {'action': 'skill', 'skill': key})
+                    self.assertLess(w['enemies'][0]['hp'], 1000)
+                    self.assertLess(w['enemies'][1]['hp'], 1000)
+                    self.assertEqual(w['enemies'][2]['hp'], 1000)
+                    saved['enemies'][0]['x'] += .1
+                    before = copy.deepcopy(saved)
+                    with self.assertRaises(RuleError):
+                        act(saved, {'action': 'skill', 'skill': key})
+                    self.assertEqual(saved, before)
+        self.assertTrue(JOB_SKILLS[('human', 'warrior')]['sweep']['aoe'])
+
     def test_stun_stops_enemy_then_expires(self):
         w = self.world();act(w, {'action':'learn_skill','skill':'hw_bash'})
         act(w, {'action':'skill','skill':'hw_bash'})

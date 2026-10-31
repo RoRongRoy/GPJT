@@ -188,7 +188,7 @@ async function command(action, fields={}) {
   if(drops.length)toast('★ 장비 드랍 · '+drops.map(g=>itemName(g.id)).join(' · ')+' · 가방에 보관');
   else if(result.world.player.combat_level>before.player.combat_level)toast(`전투 레벨 상승 · Lv.${result.world.player.combat_level}`);
   else if(killed.length)toast(result.world.log[0]||'몬스터 처치 · 전리품 획득');
-  if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':(activeSkillSpec(fields.skill)?.visual||fields.skill));
+  if(action==='attack'||action==='skill')view.playCombat(before,result.world,action==='attack'?'attack':(activeSkillSpec(fields.skill)?.visual||fields.skill),action==='skill'?activeSkillSpec(fields.skill):null);
  }catch(e){
   if(isMove)view.endMove(false,e.status===409||e.status===429||e.status===408||e.status===503);
   if(e.status===409){
@@ -682,23 +682,24 @@ function updateContext(){
  if(!connected&&autoHunt)setAutoHunt(false,true);
  if(activePanel&&((campPanels.has(activePanel)&&!atCamp)||!connected))closePanel(false);
  $('field-hp').textContent=`${Math.ceil(p.hp)} / 100`;$('field-health-bar').style.width=`${Math.max(0,Math.min(100,p.hp))}%`;
- if(p.species==='human'){
-  const mp=p.mp??100;
-  $('field-mp-label').textContent='MP';$('field-mp').textContent=`${Math.ceil(mp)} / 100`;
-  $('field-mp-wrap').classList.remove('vampire-blood');
-  $('field-mp-track').hidden=false;$('field-mp-bar').style.width=`${Math.max(0,Math.min(100,mp))}%`;
- }else{
-  const blood=p.blood??100;
-  $('field-mp-label').textContent='혈액';$('field-mp').textContent=`${Math.ceil(blood)} / 100`;
-  $('field-mp-wrap').classList.add('vampire-blood');
-  $('field-mp-track').hidden=false;$('field-mp-bar').style.width=`${Math.max(0,Math.min(100,blood))}%`;
+ const mp=p.mp??100;
+ $('field-mp-label').textContent='MP';$('field-mp').textContent=`${Math.ceil(mp)} / 100`;
+ $('field-mp-wrap').hidden=p.species==='vampire';
+ $('field-mp-wrap').classList.remove('vampire-blood');
+ $('field-mp-track').hidden=false;$('field-mp-bar').style.width=`${Math.max(0,Math.min(100,mp))}%`;
+ for(const [id,label,value] of p.species==='human'?[['food','포만도',p.food],['water','수분',p.water]]:[['food','혈액',p.blood],['water','안정도',p.stability]]){
+  const amount=Math.max(0,Math.min(100,Number(value)||0)),wrap=$('field-'+id+'-wrap');
+  $('field-'+id+'-label').textContent=label;$('field-'+id+'-value').textContent=Math.ceil(amount);
+  $('field-'+id+'-bar').style.width=amount+'%';wrap.dataset.low=String(amount<=25);
+  wrap.setAttribute('aria-label',`${label} ${Math.ceil(amount)} / 100 · 생존 상태 열기`);
+  wrap.title=label+' '+Math.ceil(amount)+' / 100';
  }
  const maxXp=(p.combat_level||1)>=(state.map.max_combat_level||100)?1:(p.combat_level||1)*40;
  $('field-level').textContent=`Lv.${p.combat_level||1}`;$('field-exp-bar').style.width=`${Math.max(0,Math.min(100,((p.xp||0)/maxXp)*100))}%`;
  $('hud-exp-fill').style.width=$('field-exp-bar').style.width;
  $('hud-exp-label').textContent=`EXP ${p.xp||0} / ${(p.combat_level||1)>=(state.map.max_combat_level||100)?'MAX':maxXp}`;
  for(const button of document.querySelectorAll('.quick-items [data-item]')){const id=button.dataset.item,count=state.world.inventory[id]||0;button.querySelector('small').textContent=count;button.setAttribute('aria-label',`${state.items[id]} ${count}개 사용`);}
- $('field-vital').textContent=p.species==='human'?`포만 ${Math.ceil(p.food)} · 수분 ${Math.ceil(p.water)}`:`혈액 ${Math.ceil(p.blood)} · 안정 ${Math.ceil(p.stability)}`;
+
  $('field-bag').textContent=`가방 ${bagUsed()}/${bagCapacity()}`;
  const eqW=gearItem(state.world.equipment?.weapon),eqA=gearItem(state.world.equipment?.armor);
  $('field-equip').textContent=`⚔ ${eqW?itemName(eqW.id):'미착용'} · 🛡 ${eqA?itemName(eqA.id):'미착용'} · 총 장비 방어력 ${totalArmor()}`;
@@ -1068,6 +1069,29 @@ const SPECIAL_SKILL_ART=[
  '<path d="m12 17 7 5 5-12 5 12 7-5-3 17H15zM18 29h12"/>',
  '<path d="m26 9-11 16h9l-2 14 13-19h-9zM12 13l4 4m16 16 4 4"/>'
 ];
+const RANGED_SKILL_ART={
+ human:[
+ '<path d="M7 32 33 14l8 6-27 17zM17 30l5 5M22 26l5 5M27 22l5 5M8 13l7 3M5 21h8"/>',
+ '<path d="m28 6-15 20h12l-5 16 17-23H25zM5 30h6M37 9l5-4"/>',
+ '<path d="M19 14h10l6 10-6 14H18l-6-14zM21 8h9M27 8v6M9 9l4 5m25-1 4-4M7 34l5-3m23 5 5 4"/>',
+ '<path d="m13 32 17-17 5 5-17 17zM11 34l-5 7M29 11l9 9M19 22l6 6M10 12h10m-5-5v10"/>',
+ '<circle cx="24" cy="24" r="12"/><path d="M24 5v12m0 14v12M5 24h12m14 0h12m-15-22-8 8"/>',
+ '<path d="M10 24h9l5-15 5 15h9l-9 6 3 11-8-7-8 7 3-11zM5 7l6 6m26 0 6-6"/>',
+ '<path d="M14 32 31 9l8-2-1 9-20 21zM28 13l7 5M12 30l-6 1 5 6 2 5 5-6M8 40l-4 4"/>',
+ '<path d="M6 35 35 6l7 7-29 29zM13 28l7 7M18 23l7 7M23 18l7 7M5 18l11-3M30 42l3-11"/>'
+ ],
+ vampire:[
+ '<path d="M30 7 11 27l11-1-4 16 20-24-12 4zM5 11l6 3m26 20 6 3"/>',
+ '<circle cx="24" cy="24" r="10"/><path d="M13 8 6 16l7 8-7 8 7 8m22-32 7 8-7 8 7 8-7 8M24 16v16"/>',
+ '<circle cx="24" cy="24" r="11"/><path d="M24 4v7m0 26v7M4 24h7m26 0h7M8 8l6 6m20 20 6 6M24 17l-4 9h8z"/>',
+ '<path d="M24 6C19 17 11 24 12 30a12 12 0 0 0 24 0c0-6-8-13-12-24zM17 30h14m-7-7v14"/>',
+ '<path d="m38 6-7 17-6-2-17 21 12-26 6 3zM4 14l10 3m18 16 11 3"/>',
+ '<path d="m24 5 16 10v18l-16 10L8 33V15zM15 17v14m9-20v26m9-20v14M8 24h32"/>',
+ '<circle cx="24" cy="24" r="14"/><path d="M31 11a14 14 0 0 0 0 26M24 3v5m0 32v5M3 24h5m32 0h5"/>',
+ '<path d="m35 5-8 14 8 8-14 15-12-12 15-14zM8 7l9 9M4 18l10 3M30 39l8 4"/>'
+ ]
+};
+function skillIconStamp(id){return id?`${state.world.player.species}:${state.world.player.job||'warrior'}:${id}`:'';}
 function skillIconMarkup(id){
  const spec=activeSkillSpec(id);let art=SKILL_ART[id]||SKILL_ART.strike;
  if(spec?.requires_learning){
@@ -1075,16 +1099,20 @@ function skillIconMarkup(id){
   const frame=spec.species==='vampire'?(spec.job==='ranged'?'<path d="M38 8a21 21 0 1 0 0 32M39 16l-3 8 3 8"/>':'<path d="m4 8 4 7-4 25m40-32-4 7 4 25M13 42l11-3 11 3"/>'):(spec.job==='ranged'?'<path d="M4 15V4h11m18 0h11v11M4 33v11h11m18 0h11V33"/>':'<path d="M5 5h38v26L24 44 5 31z"/>');
   art=frame+(SPECIAL_SKILL_ART[rank]||SKILL_ART.strike);
  }
+ if(state.world.player.job==='ranged'){
+  const rank=spec?.requires_learning?[2,4,6,10,15,20,25,30].indexOf(spec.unlock_level):({sweep:2,recover:3,strike:0,ranged:4,purify:3,ultimate:6})[id];
+  art=RANGED_SKILL_ART[state.world.player.species]?.[rank]||art;
+ }
  return `<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${art}</svg>`;
 }
-function skillIcon(id){const icon=span('skill-art','');icon.dataset.icon=id;icon.innerHTML=skillIconMarkup(id);return icon;}
+function skillIcon(id){const icon=span('skill-art','');icon.dataset.icon=skillIconStamp(id);icon.innerHTML=skillIconMarkup(id);return icon;}
 function renderHotbarEditor(){
  if(!state||activePanel!=='skills')return;
  if(selectedAssignSkill&&!skillStatus(selectedAssignSkill).unlocked)selectedAssignSkill=null;
  for(const button of document.querySelectorAll('[data-assign-slot]')){
   const key=button.dataset.assignSlot,id=hotbarMap[key],spec=activeSkillSpec(id),name=id?skillNameFor(spec,state.world.player.species,state.world.player.job||'warrior'):'빈 슬롯';
   const icon=button.querySelector('.skill-art');
-  if(icon.dataset.icon!==(id||'')){icon.dataset.icon=id||'';icon.innerHTML=id?skillIconMarkup(id):'';}
+  if(icon.dataset.icon!==skillIconStamp(id)){icon.dataset.icon=skillIconStamp(id);icon.innerHTML=id?skillIconMarkup(id):'';}
   button.dataset.skill=id||'';
   button.setAttribute('aria-label',`${key}번 슬롯: ${name}. 선택한 스킬 배치`);
   button.setAttribute('aria-pressed',String(selectedAssignSlot===key));
@@ -1320,7 +1348,7 @@ function updateSkills(){
   const {reason,spec,mpCost,hpCost,unlocked,unlockLevel,levelMet,learned,bookCost,canLearn,effRange,remaining}=skillStatus(id);if(!spec)continue;
   const name=skillNameFor(spec,p.species,job);
   const glyph=el.querySelector?.('.skill-glyph');
-  if(glyph&&glyph.dataset.icon!==id){glyph.dataset.icon=id;glyph.innerHTML=skillIconMarkup(id);}
+  if(glyph&&glyph.dataset.icon!==skillIconStamp(id)){glyph.dataset.icon=skillIconStamp(id);glyph.innerHTML=skillIconMarkup(id);}
   el.setAttribute('aria-label',`${getSlotForSkill(id)}번 ${name}${reason?' · '+reason:''}`);
   const costText=isVamp?`HP ${hpCost} 소모`:`MP ${mpCost}`;
   const maskEl=el.querySelector?.('.skill-cd-mask');

@@ -43,7 +43,7 @@ class FieldArt extends GothicArt {
     // Fixed, bounded runtime mip level. Original artwork files remain intact.
     const h=Math.min(sh,['pine','dead-tree','refuge','ruin','settlements','wasteland'].includes(key)?640:320);
     raster=document.createElement('canvas');raster.height=h;raster.width=Math.ceil(h*sw/sh);
-    const g=raster.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(img,sx,sy,sw,sh,0,0,raster.width,raster.height);
+    const g=raster.getContext('2d');g.imageSmoothingQuality='high';if(key==='wasteland'&&(frame===4||frame===5))g.filter='brightness(1.28) saturate(1.16)';g.drawImage(img,sx,sy,sw,sh,0,0,raster.width,raster.height);
     this.rasters.set(id,raster);
    }
    source=raster;sourceRect=[0,0,raster.width,raster.height];
@@ -175,7 +175,7 @@ class FieldArt extends GothicArt {
    if(!tex){tex=document.createElement('canvas');tex.width=tex.height=384;tex.getContext('2d').drawImage(this.images.surfaces,...FIELD_SPRITES.surfaces.frames[frame],0,0,384,384);this.rasters.set(id,tex);}
    patterns[key]=g.createPattern(tex,'repeat');patterns[key].setTransform(new DOMMatrix().scale(repeat/384));
   }
-  g.fillStyle=patterns.earth;g.fillRect(x,y,w,h);g.fillStyle='#252b3228';g.fillRect(x,y,w,h);
+  g.fillStyle=patterns.earth;g.fillRect(x,y,w,h);g.fillStyle='#293a49a0';g.fillRect(x,y,w,h);
   for(const r of map.regions){
    const tint={outskirts:'#64606228',forest:'#26372d24',marsh:'#333d4328',works:'#48413d20'}[r.terrain||r.id]||r.color+'48';
    const gradient=g.createRadialGradient(r.x,r.y,3,r.x,r.y,r.radius);gradient.addColorStop(0,tint);gradient.addColorStop(1,tint.slice(0,7)+'00');g.fillStyle=gradient;g.fillRect(x,y,w,h);

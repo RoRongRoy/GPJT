@@ -12,3 +12,11 @@ sandbox.window.matchMedia=()=>({matches:true});const reduced=new Combat(before,a
 const empty=new Combat(before,before,'attack',100,2);assert.equal(empty.row,2);assert.equal(empty.hits.length,0);
 after.player.hp=68;after.enemies=before.enemies;const heal=new Combat(before,after,'recover',100);assert.equal(heal.heal,18);assert.equal(heal.hits.length,0);
 console.log('Combat presentation passed: confirmed hits, immutable snapshots, directional strike, reduced motion, empty swing facing, heal and effect expiration.');
+sandbox.window.matchMedia=()=>({matches:false});
+const gunBefore={player:{x:0,y:0,hp:100,species:'human',job:'ranged'},enemies:[{id:1,x:8,y:0,hp:100},{id:2,x:6,y:0,hp:100}]};
+const gunAfter=JSON.parse(JSON.stringify(gunBefore));gunAfter.enemies.forEach(e=>e.hp=70);
+const gun=new Combat(gunBefore,gunAfter,'ranged',0,0,{blast_radius:3});
+assert.equal(gun.targetDistance,Math.hypot(6*34,6*17));
+assert.ok(gun.body(260).x<0&&Math.abs(gun.body(260).x)<=2,'Ranged cast should recoil, not lunge');
+gun.draw(ctx,(x,y)=>[(x-y)*34,(x+y)*17],1,350);assert.equal(depth,0);
+console.log('Ranged presentation passed: nearest target distance, small recoil, target blast, balanced canvas state.');
