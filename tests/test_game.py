@@ -78,7 +78,7 @@ class GameTests(unittest.TestCase):
         self.action('gather', id='grove')
         with self.assertRaises(RuleError):
             self.action('gather', id='grove')
-        tick(self.w, 1); tick(self.w, 1); tick(self.w, 1)
+        self.w['elapsed'] = self.w['cooldowns'][node['id']]
         self.action('gather', id='grove')
 
     def test_species_food_rules(self):
@@ -99,12 +99,12 @@ class GameTests(unittest.TestCase):
     def test_dispatch_rewards_once(self):
         self.action('dispatch')
         before = self.w['inventory']['scroll']
-        for _ in range(61):
+        for _ in range(301):
             tick(self.w, 1)
         self.assertIsNone(self.w['dispatch'])
-        self.assertEqual(self.w['inventory']['scroll'], before+5)
+        self.assertEqual(self.w['inventory']['scroll'], before)
         tick(self.w, 1)
-        self.assertEqual(self.w['inventory']['scroll'], before+5)
+        self.assertEqual(self.w['inventory']['scroll'], before)
 
     def test_infection_rescue_preserves_assets(self):
         self.w['player']['infection'] = 100

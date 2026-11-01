@@ -437,7 +437,7 @@ function update() {
  }
  renderActivityLog();
  $('log').replaceChildren(...w.log.slice(0,5).map(t=>{const li=document.createElement('li');li.textContent=t;return li;}));
- $('quest-progress').textContent=`채집 ${Math.min(5,w.quest.collected)} / 5 · 완료 ${w.quest.round}회`;
+ $('quest-progress').textContent=`채집 ${Math.min(5,w.quest.collected)} / 5 · 완료 ${w.quest.round}회${(w.cooldowns['quest:resupply']||0)>w.elapsed?' · 재보고 '+Math.ceil(w.cooldowns['quest:resupply']-w.elapsed)+'초':''}`;
  $('dispatch-cost').textContent=p.species==='human'?'파견 비용 · 작물 1':'파견 비용 · 원혈 1';
  $('dispatch').textContent=w.dispatch?`파견 복귀까지 ${Math.ceil(w.dispatch.ends-w.elapsed)}초`:'파견 대기 · 완료 시 자원 자동 보관';
  const tier=Math.min(1,p.unlocks[p.species]),mobility=state.map.mobility?.[p.species],forms=mobility?.forms||(p.species==='human'?['정찰 오토바이','장갑 험비']:['혈익 박쥐','거대 혈익 박쥐']);
@@ -972,7 +972,7 @@ const shopCatalog={
   {item:'wood',name:'벌목 목재',price:3,desc:'건축 자재 · 시설 건설 및 개선'},
   {item:'metal',name:'정밀 부품',price:4,desc:'기계 부품 · 시설 및 연구'},
   {item:'medicine',name:'치료제',price:15,desc:'공용 소모품 · 체력 +40 · 감염 −60'},
-  {item:'scroll',name:'강화 주문서',price:25,desc:'강화 재료 · 선택 장비의 공격력/방어력 강화'},
+  {item:'scroll',name:'강화 주문서',price:800,desc:'강화 재료 · 선택 장비의 공격력/방어력 강화'},
  ],
  vampire:[
   {item:'elixir',name:'안정화 혈액',price:36,desc:'혈족 소모품 · 혈액량 +40 · 안정도 +45'},
@@ -981,7 +981,7 @@ const shopCatalog={
   {item:'wood',name:'벌목 목재',price:3,desc:'건축 자재 · 시설 건설 및 개선'},
   {item:'metal',name:'정밀 부품',price:4,desc:'기계 부품 · 시설 및 연구'},
   {item:'medicine',name:'치료제',price:15,desc:'공용 소모품 · 체력 +40 · 감염 −60'},
-  {item:'scroll',name:'강화 주문서',price:25,desc:'강화 재료 · 선택 장비의 공격력/방어력 강화'},
+  {item:'scroll',name:'강화 주문서',price:800,desc:'강화 재료 · 선택 장비의 공격력/방어력 강화'},
  ]
 };
 for(const catalog of Object.values(shopCatalog))catalog.push({item:'shop_weapon',name:'민병대 무기',price:120,desc:'일반 무기 · 공격력 +4'},{item:'shop_armor',name:'민병대 방호복',price:100,desc:'일반 상의 · 방어력 +2'});
@@ -1434,10 +1434,10 @@ function renderRecipe(){
  if(choicesKey!==recipeChoicesKey){recipeChoicesKey=choicesKey;$('recipe-choices').replaceChildren(...choices.map(([id,r])=>{const button=document.createElement('button');button.type='button';button.dataset.craft=id;button.textContent=r.name;button.onclick=()=>{selectedRecipe=id;renderRecipe();};return button;}));}
  document.querySelectorAll('[data-craft]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.craft===selectedRecipe)));
  const recipe=state.recipes[selectedRecipe],w=state.world,level=w.base?.facilities?.[recipe.facility]||0;
- const amount=(recipe.amount||1)+Math.max(0,level-1);
+ const amount=(recipe.amount||1)+(recipe.fixed_yield?0:Math.max(0,level-1));
  const [icon,effect]=recipeDetails[selectedRecipe]||['⚒',recipe.gear_slot?`${state.rarities[recipe.rarity||'normal'].name} 장비 · 능력치 +${recipe.power+Math.max(0,level-1)} · 착용 Lv.${recipe.min_level||1}`:`${state.items[recipe.output]} ${amount}개 생산`];
  const remaining=Math.max(0,Math.ceil((w.cooldowns['craft:'+selectedRecipe]||0)-w.elapsed));
- $('recipe-icon').textContent=icon;$('recipe-name').textContent=recipe.name;$('recipe-facility').textContent=facilityNames[recipe.facility]+' Lv.'+(recipe.level||1);$('recipe-effect').textContent=effect+' · 시설 개선 시 생산량/장비 능력치 증가';$('craft-submit').textContent=recipe.gear_slot?'장비 제작':amount+'개 제작';
+ $('recipe-icon').textContent=icon;$('recipe-name').textContent=recipe.name;$('recipe-facility').textContent=facilityNames[recipe.facility]+' Lv.'+(recipe.level||1);$('recipe-effect').textContent=effect+(recipe.fixed_yield?' · 주문서 생산량 고정':' · 시설 개선 시 생산량/장비 능력치 증가');$('craft-submit').textContent=recipe.gear_slot?'장비 제작':amount+'개 제작';
  let enough=true;
  $('recipe-cost').replaceChildren(...Object.entries(recipe.cost).map(([id,amount])=>{
   const have=w.inventory[id]||0,row=document.createElement('div');row.className='recipe-cost-row';

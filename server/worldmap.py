@@ -413,3 +413,12 @@ WORLD_MAP['survival_drain']=DRAIN
 
 from .mobility import MOBILITY
 WORLD_MAP['mobility']=MOBILITY
+
+# Scavenging now rewards exploration rather than standing on a fast refill node.
+for node in POIS:
+    if node['kind']=='npc':continue
+    if node.get('loot'):
+        node['loot']={key:max(1,(amount+1)//2) for key,amount in node['loot'].items()}
+    elif node['kind'] in ('wood','metal'):
+        node['loot']={node['kind']:2}
+    node['seconds']=max(node.get('seconds',0),300 if node.get('site_type') else 180)

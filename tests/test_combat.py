@@ -36,7 +36,7 @@ class CombatTests(unittest.TestCase):
         for drop in list(self.w['drops']):
             self.w['player'].update(x=drop['x'], y=drop['y'])
             self.action(action='loot', id=drop['id'])
-        self.assertEqual(self.w['inventory']['scroll'], before['inventory']['scroll']+6)
+        self.assertEqual(self.w['inventory']['scroll'], before['inventory']['scroll'])
         loot = self.w['inventory'].copy()
         self.w['elapsed'] += 6
         self.action(action='attack')  # Empty swing is allowed; no duplicate loot.

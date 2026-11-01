@@ -153,13 +153,11 @@ class WorldView {
       c.fillStyle='rgba(190,178,160,'+(0.3*(1-k)).toFixed(3)+')';c.beginPath();c.ellipse(tx+q.dx*scale*(1+k*2),ty-8*k*scale,(3+k*5)*scale,(1.6+k*2.5)*scale,0,0,Math.PI*2);c.fill();
      }
     }
-    // Crisp 2D walk cadence: subtle vertical step bounce synced with stride, zero canvas tilt/stretch to keep authentic 2D sprite art sharp
-    let walkY=0;
-    if(activeMove&&!p.mounted&&!this.combat){
-     walkY=-Math.abs(Math.sin(normal.phase))*(1.4+lc.run*.8);
-    }
+    const walkY=0;
+    // The walk sheet already lifts each foot; lifting the entire sprite makes it skate.
+    // Keep feet on the plane and let the distance-driven frames provide the stride.
     const body=this.combat?.body(now)||{x:0,y:walkY,tilt:0};
-   if(activeMove){
+   if(activeMove&&sprinting){
     c.save();
     // Footstep dust puffs & sprint shockwave / speed lines
     for(let i=0;i<(sprinting?4:2);i++){
@@ -178,8 +176,10 @@ class WorldView {
      }
      c.restore();
    }
+   // Feet can animate; their ground contact never bobs or recoils with the body.
+   art.shadow(sx,sy,p.mounted?(p.unlocks[p.species]>0?34:22):15,scale);
    c.save();c.translate(sx+(body.x||0)*scale,sy+(body.y||0)*scale);if(body.tilt)c.rotate(body.tilt);
-   art.character(0,0,scale,p.species,activeMove,now,{mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose,gender:p.gender||'male',job:p.job||'warrior'});
+   art.character(0,0,scale,p.species,activeMove,now,{groundShadow:true,mounted:p.mounted,tier:p.unlocks[p.species],sprint:sprinting,pose,gender:p.gender||'male',job:p.job||'warrior'});
    c.restore();
   };
   const poly=(points,color)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle=color;c.fill();};
@@ -261,10 +261,10 @@ class WorldView {
    const [sx,sy]=project(e.x,e.y),near=Math.hypot(p.x-e.x,p.y-e.y);
    if(sx < -150*scale || sx > width+150*scale || sy < -40*scale || sy > height+290*scale)continue;
    const [px,py]=project(this.player.x,this.player.y);
-   const tall=['base','ruin','town_building','town_tower','theme_prop','town_monument'].includes(e.type),treeLike=e.type==='tree'||e.kind==='wood';
-   const occludes=(tall||treeLike||e.type==='facility'||['water','metal','blood'].includes(e.kind))&&Math.abs(px-sx)<(tall?95:treeLike?60:35)*scale&&py<sy+(tall?36:5)*scale&&py>sy-(tall?260:treeLike?205:95)*scale;
+   const tall=['urban','base','ruin','town_building','town_tower','theme_prop','town_monument'].includes(e.type),treeLike=e.type==='tree'||e.kind==='wood';
+   const occludes=e.x+e.y>this.player.x+this.player.y&&(tall||treeLike||e.type==='facility'||['water','metal','blood'].includes(e.kind))&&Math.abs(px-sx)<(tall?95:treeLike?60:35)*scale&&py-38*scale<sy&&py-38*scale>sy-(tall?200:treeLike?180:95)*scale;
    if(occludes&&e.x+e.y>=this.player.x+this.player.y)playerCovered=true;
-   c.globalAlpha=occludes?.48:1;
+   c.globalAlpha=occludes?.68:1;
    if(e.type==='theme_prop'&&this.themes){this.themes.draw(sx,sy,scale*.65,e.model,e.faction,Math.floor((e.seed||0)*7));c.globalAlpha=1;continue;}
    if(e.type==='tree'){tree(e.x,e.y,e.seed);c.globalAlpha=1;continue;}
    if(e.type==='lantern'){art.lantern(sx,sy,scale);c.globalAlpha=1;continue;}
@@ -422,9 +422,10 @@ class WorldView {
     this.points.push({x:sx,y:sy-23*scale,id:'enemy:'+e.id,left:sx-29*scale,right:sx+29*scale,top:sy-95*scale,bottom:sy+10*scale,isFriendly});
    }
    if(e.type==='peer'){
-    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=pose.moving&&!e.mounted?-Math.abs(Math.sin(pose.phase))*1.6*scale:0;
+    const pose=art.pose('peer:'+e.id,e.x,e.y,now,w.paused),pBob=0;
     c.strokeStyle='#6bc5e8aa';c.lineWidth=1.4;c.beginPath();c.ellipse(sx,sy+2*scale,15*scale,7*scale,0,0,Math.PI*2);c.stroke();
-    art.character(sx,sy+pBob,scale,e.species,pose.moving,now,{mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose,gender:e.gender||'male',job:e.job||'warrior'});
+    art.shadow(sx,sy,e.mounted?(e.unlocks?.[e.species]>0?34:22):15,scale);
+    art.character(sx,sy+pBob,scale,e.species,pose.moving,now,{groundShadow:true,mounted:e.mounted,tier:e.unlocks?.[e.species]||0,pose,gender:e.gender||'male',job:e.job||'warrior'});
     c.fillStyle='#151c29';c.fillRect(sx-16*scale,sy-96*scale,32*scale,4*scale);
     c.fillStyle='#5bc0eb';c.fillRect(sx-16*scale,sy-96*scale,32*scale*Math.min(1,Math.max(0,e.hp||0)/100),4*scale);
     labels.push([`${e.name||'생존자'} · Lv.${e.combat_level||1}`,sx,sy-108*scale,'#9ee4ff']);

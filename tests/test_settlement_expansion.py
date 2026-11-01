@@ -34,7 +34,7 @@ class SettlementExpansionTests(unittest.TestCase):
                     self.assertEqual(w['gear'][-1]['slot'],spec['gear_slot'])
                     act(w,{'action':'equip','item':w['gear'][-1]['id']})
                 else:
-                    out=spec.get('output',key);self.assertEqual(w['inventory'][out],before['inventory'][out]+spec.get('amount',1)+spec.get('level',1)-1-spec['cost'].get(out,0))
+                    out=spec.get('output',key);self.assertEqual(w['inventory'][out],before['inventory'][out]+spec.get('amount',1)+(0 if spec.get('fixed_yield') else spec.get('level',1)-1)-spec['cost'].get(out,0))
                 if spec.get('seconds'):
                     saved=copy.deepcopy(w)
                     with self.assertRaises(RuleError):act(w,{'action':'craft','recipe':key})
@@ -82,7 +82,7 @@ class SettlementExpansionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             store=Store(Path(d)/'world.sqlite3');store.save(w);self.assertEqual(store.load(),w);store.close()
         w['inventory']={k:0 for k in ITEMS};w['player']['combat_level']=1;w['inventory']['wood']=159
-        w['player'].update(x=node['x'],y=node['y']);w['elapsed']+=100
+        w['player'].update(x=node['x'],y=node['y']);w['elapsed']=w['cooldowns'][node['id']]
         act(w,{'action':'gather','id':node['id']})
         self.assertEqual(sum(v for k,v in w['inventory'].items() if k!='gold'),160)
 

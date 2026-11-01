@@ -36,6 +36,12 @@ class FieldArt extends GothicArt {
   const c=this.c,img=this.images[key],rect=FIELD_SPRITES[key].frames[frame], [sx,sy,sw,sh]=rect;
   const sheet=FIELD_SPRITES[key],fixed=sheet.ref&&rect.length>4,k=fixed?height/sheet.ref:0; // Character sheets: one scale for every frame and a torso anchor, so frames never pop in size or sway.
    const width=fixed?sw*k:height*sw/sh,drawHeight=fixed?sh*k:height,left=fixed?-rect[4]*k:-width/2;
+  // Contact belongs at the base of the artwork, not at canopy/roof height.
+  if(['settlements','wasteland','salvage'].includes(key)){
+   const narrow=key==='wasteland'&&[4,5,7].includes(frame);
+   const radius=narrow?Math.min(width*.16,14*height/180):width*.43;
+   this.contact(x,y+bottom-2,radius,narrow?radius*.3:Math.min(radius*.3,height*.08));
+  }
   let source=img,sourceRect=[sx,sy,sw,sh];
   if(typeof document!=='undefined'){
    const id=key+':'+frame;let raster=this.rasters.get(id);
@@ -52,7 +58,13 @@ class FieldArt extends GothicArt {
   c.imageSmoothingEnabled=true;c.imageSmoothingQuality='low';
   c.drawImage(source,...sourceRect,left,-drawHeight,width,drawHeight);c.restore();return true;
  }
- shadow(x,y,width,scale){this.oval(x+4*scale,y+3*scale,width*scale,width*.34*scale,'#070b1080');}
+ contact(x,y,rx,ry){
+  // Layered soft edges work in both the canvas renderer and loading fallback.
+  this.oval(x,y,rx*1.12,ry*1.15,'#080b1015');
+  this.oval(x,y,rx,ry,'#080b1028');
+  this.oval(x,y,rx*.78,ry*.7,'#080b1045');
+ }
+ shadow(x,y,width,scale){this.contact(x,y+scale,width*scale,width*.25*scale);}
  tree(x,y,scale,seed=.7){
   const frame=seed>.45?5:4;
   if(this.sprite('wasteland',x,y,(seed>.45?205:190)*(.88+seed*.18)*scale,frame,seed<.22))return;
@@ -79,7 +91,8 @@ class FieldArt extends GothicArt {
    const right=a.vx-a.vy>=0,front=a.vx+a.vy>=0;
    a.row=front?(right?0:1):(right?3:2);a.until=now+80;
    a.dist+=step;
-   a.phase=(a.phase+step/(sprint?.9:.85)*Math.PI/2)%(Math.PI*2);
+   const screenTravel=Math.hypot((dx-dy)*34,(dx+dy)*17);
+   a.phase=(a.phase+screenTravel/(sprint?90:72)*Math.PI*2)%(Math.PI*2);
   }
   a.x=x;a.y=y;a.time=now;
   const moving=!stopped&&now<a.until;
@@ -101,7 +114,7 @@ class FieldArt extends GothicArt {
    const model=vamp?(upgraded?3:2):(upgraded?1:0),height=[112,125,83,132][model]*scale;
    // Bike back views share a silhouette; mirror NW. Humvee rear views swap columns.
    const direction=!vamp&&upgraded&&row>=2?(row===2?3:2):row;
-   this.shadow(x,y,upgraded?34:22,scale);
+   if(!options.groundShadow)this.shadow(x,y,upgraded?34:22,scale);
    const c=this.c;c.save();c.translate(x,y-(vamp?16*scale:0)+bob*scale);
    if(vamp&&!reduced){const wing=Math.sin(phase)*.035;c.scale(1+wing,1-wing);}
    this.sprite('mounts',0,0,height,model*4+direction,!vamp&&!upgraded&&row===2);
@@ -113,7 +126,7 @@ class FieldArt extends GothicArt {
   const repeated=['human','human-male','ghoul'].includes(key)&&pose.row>=2;
   const mirror=repeated&&pose.row===2;
   const row=repeated?2:pose.row,h=(key==='grave-hound'?76:key==='iron-revenant'?105:key==='brute'?89:key==='ghoul'?78:87)*scale;
-  this.shadow(x,y,options.enemy?18:15,scale);
+  if(!options.groundShadow)this.shadow(x,y,options.enemy?18:15,scale);
   if(!this.sprite(key,x,y,h,row*4+pose.frame,mirror))return super.character(x,y,scale,species,moving,now,options);
   if(!options.enemy&&!options.npc){
    const dir=(pose.row===0||pose.row===3)?1:-1,vamp=species==='vampire',ranged=options.job==='ranged',female=options.gender==='female';
@@ -215,8 +228,17 @@ class FieldArt extends GothicArt {
    if(town.x+13<x||town.x-13>x+w||town.y+13<y||town.y-13>y+h)continue;
    g.save();g.translate(town.x,town.y);
    g.fillStyle=town.faction==='human'?(patterns.asphalt||patterns.stone):(patterns.slate||patterns.stone);
-   g.fillRect(-12,-12,24,24);
-   g.strokeStyle='#121516';g.lineWidth=.3;g.strokeRect(-11.7,-11.7,23.4,23.4);
+   for(let ring=3;ring>=1;ring--){
+    g.globalAlpha=.12+(3-ring)*.13;g.fillRect(-12-ring*.5,-12-ring*.5,24+ring,24+ring);
+   }
+   g.globalAlpha=1;g.fillRect(-12,-12,24,24);
+   g.fillStyle=patterns.earth;
+   for(let n=-12;n<12;n+=.8){
+    const inset=.12+Math.abs(Math.sin(n*7.7))*.35;
+    g.globalAlpha=.3;g.fillRect(n,-12,.6,inset);g.fillRect(n,12-inset,.6,inset);
+    g.fillRect(-12,n,inset,.6);g.fillRect(12-inset,n,inset,.6);
+   }
+   g.globalAlpha=1;
    g.fillStyle=patterns.stone;g.fillRect(-2.3,-12,4.6,24);g.fillRect(-12,-2.3,24,4.6);g.fillRect(-4.5,-4.5,9,9);
    g.strokeStyle=town.faction==='human'?'#7d705450':'#8b7a6840';g.lineWidth=.075;
    for(const n of [-2.4,2.4]){g.beginPath();g.moveTo(n,-12);g.lineTo(n,12);g.moveTo(-12,n);g.lineTo(12,n);g.stroke();}

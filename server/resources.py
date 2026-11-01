@@ -42,8 +42,8 @@ def extra_drop(enemy, roll):
     if level>=15: pool+=['silver','sulfur','alloy','thread','essence','blessed_ink','moon_shard','bloodstone','weapon_scroll','armor_scroll']
     if level>=35: pool+=['crystal','mutagen','sunstone','blessing_crystal','blessed_scroll']
     if level>=60:pool+=['obsidian','ancient_core']
-    if roll>=.25:return {}
-    return {pool[min(len(pool)-1,int(roll/.25*len(pool)))]:1}
+    if roll>=.12:return {}
+    return {pool[min(len(pool)-1,int(roll/.12*len(pool)))]:1}
 
 
 def facility_cost(spec, level):

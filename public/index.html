@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261101-city1"><style>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261101-ground1"><style>
  .welcome-quick-resume{background:rgba(217,79,112,0.15);border:1px solid rgba(217,79,112,0.45);border-radius:6px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
  .welcome-quick-resume strong{color:#ffcfd9;font-size:12.5px;display:block}
  .welcome-quick-resume strong .highlight{color:#ff5277;font-weight:bold}
@@ -251,7 +251,7 @@
    </div>
   </section>
   <section data-view="guide" hidden><div class="guide-progress"><span class="eyebrow">FIRST NIGHT</span><span id="objective-count">0 / 5</span></div><h3 id="objective">종족을 선택하세요</h3><p id="objective-detail"></p><div id="objective-steps"></div><p class="panel-note">진행 상황은 자동 저장됩니다.</p></section>
-  <section data-view="quests" hidden><div class="feature-symbol">◇</div><h3>작은 도움, 다음 하루</h3><p class="muted">자원을 5번 채집하고 가까운 보급관이나 연금사를 찾아가세요.</p><div id="quest-progress"></div><div class="reward-card">주문서 <strong>10</strong> · 치료제 <strong>1</strong></div><button class="wide accent" data-action="quest">근처 NPC에게 의뢰 보고</button></section>
+  <section data-view="quests" hidden><div class="feature-symbol">◇</div><h3>작은 도움, 다음 하루</h3><p class="muted">자원을 5번 채집하고 가까운 보급관이나 연금사를 찾아가세요.</p><div id="quest-progress"></div><div class="reward-card">주문서 <strong>1</strong> (재보고 10분) · 치료제 <strong>1</strong></div><button class="wide accent" data-action="quest">근처 NPC에게 의뢰 보고</button></section>
   <section data-view="log" hidden><ol id="log"></ol></section>
   <section data-view="travel" hidden><details class="travel-card" open><summary>저렙 / 고렙 사냥터 구분 및 몬스터 정보</summary><p><strong>[저렙 지역]</strong> 버려진 외곽 (Lv.1–5 · 배회하는 감염자)<br><strong>[중저렙 지역]</strong> 잿빛 소나무숲 (Lv.1–12 · 숲의 포식자)<br><strong>[고렙 위험지역]</strong> 안개 저지대 (Lv.13–20 · 맹독 늪지 변이체)<br><strong>[최상위 고렙지역]</strong> 침묵의 공업지대 (Lv.21–30 · 심연의 철갑 파괴자)</p><p>고렙 지역의 몬스터는 체력과 공격력이 대폭 강화되어 있으며, 높은 티어(T2~T8)의 일반~전설 장비와 추가 보급품을 드랍합니다.</p></details>
    <button id="travel-home" class="category-card"><span class="category-icon">⌂</span><strong>아지트로 돌아가기</strong><small>현재 아지트까지 걸어갑니다.</small><span class="category-arrow">→</span></button>
@@ -275,7 +275,7 @@
   </section>
   <section data-view="build" hidden><label>시설 분류 <select id="build-category"><option value="">전체</option><option>생활</option><option>장비</option><option>생산</option><option>연구</option></select></label><div id="facilities"></div><p class="panel-note">시설 13종 · 일반 시설 최대 Lv.3, 이동수단 시설 Lv.1. 개선하면 생산량 또는 제작 장비 능력치가 증가합니다. 저장고는 레벨당 가방 용량이 50 증가합니다.</p></section>
   <section data-view="research" hidden><label>강화할 장비 <select id="enhancement-gear"></select></label><p id="enhancement-preview" class="muted"></p><label>강화 보조 재료 (1개 소모) <select id="enhancement-catalyst"><option value="">사용 안 함</option></select></label><p class="muted">강화 주문서와 함께 사용하면 성공 확률이 증가합니다. 실패해도 강화 단계는 유지됩니다.</p><div class="category-grid"><button data-action="enhance" class="category-card"><span class="category-icon">✧</span><strong>장비 강화</strong><small>선택한 장비 강화 · 단계별 개별 저장</small></button><button id="mount-upgrade" data-action="research" class="category-card"><span class="category-icon">⌁</span><strong id="mount-upgrade-name">이동수단 업그레이드</strong><small id="mount-upgrade-description">전용 시설 건설 후 2단계 해금</small></button><button data-action="convert" class="category-card"><span class="category-icon">☾</span><strong>종족 전환 / 복귀</strong><small>의료실 필요 · 약초 2 · 식수 1</small></button></div></section>
-  <section data-view="dispatch" hidden><div class="feature-symbol">⚑</div><h3>다음 하루를 위한 보급</h3><p class="muted">동료 또는 종복이 월드 활동 시간 60초 동안 물자를 모읍니다.</p><p id="dispatch"></p><div class="reward-card">목재 5 · 부품 3 · 주문서 5<br>원혈 3 · 작물 3</div><p id="dispatch-cost" class="muted"></p><button class="wide accent" data-action="dispatch">파견 보내기</button></section>
+  <section data-view="dispatch" hidden><div class="feature-symbol">⚑</div><h3>다음 하루를 위한 보급</h3><p class="muted">동료 또는 종복이 월드 활동 시간 300초 동안 물자를 모읍니다.</p><p id="dispatch"></p><div class="reward-card">목재 2 · 부품 1<br>원혈 1 · 작물 1 · 주문서 없음</div><p id="dispatch-cost" class="muted"></p><button class="wide accent" data-action="dispatch">파견 보내기</button></section>
   <section data-view="account" hidden>
    <div id="account-status-card" class="equip-stats-box">
     <strong id="account-current-title">신규 모험자 (미저장 상태)</strong>
@@ -349,5 +349,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261101-city1"></script><script src="/sprites.js?v=20261101-city1"></script><script src="/combat.js?v=20261101-city1"></script><script src="/themes.js?v=20261101-city1"></script><script src="/world.js?v=20261101-city1"></script><script src="/app.js?v=20261101-city1" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261101-ground1"></script><script src="/sprites.js?v=20261101-ground1"></script><script src="/combat.js?v=20261101-ground1"></script><script src="/themes.js?v=20261101-ground1"></script><script src="/world.js?v=20261101-ground1"></script><script src="/app.js?v=20261101-ground1" type="module"></script>
 </body></html>

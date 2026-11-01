@@ -99,3 +99,8 @@ for key,amount,seconds in [('grow_crop',2,120),('purify_water',3,120),('culture_
 FACILITY_SPECS['mobility']=dict(name='이동수단 훈련소',category='연구',description='2단계 이동수단 개조·진화',prop='metal',offset=[0,-5],cost={'wood':10,'metal':8,'bolts':3},max_level=1)
 
 EXTRA_RECIPES.pop('restore_skillbook',None)  # Learning now requires a named monster-dropped book.
+
+# Combat components, a developed archive and a cooldown gate scroll production.
+EXTRA_RECIPES['restore_scroll'].update(level=2,cost={'arcane_dust':4,'blessed_ink':2,'gold':100},seconds=300,fixed_yield=True)
+for key,amount in [('weapon_scroll',1),('armor_scroll',1),('blessed_scroll',3)]:
+    EXTRA_RECIPES['decode_'+key].update(amount=amount,seconds=120,fixed_yield=True)

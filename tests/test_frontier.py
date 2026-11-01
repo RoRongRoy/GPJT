@@ -58,9 +58,9 @@ class FrontierTests(unittest.TestCase):
             w=self.world();e=w['enemies'][i]
             self.assertTrue(31<=e['level']<=100)
             self.assertTrue(e['materials'])
-            damage_enemy(w,e,e['hp'],lambda:.99)
+            damage_enemy(w,e,e['hp'],lambda:.2)
             for item,amount in e['materials'].items():
-                self.assertEqual(w['drops'][-1]['items'][item],amount)
+                self.assertEqual(w['drops'][-1]['items'][item],1)
                 materials.add(item)
         self.assertEqual(materials,set(MATERIALS)-{'alloy','thread','essence','blessed_ink'})
 

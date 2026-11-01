@@ -39,7 +39,7 @@ SHOP_BUY_CATALOG = {
         {'item': 'wood', 'name': '벌목 목재', 'price': 3, 'desc': '건축 자재 · 시설 건설 및 개선'},
         {'item': 'metal', 'name': '정밀 부품', 'price': 4, 'desc': '기계 부품 · 시설 및 연구'},
         {'item': 'medicine', 'name': '치료제', 'price': 15, 'desc': '공용 소모품 · 체력 +40 · 감염 −60'},
-        {'item': 'scroll', 'name': '강화 주문서', 'price': 25, 'desc': '강화 재료 · 선택 장비의 공격력/방어력 강화'},
+        {'item': 'scroll', 'name': '강화 주문서', 'price': 800, 'desc': '강화 재료 · 선택 장비의 공격력/방어력 강화'},
         {'item': 'skillbook', 'name': '고대 스킬북', 'price': 80, 'desc': '비전서 · 상위 직업 스킬 해금'},
     ],
     'vampire': [
@@ -49,7 +49,7 @@ SHOP_BUY_CATALOG = {
         {'item': 'wood', 'name': '벌목 목재', 'price': 3, 'desc': '건축 자재 · 시설 건설 및 개선'},
         {'item': 'metal', 'name': '정밀 부품', 'price': 4, 'desc': '기계 부품 · 시설 및 연구'},
         {'item': 'medicine', 'name': '치료제', 'price': 15, 'desc': '공용 소모품 · 체력 +40 · 감염 −60'},
-        {'item': 'scroll', 'name': '강화 주문서', 'price': 25, 'desc': '강화 재료 · 선택 장비의 공격력/방어력 강화'},
+        {'item': 'scroll', 'name': '강화 주문서', 'price': 800, 'desc': '강화 재료 · 선택 장비의 공격력/방어력 강화'},
         {'item': 'skillbook', 'name': '고대 스킬북', 'price': 80, 'desc': '비전서 · 상위 직업 스킬 해금'},
     ],
 }
@@ -456,11 +456,16 @@ def damage_enemy(w, enemy, damage, rng=random.random):
     if enemy['hp'] == 0:
         enemy['respawn'] = w['elapsed'] + 45
         tier_bonus = max(0, (enemy.get('level', 1) - 1) // 3)
-        scroll_drop = 3 + (2 if enemy.get('level', 1) >= 8 else 0)
-        metal_drop = 2 + tier_bonus
-        drop_items = {'scroll': scroll_drop, 'iron_fragment': metal_drop, 'gold': 4 + enemy.get('level', 1) * 2}
-        drop_items.update({k:v for k,v in enemy.get('materials', {}).items() if k in DROP_ITEMS})
+        level = enemy.get('level', 1)
+        drop_items = {'gold': 4 + min(36, level // 2)}
         med_roll = rng()
+        # One scroll at 3% below Lv.35, 4% below Lv.60, 5% thereafter.
+        if med_roll < (.03 if level < 35 else .04 if level < 60 else .05):
+            drop_items['scroll'] = 1
+        if med_roll < .45:
+            drop_items['iron_fragment'] = 1
+        if med_roll < .35:
+            drop_items.update({k:min(v,1) for k,v in enemy.get('materials', {}).items() if k in DROP_ITEMS})
         if tier_bonus >= 1 and med_roll < .05:
             drop_items['elixir'] = 1
         for key, amount in extra_drop(enemy, med_roll).items():
@@ -504,7 +509,7 @@ def new_world():
                        'unlocks': {'human': 0, 'vampire': 0}},
             'base': {'x': START_BASE[0], 'y': START_BASE[1], 'facilities': dict.fromkeys(FACILITIES, 0)},
             'inventory': {'wood': 12, 'water': 4, 'crop': 4, 'herb': 8, 'blood': 3,
-                          'metal': 6, 'scroll': 15, 'skillbook': 0, 'soup': 1, 'elixir': 1, 'medicine': 1, 'gold': 50, **dict.fromkeys(MATERIALS, 0)},
+                          'metal': 6, 'scroll': 3, 'skillbook': 0, 'soup': 1, 'elixir': 1, 'medicine': 1, 'gold': 50, **dict.fromkeys(MATERIALS, 0)},
             'gear': [], 'equipment': {'weapon': None, 'armor': None}, 'next_gear_id': 1,
             'npcs': new_npcs(), 'encounter_version': 1,
             'milestones': [], 'cooldowns': {}, 'dispatch': None, 'quest': {'collected': 0, 'round': 0},
@@ -743,7 +748,7 @@ def _act(w, command, rng=random.random):
         level = w['base']['facilities'].get(recipe['facility'], 0)
         require(level >= recipe.get('level', 1), '필요한 시설 레벨을 먼저 건설·개선하세요.')
         require(all(w['inventory'].get(k, 0) >= v for k,v in recipe['cost'].items()), '재료가 부족합니다.')
-        amount = recipe.get('amount', 1) + level - 1
+        amount = recipe.get('amount', 1) + (0 if recipe.get('fixed_yield') else level - 1)
         used_after = bag_used(w) - sum(v for k,v in recipe['cost'].items() if k != 'gold')
         require(used_after + (4 if recipe.get('gear_slot') else amount) <= bag_capacity(w), '인벤토리가 가득 찼습니다.')
         if recipe.get('gear_slot'):
@@ -918,17 +923,18 @@ def _act(w, command, rng=random.random):
     elif action == 'quest':
         require(any(n['kind'] == 'npc' and dist(p, n) <= 2.5 for n in live_pois(w)), '진영 NPC 가까이 가세요.')
         require(w['quest']['collected'] >= 5, '자원 채집을 5회 완료하세요.')
+        cooldown(w, 'quest:resupply', 600)
         w['quest']['collected'] -= 5
         w['quest']['round'] += 1
-        w['inventory']['scroll'] += 10
+        w['inventory']['scroll'] += 1
         w['inventory']['medicine'] += 1
-        note(w, '보급 의뢰 완료 · 주문서 +10 · 치료제 +1')
+        note(w, '보급 의뢰 완료 · 주문서 +1 · 치료제 +1 · 재보고 10분')
     elif action == 'dispatch':
         at_base(w)
         require(w['dispatch'] is None, '이미 파견 중입니다.')
         spend(w, {'crop' if p['species'] == 'human' else 'blood': 1})
-        w['dispatch'] = {'ends': w['elapsed'] + 60, 'species': p['species']}
-        note(w, '동료/종복 파견 · 월드 활동 시간 60초')
+        w['dispatch'] = {'ends': w['elapsed'] + 300, 'species': p['species']}
+        note(w, '동료/종복 파견 · 월드 활동 시간 300초')
     elif action == 'convert':
         at_base(w)
         require(not threat(w), '안전한 곳에서 전환하세요.')
@@ -1035,7 +1041,7 @@ def _tick_actor(w, prof, dt):
     if p['infection'] > 0:
         p['infection'] = min(100, p['infection'] + dt * .025)
     if prof.get('dispatch') and w['elapsed'] >= prof['dispatch']['ends']:
-        for key, value in {'wood': 5, 'metal': 3, 'scroll': 5, 'blood': 1, 'crop': 1}.items():
+        for key, value in {'wood': 2, 'metal': 1, 'blood': 1, 'crop': 1}.items():
             prof['inventory'][key] += value
         prof['dispatch'] = None
         note(prof, '파견 복귀 · 자원을 창고에 보관했습니다.')
