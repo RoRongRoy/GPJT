@@ -64,7 +64,19 @@ console.log('Monster atlases passed: hound and sentinel use all 16 directional f
 
 for(const species of ['human','vampire'])for(const tier of [0,1,2])for(let row=0;row<4;row++){
  draws=[];art.character(10,10,1,species,true,300,{mounted:true,tier,pose:{row,frame:1,phase:1}});
- const model=species==='human'?(tier?1:0):(tier?3:2),direction=species==='human'&&tier&&row>=2?(row===2?3:2):row;
+ const model=species==='human'?(tier?1:0):(tier?3:2),direction=(species==='vampire'||tier)&&row>=2?(row===2?3:2):row;
  assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest.mounts.frames[model*4+direction]));
 }
 console.log('Mount artwork passed: four forms, four directions, legacy top-tier appearance.');
+
+// World-space NW/NE input must pick the matching rear bat artwork, not its opposite.
+for(const [dx,dy,basic,giant] of [[-1,0,11,15],[0,-1,10,14]]){
+ for(const [tier,expected] of [[0,basic],[1,giant]]){
+  const id='bat-facing-'+dx+':'+dy+':'+tier;
+  art.pose(id,10,10,0);
+  const pose=art.pose(id,10+dx,10+dy,100);
+  draws=[];art.character(0,0,1,'vampire',true,100,{mounted:true,tier,pose});
+  assert.deepEqual(draws.at(-1).slice(1,5),Array.from(manifest.mounts.frames[expected]));
+ }
+}
+console.log('Bat rear facing passed: NW and NE use the correct artwork for both tiers.');

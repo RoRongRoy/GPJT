@@ -112,8 +112,9 @@ class FieldArt extends GothicArt {
    const reduced=Boolean(typeof window!=='undefined'&&window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
    const phase=options.pose?.phase??now/170,bob=reduced?0:vamp?Math.sin(phase)*3:moving?Math.sin(phase*2)*.8:0;
    const model=vamp?(upgraded?3:2):(upgraded?1:0),height=[112,125,83,132][model]*scale;
-   // Bike back views share a silhouette; mirror NW. Humvee rear views swap columns.
-   const direction=!vamp&&upgraded&&row>=2?(row===2?3:2):row;
+   // Bike back views share a silhouette; mirror NW. Humvee and both bats
+   // store their rear views NE then NW, opposite the facing row order.
+   const direction=(vamp||upgraded)&&row>=2?(row===2?3:2):row;
    if(!options.groundShadow)this.shadow(x,y,upgraded?34:22,scale);
    const c=this.c;c.save();c.translate(x,y-(vamp?16*scale:0)+bob*scale);
    if(vamp&&!reduced){const wing=Math.sin(phase)*.035;c.scale(1+wing,1-wing);}
