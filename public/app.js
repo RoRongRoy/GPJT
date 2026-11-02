@@ -1609,7 +1609,7 @@ function renderTarkovGrid(container, items, gridW, gridH, onItemClick, cellSize 
    cell.style.gridRow = String(y + 1);
    cell.style.width = `${cellSize}px`;
    cell.style.height = `${cellSize}px`;
-   container.appendChild(cell);
+   container.append(cell);
   }
  }
 
@@ -1641,7 +1641,7 @@ function renderTarkovGrid(container, items, gridW, gridH, onItemClick, cellSize 
    const countEl = document.createElement('span');
    countEl.className = 'tarkov-item-count';
    countEl.textContent = `×${item.count}`;
-   block.appendChild(countEl);
+   block.append(countEl);
   }
 
   block.onclick = (e) => {
@@ -1649,7 +1649,7 @@ function renderTarkovGrid(container, items, gridW, gridH, onItemClick, cellSize 
    selectedTarkovItem = item.id;
    if(onItemClick) onItemClick(item);
   };
-  container.appendChild(block);
+  container.append(block);
  }
 }
 

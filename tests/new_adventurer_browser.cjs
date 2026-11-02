@@ -40,7 +40,7 @@ s=Store(sys.argv[1]);s.save(new_world());s.save_account('legacy-player','test-pa
    assert.ok((await page.locator('[data-view=equip]').textContent()).includes('[일반]'));
    await page.keyboard.press('Escape');await page.locator('#menu-bag').click();
    await page.locator('[data-filter=equipment]').click();
-   assert.equal(await page.locator('[data-inventory-item]').count(),2);
+   assert.equal(await page.locator('[data-inventory-item]').count(),3);
    await page.locator('[data-inventory-item="gear:starter-weapon"]').click();
    assert.equal(await page.locator('#item-category').textContent(),'일반 무기');
    await page.keyboard.press('Escape');const coords=await page.locator('#coordinates').textContent();
