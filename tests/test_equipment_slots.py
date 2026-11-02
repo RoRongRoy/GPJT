@@ -29,10 +29,10 @@ class EquipmentSlotTests(unittest.TestCase):
             g = self.buy(w, 'ring' if slot.startswith('ring') else slot)
             act(w, {'action': 'equip', 'item': g['id'], 'slot': slot})
             self.assertEqual(w['equipment'][slot], g['id'])
-        self.assertEqual(len(set(w['equipment'].values())), 8)
+        self.assertEqual(len(set(w['equipment'].values())), 9)
         self.assertEqual(w['gear'][1], old_chest)
-        self.assertEqual(armor_power(w), 13)
-        self.assertEqual(_profile_armor(w), 13)
+        self.assertEqual(armor_power(w), 15)
+        self.assertEqual(_profile_armor(w), 15)
         with tempfile.TemporaryDirectory() as directory:
             store = Store(Path(directory)/'world.sqlite3')
             store.save(w)
@@ -40,7 +40,7 @@ class EquipmentSlotTests(unittest.TestCase):
             store.close()
         self.assertEqual(restored['equipment'], w['equipment'])
         self.assertEqual(restored['gear'], w['gear'])
-        self.assertEqual(armor_power(restored), 13)
+        self.assertEqual(armor_power(restored), 15)
 
     def test_ring_auto_slots_replacement_and_no_duplicate_bonus(self):
         w = self.world()
@@ -54,7 +54,7 @@ class EquipmentSlotTests(unittest.TestCase):
         self.assertEqual(w['equipment']['ring2'], c['id'])
         act(w, {'action': 'equip', 'item': a['id'], 'slot': 'ring2'})
         self.assertIsNone(w['equipment']['ring1'])
-        self.assertEqual(armor_power(w), 3)
+        self.assertEqual(armor_power(w), 4)
         before = copy.deepcopy(w)
         with self.assertRaises(RuleError):
             act(w, {'action': 'equip', 'item': a['id'], 'slot': 'boots'})
@@ -65,7 +65,7 @@ class EquipmentSlotTests(unittest.TestCase):
         act(w, {'action': 'unequip', 'slot': 'ring2'})
         act(w, {'action': 'shop_sell', 'gear_id': a['id']})
         self.assertNotIn(a, w['gear'])
-        self.assertEqual(armor_power(w), 1)
+        self.assertEqual(armor_power(w), 2)
 
     def test_every_type_drops_at_every_rarity_without_increasing_drop_rate(self):
         w = self.world()
@@ -80,10 +80,10 @@ class EquipmentSlotTests(unittest.TestCase):
 
     def test_legacy_two_slot_save_remains_usable(self):
         w = self.world()
-        self.assertEqual(set(w['equipment']), {'weapon', 'armor'})
-        self.assertEqual(armor_power(w), 1)
+        self.assertEqual(set(w['equipment']), {'weapon', 'armor', 'backpack'})
+        self.assertEqual(armor_power(w), 2)
         g = self.buy(w, 'boots')
         act(w, {'action': 'equip', 'item': g['id']})
-        self.assertEqual(armor_power(w), 3)
+        self.assertEqual(armor_power(w), 4)
         act(w, {'action': 'unequip', 'slot': 'boots'})
-        self.assertEqual(armor_power(w), 1)
+        self.assertEqual(armor_power(w), 2)

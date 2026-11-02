@@ -9,7 +9,7 @@ from .survival import DRAIN, SPRINT_DRAIN, SUPPLY_PRICES, RESOURCE_LOOT
 
 from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RADIUS, START_BASE, LAYOUT_VERSION, new_npcs, live_pois, BASE_SPAWN_SITES, region_at, TOWNS, MERCHANTS, MONSTER_TYPES
 
-from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOTS, SLOT_NAMES, slot_type, equipped_slot, armor_power
+from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOTS, SLOT_NAMES, slot_type, equipped_slot, armor_power, BACKPACK_TIERS, ITEM_DIMENSIONS
 
 from .settlement import FACILITY_SPECS, EXTRA_RECIPES, MATERIALS
 from .resources import DROP_ITEMS, ENHANCEMENT, extra_drop, facility_cost
@@ -59,7 +59,7 @@ for catalog in SHOP_BUY_CATALOG.values():
         {'item': 'shop_weapon', 'name': '민병대 무기', 'price': 120, 'desc': '일반 무기 · 공격력 +4'},
         {'item': 'shop_armor', 'name': '민병대 방호복', 'price': 100, 'desc': '일반 상의 · 방어력 +2'},
     ])
-    catalog.extend({'item': 'shop_'+slot, 'name': '민병대 '+SLOT_NAMES[slot], 'price': 80, 'desc': '일반 '+SLOT_NAMES[slot]+' · 방어력 +2'} for slot in ('pants', 'boots', 'gloves', 'necklace', 'ring'))
+    catalog.extend({'item': 'shop_'+slot, 'name': '민병대 '+SLOT_NAMES[slot], 'price': 80, 'desc': '일반 '+SLOT_NAMES[slot]+' · 방어력 +2'} for slot in ('pants', 'boots', 'gloves', 'necklace', 'ring', 'backpack'))
 
 def merchant_role(item):
     return 'equipment' if item.startswith('shop_') else 'scroll' if item == 'scroll' else 'skill' if item == 'skillbook' or item.startswith('skillbook_') else 'supplies'
@@ -409,6 +409,21 @@ def ensure_starter_gear(w):
         if not equip.get('armor'):
             equip['armor'] = arm['id']
         changed = True
+    if not any(g.get('slot') == 'backpack' for g in gear):
+        bp = {
+            'id': 'gear:starter-backpack',
+            'slot': 'backpack',
+            'rarity': 'normal',
+            'tier': 0,
+            'power': 1,
+            'name': '수련자의 기본 전술 배낭',
+            'grid_w': 6,
+            'grid_h': 4,
+        }
+        gear.append(bp)
+        if not equip.get('backpack'):
+            equip['backpack'] = bp['id']
+        changed = True
     return changed
 
 
@@ -427,7 +442,14 @@ def sync_starter_gear_names(w):
 def bag_capacity(w):
     storage_lvl = w['base']['facilities'].get('storage', 0) if (w.get('base') and w['base'].get('established', True)) else 0
     if p_instance := dungeons.current(w):storage_lvl=p_instance.get('storage_level',0)
-    return 160 + storage_lvl * 50 + (w['player'].get('combat_level', 1) - 1) * 10
+    bp_id = w.get('equipment', {}).get('backpack')
+    bp_bonus = 0
+    if bp_id:
+        bp_item = next((g for g in w.get('gear', []) if g.get('id') == bp_id), None)
+        if bp_item:
+            tier = bp_item.get('tier', 0)
+            bp_bonus = 30 + tier * 25
+    return 160 + storage_lvl * 50 + (w['player'].get('combat_level', 1) - 1) * 10 + bp_bonus
 
 
 def bag_used(w):
@@ -757,7 +779,14 @@ def _act(w, command, rng=random.random):
             cooldown(w, 'craft:'+command['recipe'], recipe['seconds'])
         spend(w, recipe['cost'])
         if recipe.get('gear_slot'):
-            w['gear'].append({'id':'gear:'+str(w['next_gear_id']), 'slot':recipe['gear_slot'], 'rarity':recipe.get('rarity','normal'), 'name':recipe['name'], 'power':recipe['power']+level-1, **{k:recipe[k] for k in ('model','min_level') if k in recipe}})
+            tier = recipe.get('tier', 1)
+            extra_data = {k:recipe[k] for k in ('model','min_level') if k in recipe}
+            if recipe['gear_slot'] == 'backpack':
+                bp_info = BACKPACK_TIERS.get(tier, {'w': 6, 'h': 4})
+                extra_data['grid_w'] = bp_info['w']
+                extra_data['grid_h'] = bp_info['h']
+                extra_data['tier'] = tier
+            w['gear'].append({'id':'gear:'+str(w['next_gear_id']), 'slot':recipe['gear_slot'], 'rarity':recipe.get('rarity','normal'), 'name':recipe['name'], 'power':recipe['power']+level-1, **extra_data})
             w['next_gear_id'] += 1
         else:
             output = recipe.get('output', command['recipe'])

@@ -13,6 +13,7 @@ FACILITY_SPECS = {
     'purifier': ('정수장', '생산', '식수 정제', 'water', [8,4], {'wood':5,'metal':6,'circuits':2}),
     'bloodbank': ('혈액 보관소', '생산', '원혈 배양·혈액 안정화', 'blood', [4,8], {'wood':5,'metal':6,'chemicals':3}),
     'archive': ('기록 보관소', '연구', '강화 주문서·스킬북 복원', 'storage', [-4,8], {'wood':8,'metal':4,'cloth':3}),
+    'backpack_workshop': ('가방 공방', '장비', '전술 가방 제작 및 테트리스 수납 공간 확장', 'storage', [6,-2], {'wood':6,'metal':4,'cloth':4}),
 }
 FACILITY_SPECS = {key:dict(name=v[0],category=v[1],description=v[2],prop=v[3],offset=v[4],cost=v[5]) for key,v in FACILITY_SPECS.items()}
 EXTRA_RECIPES = {
@@ -35,6 +36,7 @@ for slot,name,facility,cost,power in [
     ('gloves','정찰병 장갑','tailor',{'cloth':3,'metal':2},2),
     ('ring','은빛 인장 반지','jeweler',{'ore':4,'metal':3,'chemicals':1},2),
     ('necklace','수호 목걸이','jeweler',{'ore':5,'metal':3,'cloth':2},3),
+    ('backpack','모험가의 방수 배낭','backpack_workshop',{'cloth':5,'metal':3,'chemicals':2},2),
 ]:
     EXTRA_RECIPES['make_'+slot]=dict(name=name,facility=facility,cost=cost,gear_slot=slot,power=power,seconds=15)
 SEARCH_SITES = {
@@ -104,3 +106,6 @@ EXTRA_RECIPES.pop('restore_skillbook',None)  # Learning now requires a named mon
 EXTRA_RECIPES['restore_scroll'].update(level=2,cost={'arcane_dust':4,'blessed_ink':2,'gold':100},seconds=300,fixed_yield=True)
 for key,amount in [('weapon_scroll',1),('armor_scroll',1),('blessed_scroll',3)]:
     EXTRA_RECIPES['decode_'+key].update(amount=amount,seconds=120,fixed_yield=True)
+
+EXTRA_RECIPES['make_backpack_t2'] = dict(name='특수작전 전술 군장 (7x6)',facility='backpack_workshop',level=2,cost={'spirit_fiber':8,'iron_fragment':5,'weapon_core':1,'armor_plate':1},gear_slot='backpack',tier=2,power=4,seconds=35)
+EXTRA_RECIPES['make_backpack_t3'] = dict(name='공간확장 심연 배낭 (8x7)',facility='backpack_workshop',level=3,cost={'spirit_fiber':12,'blood_pearl':3,'weapon_core':1,'armor_plate':2},gear_slot='backpack',tier=3,power=8,seconds=60)

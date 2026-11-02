@@ -790,7 +790,7 @@ function itemUseReason(id){
  if(['blood','elixir'].includes(id)&&w.player.species!=='vampire')return '뱀파이어만 사용할 수 있습니다.';
  return '';
 }
-const equipmentSlots={weapon:'무기',armor:'상의',pants:'하의',boots:'장화',gloves:'장갑',necklace:'목걸이',ring1:'반지 1',ring2:'반지 2'};
+const equipmentSlots={weapon:'무기',armor:'상의',pants:'하의',boots:'장화',gloves:'장갑',necklace:'목걸이',ring1:'반지 1',ring2:'반지 2',backpack:'가방'};
 const gearTypeNames={...equipmentSlots,ring:'반지'};
 function slotIcon(slot){return slot.startsWith('ring')?'ring':slot;}
 function equippedSlot(g){return g?Object.keys(equipmentSlots).find(slot=>state.world.equipment?.[slot]===g.id):undefined;}
@@ -848,7 +848,7 @@ function renderEquipmentShowcase(){
  $('equip-character-class').textContent=classInfo(p.species,p.job||'warrior').name;
  $('equip-character-level').textContent='Lv. '+(p.combat_level||1);
  const focusedSlot=document.activeElement?.dataset?.equipmentSlot;
- $('equip-paperdoll').replaceChildren(...['weapon','armor','necklace','pants','ring1','gloves','ring2','boots'].map(slot=>{
+ $('equip-paperdoll').replaceChildren(...['weapon','armor','necklace','pants','ring1','gloves','ring2','boots','backpack'].map(slot=>{
   const g=gearItem(w.equipment?.[slot]),rarity=g?gearRarity(g):null;
   const button=document.createElement('button');button.type='button';button.className='paperdoll-slot'+(g?' is-equipped':' is-empty');button.dataset.equipmentSlot=slot;
   button.setAttribute('aria-pressed',String(selectedEquipmentSlot===slot));button.setAttribute('aria-label',equipmentSlots[slot]+' · '+(g?itemName(g.id):'미착용'));
@@ -943,6 +943,39 @@ function renderInventory(){
   });
   for(let i=ids.length;i<20;i++){const empty=document.createElement('span');empty.className='item-slot empty-slot';empty.setAttribute('aria-hidden','true');slots.push(empty);}
   $('inventory').replaceChildren(...slots);inventoryLayout=layout;
+
+ // Tarkov Tactical Backpack Tetris Grid
+ const bagGrid = $('bag-tetris-grid');
+ if(bagGrid){
+  const bp = getTarkovBackpack();
+  const isMobile = window.innerWidth <= 600;
+  const cSize = isMobile ? 32 : 40;
+  $('bag-tetris-title').textContent = `🎒 전술 배낭 테트리스 수납함 · ${bp.name} (${bp.w}×${bp.h})`;
+  const bpItems = [];
+  for(const g of (state.world.gear||[])){
+   if(!Object.values(state.world.equipment||{}).includes(g.id)){
+    bpItems.push({ id: g.id, itemKey: g.slot, gear: g, name: g.name, icon: g.slot, count: 1 });
+   }
+  }
+  for(const [k, amt] of Object.entries(state.world.inventory||{})){
+   if(amt > 0 && k !== 'gold'){
+    bpItems.push({ id: k, itemKey: k, gear: null, name: state.items[k]||k, icon: itemIcon(k), count: amt });
+   }
+  }
+  const { occ } = packTarkovItems(bpItems, bp.w, bp.h);
+  const usedCells = occ.flat().filter(Boolean).length;
+  const totalCells = bp.w * bp.h;
+  $('bag-tetris-capacity').textContent = `수납 칸: ${usedCells}/${totalCells} (${Math.round(usedCells/totalCells*100)}%)`;
+
+  renderTarkovGrid(bagGrid, bpItems, bp.w, bp.h, (item) => {
+   selectedItem = item.id;
+   renderInventory();
+   toast(`${item.name} (${item.w}×${item.h}) - R키로 회전`);
+  }, cSize);
+
+  const bagRotBtn = $('bag-rotate-btn');
+  if(bagRotBtn) bagRotBtn.onclick = () => rotateCurrentTarkovItem();
+ }
  }
  for(const id of ids){const {button,count}=itemSlots.get(id),g=gearItem(id),amount=state.world.inventory[id];
   count.textContent=g?(Boolean(equippedSlot(g))?'착용':'장비'):amount;
@@ -1483,6 +1516,160 @@ function openLootBox(source){
  }
  renderLootBox();
 }
+
+/* Tarkov Tetris Grid System */
+const ITEM_DIMENSIONS = {
+ weapon: [2, 3],
+ armor: [2, 2],
+ pants: [2, 2],
+ boots: [2, 2],
+ gloves: [2, 1],
+ necklace: [1, 1],
+ ring: [1, 1],
+ backpack: [2, 2],
+ skillbook: [1, 2],
+ scroll: [1, 1],
+ weapon_core: [2, 2],
+ armor_plate: [2, 2],
+ default: [1, 1]
+};
+const tarkovRotations = new Set();
+let selectedTarkovItem = null;
+
+function getItemDimensions(itemKey, g){
+ if(g) return ITEM_DIMENSIONS[g.slot] || [1, 1];
+ if(itemKey?.startsWith('skillbook')) return [1, 2];
+ if(itemKey?.includes('scroll')) return [1, 1];
+ if(['weapon_core','armor_plate'].includes(itemKey)) return [2, 2];
+ return [1, 1];
+}
+
+function getTarkovBackpack(){
+ const bpId = state?.world?.equipment?.backpack;
+ const g = bpId ? gearItem(bpId) : null;
+ if(!g) return { name: '수련자의 기본 전술 배낭', w: 6, h: 4, tier: 0 };
+ return {
+  name: g.name,
+  w: g.grid_w || (g.tier === 3 ? 8 : g.tier === 2 ? 7 : 6),
+  h: g.grid_h || (g.tier === 3 ? 7 : g.tier === 2 ? 6 : g.tier === 1 ? 5 : 4),
+  tier: g.tier || 0
+ };
+}
+
+function packTarkovItems(items, gridW, gridH){
+ const occ = Array.from({length: gridH}, () => Array(gridW).fill(false));
+ const placed = [];
+ for(const item of items){
+  const rotated = tarkovRotations.has(item.id);
+  const [origW, origH] = getItemDimensions(item.itemKey, item.gear);
+  const w = rotated ? origH : origW;
+  const h = rotated ? origW : origH;
+  let found = false;
+  for(let y = 0; y <= gridH - h; y++){
+   for(let x = 0; x <= gridW - w; x++){
+    let canPlace = true;
+    for(let dy = 0; dy < h; dy++){
+     for(let dx = 0; dx < w; dx++){
+      if(occ[y + dy][x + dx]){ canPlace = false; break; }
+     }
+     if(!canPlace) break;
+    }
+    if(canPlace){
+     for(let dy = 0; dy < h; dy++){
+      for(let dx = 0; dx < w; dx++){
+       occ[y + dy][x + dx] = true;
+      }
+     }
+     placed.push({ ...item, x, y, w, h, rotated });
+     found = true;
+     break;
+    }
+   }
+   if(found) break;
+  }
+  if(!found){
+   placed.push({ ...item, unplaced: true, w, h, rotated });
+  }
+ }
+ return { placed, occ };
+}
+
+function renderTarkovGrid(container, items, gridW, gridH, onItemClick, cellSize = 38){
+ if(!container) return;
+ container.style.gridTemplateColumns = `repeat(${gridW}, ${cellSize}px)`;
+ container.style.gridAutoRows = `${cellSize}px`;
+ container.style.width = `${gridW * cellSize + (gridW - 1) * 2 + 8}px`;
+ container.replaceChildren();
+
+ for(let y = 0; y < gridH; y++){
+  for(let x = 0; x < gridW; x++){
+   const cell = document.createElement('div');
+   cell.className = 'tarkov-cell';
+   cell.style.gridColumn = String(x + 1);
+   cell.style.gridRow = String(y + 1);
+   cell.style.width = `${cellSize}px`;
+   cell.style.height = `${cellSize}px`;
+   container.appendChild(cell);
+  }
+ }
+
+ const { placed } = packTarkovItems(items, gridW, gridH);
+ for(const item of placed){
+  if(item.unplaced) continue;
+  const block = document.createElement('div');
+  block.className = 'tarkov-item' + (selectedTarkovItem === item.id ? ' is-selected' : '');
+  block.style.gridColumn = `${item.x + 1} / span ${item.w}`;
+  block.style.gridRow = `${item.y + 1} / span ${item.h}`;
+  const rarity = item.gear ? gearRarity(item.gear) : null;
+  if(rarity) block.style.setProperty('--item-color', rarity.color);
+
+  const title = document.createElement('span');
+  title.className = 'tarkov-item-title';
+  title.textContent = item.name;
+  if(rarity) title.style.color = rarity.color;
+
+  const img = document.createElement('img');
+  img.src = '/icons/' + (item.icon || 'weapon') + '.svg';
+  img.alt = '';
+
+  const size = document.createElement('span');
+  size.className = 'tarkov-item-size';
+  size.textContent = `${item.w}×${item.h}`;
+
+  block.append(title, img, size);
+  if(item.count && item.count > 1){
+   const countEl = document.createElement('span');
+   countEl.className = 'tarkov-item-count';
+   countEl.textContent = `×${item.count}`;
+   block.appendChild(countEl);
+  }
+
+  block.onclick = (e) => {
+   e.stopPropagation();
+   selectedTarkovItem = item.id;
+   if(onItemClick) onItemClick(item);
+  };
+  container.appendChild(block);
+ }
+}
+
+function rotateCurrentTarkovItem(){
+ if(!selectedTarkovItem) return;
+ if(tarkovRotations.has(selectedTarkovItem)) tarkovRotations.delete(selectedTarkovItem);
+ else tarkovRotations.add(selectedTarkovItem);
+ renderLootBox();
+ renderInventory();
+}
+
+window.addEventListener('keydown', (e) => {
+ if(e.key === 'r' || e.key === 'R' || e.key === 'ㄱ'){
+  const activeTag = document.activeElement?.tagName;
+  if(activeTag !== 'INPUT' && activeTag !== 'TEXTAREA'){
+   rotateCurrentTarkovItem();
+  }
+ }
+});
+
 function renderLootBox(){
  if(!state||!activeLoot){$('loot-box').hidden=true;return;}
  const w=state.world,p=w.player;
@@ -1552,6 +1739,52 @@ function renderLootBox(){
   $('loot-selected').disabled=lootChecks.size===0||isBagFull();
   $('loot-all').textContent='모두 루팅 · F';
   $('loot-all').disabled=isBagFull();
+
+  // Tarkov Loot Grid Rendering
+  const lootGridItems = [];
+  for(const g of (drop.gear||[])){
+   lootGridItems.push({ id: g.id, itemKey: g.slot, gear: g, name: g.name, icon: g.slot, count: 1 });
+  }
+  for(const [k, amt] of Object.entries(drop.items||{})){
+   lootGridItems.push({ id: k, itemKey: k, gear: null, name: state.items[k]||k, icon: itemIcon(k), count: amt });
+  }
+  const lootWrap = $('tarkov-loot-wrap');
+  if(lootWrap){
+   const bp = getTarkovBackpack();
+   const isMobile = window.innerWidth <= 600;
+   const cSize = isMobile ? 30 : 38;
+   $('tarkov-backpack-label').textContent = `🎒 내 전술 배낭 (${bp.w}×${bp.h})`;
+   $('tarkov-loot-count').textContent = `${lootGridItems.length}종 전리품`;
+
+   renderTarkovGrid($('tarkov-loot-grid'), lootGridItems, 5, 4, (item) => {
+    command('loot', { id: drop.id, item: item.id });
+   }, cSize);
+
+   const bpItems = [];
+   for(const g of (w.gear||[])){
+    if(!Object.values(w.equipment||{}).includes(g.id)){
+     bpItems.push({ id: g.id, itemKey: g.slot, gear: g, name: g.name, icon: g.slot, count: 1 });
+    }
+   }
+   for(const [k, amt] of Object.entries(w.inventory||{})){
+    if(amt > 0 && k !== 'gold'){
+     bpItems.push({ id: k, itemKey: k, gear: null, name: state.items[k]||k, icon: itemIcon(k), count: amt });
+    }
+   }
+   const { occ } = packTarkovItems(bpItems, bp.w, bp.h);
+   const usedCells = occ.flat().filter(Boolean).length;
+   const totalCells = bp.w * bp.h;
+   $('tarkov-backpack-cells').textContent = `${usedCells}/${totalCells} 칸 (${Math.round(usedCells/totalCells*100)}%)`;
+
+   renderTarkovGrid($('tarkov-backpack-grid'), bpItems, bp.w, bp.h, (item) => {
+    selectedItem = item.id;
+    toast(`${item.name} (${item.w}×${item.h}) 선택됨 - R키로 회전`);
+   }, cSize);
+
+   const rotBtn = $('tarkov-rotate-btn');
+   if(rotBtn) rotBtn.onclick = () => rotateCurrentTarkovItem();
+  }
+
   $('loot-box').hidden=false;
  }
 }
@@ -1682,7 +1915,6 @@ function stepMovement(){
  if(!state||!connected||state.world.paused||!state.world.player.chosen||document.hidden){driveMovement(0,0);return;}
  const manual=screenDirection();
  if(state.movement?.enabled&&(manual.dx||manual.dy)){driveMovement(manual.dx,manual.dy);return;}
- driveMovement(0,0);
  if(busy||moveBusy||pendingAction)return;
  const now=performance.now(),sprinting=isSprinting(),moveGap=state.world.player.mounted?(sprinting?58:76):(sprinting?62:84);
  if(now-lastMove<moveGap||now-lastCommandAt<75)return;
@@ -1718,7 +1950,7 @@ function stepMovement(){
   const enemy=target.id?.startsWith('enemy:')?state.world.enemies.find(n=>n.id===Number(target.id.split(':')[1])):null;
   const drop=target.id?.startsWith('drop:')?(state.world.drops||[]).find(d=>d.id===target.id):null;
   const npc=state.pois.find(n=>n.id===target.id&&n.kind==='npc');if(npc){target.x=npc.x;target.y=npc.y;}
-  if(enemy){if(enemy.hp<=0){target=null;return;}target.x=enemy.x;target.y=enemy.y;}
+  if(enemy){if(enemy.hp<=0){driveMovement(0,0);target=null;return;}target.x=enemy.x;target.y=enemy.y;}
   if(target.id?.startsWith('drop:')){if(!drop){target=null;return;}target.x=drop.x;target.y=drop.y;}
   const mult=p.mounted?(m.mount_base+Math.min(p.unlocks[p.species],m.mount_max_tier??2)*m.mount_tier)*(sprinting?1.25:1):(sprinting?(m.sprint_mult||1.65):1);
   const distance=Math.hypot(target.x-p.x,target.y-p.y),fullStep=m.step*mult;
@@ -1727,6 +1959,7 @@ function stepMovement(){
   const enemyStop=(p.job||'warrior')==='ranged'?3.4:1.5;
   const arriveDist=target.id?(inspectOnArrive||target.id.startsWith('drop:')?2.2:target.id.startsWith('enemy:')?enemyStop:1.5):step*.8;
   if(distance<=arriveDist){
+   driveMovement(0,0);
    const id=target.id;if(!autoHunt||!id?.startsWith('enemy:'))target=null;
    if(id?.startsWith('enemy:')){
     for(const sk of HOTBAR_KEYS.map(key=>hotbarMap[key]).filter(Boolean)){if(autoHunt&&!skillStatus(sk).isHeal&&!skillStatus(sk).reason){command('skill',{skill:sk});return;}}
@@ -1746,10 +1979,18 @@ function stepMovement(){
    }
    return;
   }
-  dx=Math.abs(target.x-p.x)>step*.42?Math.sign(target.x-p.x):0;
-  dy=Math.abs(target.y-p.y)>step*.42?Math.sign(target.y-p.y):0;
+  dx=Math.abs(target.x-p.x)>step*.35?Math.sign(target.x-p.x):0;
+  dy=Math.abs(target.y-p.y)>step*.35?Math.sign(target.y-p.y):0;
  }
- if(dx||dy){lastMove=now;command('move',{dx,dy,...(sprinting?{sprint:true}:{}),...(pace<1?{pace}:{})});}
+ if(state.movement?.enabled){
+  if(dx||dy){
+   driveMovement(dx,dy);
+  }else{
+   driveMovement(0,0);
+  }
+ }else if(dx||dy){
+  lastMove=now;command('move',{dx,dy,...(sprinting?{sprint:true}:{}),...(pace<1?{pace}:{})});
+ }
 }
 setInterval(stepMovement,20);
 function updateGuide(){

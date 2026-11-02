@@ -15,7 +15,7 @@ class SettlementExpansionTests(unittest.TestCase):
         return w
 
     def test_every_facility_and_recipe_has_real_output(self):
-        self.assertEqual(len(FACILITIES),13);self.assertEqual(len(RECIPES),74)
+        self.assertEqual(len(FACILITIES),14);self.assertEqual(len(RECIPES),77)
         for key,spec in RECIPES.items():
             with self.subTest(recipe=key):
                 w=self.world();facility=spec['facility']

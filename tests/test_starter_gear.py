@@ -23,7 +23,7 @@ class StarterGearTests(unittest.TestCase):
             with self.subTest(species=species):
                 w = new_world()
                 act(w, {'action': 'choose', 'species': species})
-                self.assertEqual(len(w['gear']), 2)
+                self.assertEqual(len(w['gear']), 3)
                 self.assertEqual(set(w['equipment'].values()), {g['id'] for g in w['gear']})
                 for item in w['gear']:
                     self.assertIn(item['rarity'], RARITIES)
@@ -51,9 +51,9 @@ class StarterGearTests(unittest.TestCase):
             store.close()
             runtime = Runtime(path)
             try:
-                self.assertEqual([g['rarity'] for g in runtime.store.load()['gear']], ['normal', 'normal'])
+                self.assertEqual([g['rarity'] for g in runtime.store.load()['gear']], ['normal', 'normal', 'normal'])
                 peer = runtime.store.load_peers()['legacy-peer-session']
-                self.assertEqual([g['rarity'] for g in peer['gear']], ['normal', 'normal'])
+                self.assertEqual([g['rarity'] for g in peer['gear']], ['normal', 'normal', 'normal'])
                 self.assertEqual(peer['inventory'], profile['inventory'])
                 candidate = new_world()
                 self.assertTrue(runtime._handle_account_action(candidate, {
@@ -62,7 +62,7 @@ class StarterGearTests(unittest.TestCase):
                 self.assertEqual(candidate['inventory'], w['inventory'])
                 self.assertEqual(candidate['equipment'], w['equipment'])
                 self.assertEqual(candidate['player']['combat_level'], 9)
-                self.assertEqual([g['rarity'] for g in candidate['gear']], ['normal', 'normal'])
+                self.assertEqual([g['rarity'] for g in candidate['gear']], ['normal', 'normal', 'normal'])
                 self.assertEqual([g['power'] for g in candidate['gear']], [g['power'] for g in w['gear']])
             finally:
                 runtime.store.close()

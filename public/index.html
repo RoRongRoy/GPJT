@@ -63,6 +63,23 @@
    <aside id="activity-feed" class="activity-feed" aria-label="최근 내 활동 기록" hidden><span class="activity-heading">활동 기록</span><ol id="activity-messages"></ol></aside>
    <div id="loot-box" class="loot-box" hidden>
     <div class="loot-head"><div><span id="loot-eyebrow" class="eyebrow">OBJECT INSPECT</span><strong id="loot-title">내용물 확인</strong><p id="loot-subtitle" class="loot-subtitle"></p></div><span id="loot-capacity" class="loot-cap"></span><button id="loot-close" class="icon-button" aria-label="루팅 창 닫기">×</button></div>
+    <!-- Tarkov Style Tetris Loot Grid Container -->
+    <div id="tarkov-loot-wrap" class="tarkov-loot-wrap">
+     <div class="tarkov-subpanel">
+      <div class="tarkov-subhead"><span>📦 발견된 전리품</span><span id="tarkov-loot-count" class="tarkov-badge"></span></div>
+      <div id="tarkov-loot-grid" class="tarkov-grid"></div>
+     </div>
+     <div class="tarkov-subpanel">
+      <div class="tarkov-subhead">
+       <span id="tarkov-backpack-label">🎒 내 배낭 그리드</span>
+       <div class="tarkov-toolbar">
+        <button id="tarkov-rotate-btn" type="button" class="tarkov-tool-btn" title="선택 아이템 회전 (단축키 R)">🔄 회전 (R)</button>
+        <span id="tarkov-backpack-cells" class="tarkov-badge"></span>
+       </div>
+      </div>
+      <div id="tarkov-backpack-grid" class="tarkov-grid"></div>
+     </div>
+    </div>
     <ul id="loot-list" class="loot-list"></ul>
     <div class="loot-actions"><button id="loot-selected" class="accent">선택 파밍</button><button id="loot-all">전체 획득 <kbd>F</kbd></button></div>
    </div>
@@ -219,6 +236,17 @@
   </section>
   <section data-view="bag" hidden>
    <div class="filter-tabs" role="group" aria-label="인벤토리 분류"><button data-filter="all" aria-pressed="true">전체</button><button data-filter="materials" aria-pressed="false">건설 파밍</button><button data-filter="monster" aria-pressed="false">전리품 전체</button><button data-filter="crafting" aria-pressed="false">장비 재료</button><button data-filter="scrolls" aria-pressed="false">주문서</button><button data-filter="currency" aria-pressed="false">골드</button><button data-filter="supplies" aria-pressed="false">소모품</button><button data-filter="equipment" aria-pressed="false">장비</button><button data-filter="growth" aria-pressed="false">강화</button></div>
+   <!-- Tarkov Tactical Backpack Tetris View -->
+   <div class="tarkov-bag-panel">
+    <div class="tarkov-subhead">
+     <strong id="bag-tetris-title">🎒 전술 배낭 테트리스 수납함 (Tarkov Grid)</strong>
+     <div class="tarkov-toolbar">
+      <button id="bag-rotate-btn" type="button" class="tarkov-tool-btn" title="아이템 회전 (R)">🔄 회전 (R)</button>
+      <span id="bag-tetris-capacity" class="tarkov-badge"></span>
+     </div>
+    </div>
+    <div id="bag-tetris-grid" class="tarkov-grid"></div>
+   </div>
    <div id="bag-equipped-slots" class="equipped-slot-grid"></div>
    <p id="equipped-summary" class="panel-note"></p>
    <div class="bag-summary"><span>소지 아이템</span><strong id="bag-count"></strong></div>

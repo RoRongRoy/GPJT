@@ -49,10 +49,32 @@ ARMOR_NAMES = {
 
 
 # Keep the legacy armor key so saved chest armor retains its identity and stats.
-EQUIPMENT_SLOTS = ('weapon', 'armor', 'pants', 'boots', 'gloves', 'necklace', 'ring1', 'ring2')
-GEAR_TYPES = ('weapon', 'pants', 'boots', 'gloves', 'necklace', 'ring', 'armor')
+EQUIPMENT_SLOTS = ('weapon', 'armor', 'pants', 'boots', 'gloves', 'necklace', 'ring1', 'ring2', 'backpack')
+GEAR_TYPES = ('weapon', 'pants', 'boots', 'gloves', 'necklace', 'ring', 'backpack', 'armor')
 SLOT_NAMES = {'weapon': '무기', 'armor': '상의', 'pants': '하의', 'boots': '장화',
-              'gloves': '장갑', 'necklace': '목걸이', 'ring': '반지'}
+              'gloves': '장갑', 'necklace': '목걸이', 'ring': '반지', 'backpack': '가방'}
+
+ITEM_DIMENSIONS = {
+    'weapon': (2, 3),
+    'armor': (2, 2),
+    'pants': (2, 2),
+    'boots': (2, 2),
+    'gloves': (2, 1),
+    'necklace': (1, 1),
+    'ring': (1, 1),
+    'backpack': (2, 2),
+    'skillbook': (1, 2),
+    'scroll': (1, 1),
+    'material': (1, 1),
+    'consumable': (1, 1),
+}
+
+BACKPACK_TIERS = {
+    0: {'name': '수련자의 기본 전술 배낭', 'w': 6, 'h': 4, 'power': 1},
+    1: {'name': '모험가의 방수 배낭', 'w': 6, 'h': 5, 'power': 2},
+    2: {'name': '특수작전 전술 군장', 'w': 7, 'h': 6, 'power': 4},
+    3: {'name': '공간확장 심연 배낭', 'w': 8, 'h': 7, 'power': 8},
+}
 
 
 def slot_type(slot):
