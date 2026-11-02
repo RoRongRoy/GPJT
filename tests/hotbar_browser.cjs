@@ -176,14 +176,14 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   await until(()=>page.locator('#coordinates').textContent().then(t=>t==='58 / 14'),'Return to own camp');
   await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
   await page.locator('[data-view=camp] [data-panel=build]').click();
-  assert.equal(await page.locator('#facilities .facility').count(),13);
-  await page.locator('#build-category').selectOption('장비');assert.equal(await page.locator('#facilities .facility:visible').count(),3);
+  assert.equal(await page.locator('#facilities .facility').count(),14);
+  await page.locator('#build-category').selectOption('장비');assert.equal(await page.locator('#facilities .facility:visible').count(),4);
   await page.locator('#facilities .facility:visible button').first()[mobile?'tap':'click']();await delay(200);
   assert.equal(commands.at(-1)?.action,'build');assert.equal(commands.at(-1)?.facility,'forge');
   await page.keyboard.press('Escape');await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
   await page.locator('[data-view=camp] [data-panel=craft]').click();
-  assert.equal(await page.locator('#recipe-choices button').count(),74);
-  await page.locator('#craft-category').selectOption('장비');assert.equal(await page.locator('#recipe-choices button').count(),47);
+  assert.equal(await page.locator('#recipe-choices button').count(),77);
+  await page.locator('#craft-category').selectOption('장비');assert.equal(await page.locator('#recipe-choices button').count(),50);
   await page.locator('[data-craft=make_ring]').click();await page.locator('#craft-submit')[mobile?'tap':'click']();await delay(200);
   assert.equal(commands.at(-1)?.recipe,'make_ring');
   await page.screenshot({path:`/tmp/settlement-crafting-${layout}.png`});
