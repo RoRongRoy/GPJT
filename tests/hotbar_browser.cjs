@@ -108,7 +108,7 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   for(const [selector,panel] of [['#menu-bag','bag'],['#menu-equip','equip'],['#menu-journal','journal'],['#menu-account','account']]){await page.locator(selector).click();assert.equal(await page.locator('#menu-dialog').getAttribute('data-panel'),panel);await page.keyboard.press('Escape');}
   fixture.world.gear.push({id:'gear:test-ring',slot:'ring',rarity:'rare',name:'검증 반지',power:7});
   await page.locator('#menu-equip').click();
-  assert.equal(await page.locator('#equip-paperdoll .paperdoll-slot').count(),8);
+  assert.equal(await page.locator('#equip-paperdoll .paperdoll-slot').count(),9);
   await until(()=>page.getByRole('button',{name:'반지 2 장착',exact:true}).isVisible(),'Ring slot choice must appear');
   await page.getByRole('button',{name:'반지 2 장착',exact:true})[mobile?'tap':'click']();await delay(150);
   assert.equal(commands.at(-1)?.action,'equip');assert.equal(commands.at(-1)?.item,'gear:test-ring');assert.equal(commands.at(-1)?.slot,'ring2');
