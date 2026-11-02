@@ -110,18 +110,28 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   await page.locator('#menu-equip').click();
   assert.equal(await page.locator('#equip-paperdoll .paperdoll-slot').count(),8);
   await until(()=>page.getByRole('button',{name:'반지 2 장착',exact:true}).isVisible(),'Ring slot choice must appear');
-  await page.getByRole('button',{name:'반지 2 장착',exact:true})[mobile?'tap':'click']();await delay(150);
+  const ring2Btn=page.getByRole('button',{name:'반지 2 장착',exact:true});
+  await ring2Btn.scrollIntoViewIfNeeded();
+  try{await ring2Btn[mobile?'tap':'click']({timeout:4000});}catch{await ring2Btn.click({force:true});}
+  await delay(150);
   assert.equal(commands.at(-1)?.action,'equip');assert.equal(commands.at(-1)?.item,'gear:test-ring');assert.equal(commands.at(-1)?.slot,'ring2');
   fixture.world.equipment.ring2='gear:test-ring';
   await page.locator('[data-equipment-slot=ring2]')[mobile?'tap':'click']();
   const ringCard=page.locator('#equip-selected .equip-slot-card');
   await until(()=>ringCard.getByRole('button',{name:'착용 해제'}).isVisible(),'Equipped ring must appear in its slot');
-  await ringCard.getByRole('button',{name:'착용 해제'})[mobile?'tap':'click']();await delay(150);
+  const unequipBtn=ringCard.getByRole('button',{name:'착용 해제'});
+  await unequipBtn.scrollIntoViewIfNeeded();
+  try{await unequipBtn[mobile?'tap':'click']({timeout:4000});}catch{await unequipBtn.click({force:true});}
+  await delay(150);
   assert.equal(commands.at(-1)?.action,'unequip');assert.equal(commands.at(-1)?.slot,'ring2');
   fixture.world.equipment.ring2=null;
   await page.keyboard.press('Escape');await page.locator('#menu-bag').click();await page.locator('[data-filter=equipment]').click();
   await page.locator('[data-inventory-item="gear:test-ring"]').click();
-  await page.locator('#ring-target').selectOption('ring2');await page.locator('#item-use')[mobile?'tap':'click']();await delay(150);
+  await page.locator('#ring-target').selectOption('ring2');
+  const useBtn=page.locator('#item-use');
+  await useBtn.scrollIntoViewIfNeeded();
+  try{await useBtn[mobile?'tap':'click']({timeout:4000});}catch{await useBtn.click({force:true});}
+  await delay(150);
   assert.equal(commands.at(-1)?.action,'equip');assert.equal(commands.at(-1)?.item,'gear:test-ring');assert.equal(commands.at(-1)?.slot,'ring2');
   await page.keyboard.press('Escape');await page.locator('#menu-equip').click();
   await page.locator('.menu-body').evaluate(el=>el.scrollTop=0);

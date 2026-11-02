@@ -834,7 +834,7 @@ function makeEquippedSlotCard(slot,mode='equip'){
  }
  card.append(head,stat,actions);return card;
 }
-let selectedEquipmentSlot='weapon',equipmentShowcaseKey='';
+let selectedEquipmentSlot='weapon',equipmentShowcaseKey='',equippedViewsKey='';
 function renderEquipmentShowcase(){
  const w=state.world,p=w.player;
  const key=JSON.stringify([w.equipment,w.gear,p.species,p.gender,p.job,p.combat_level,p.level,connected,w.paused,selectedEquipmentSlot]);
@@ -865,6 +865,9 @@ function renderEquipmentShowcase(){
 function renderEquippedViews(){
  if(!state)return;
  const w=state.world,p=w.player,gear=w.gear||[];
+ const key=JSON.stringify([w.equipment,gear,p.combat_level,p.level,connected,w.paused,selectedEquipmentSlot]);
+ if(key===equippedViewsKey)return;
+ equippedViewsKey=key;
  const wep=gearItem(w.equipment?.weapon);
  const lvl=p.combat_level||1,lvlAtk=(lvl-1)*3,lvlDef=Math.floor((lvl-1)/2);
  const wepPow=wep?.power||0,armPow=totalArmor();
