@@ -848,7 +848,7 @@ function renderEquipmentShowcase(){
  $('equip-character-class').textContent=classInfo(p.species,p.job||'warrior').name;
  $('equip-character-level').textContent='Lv. '+(p.combat_level||1);
  const focusedSlot=document.activeElement?.dataset?.equipmentSlot;
- $('equip-paperdoll').replaceChildren(...['weapon','armor','necklace','pants','ring1','gloves','ring2','boots','backpack'].map(slot=>{
+ $('equip-paperdoll').replaceChildren(...['weapon','armor','necklace','pants','ring1','gloves','ring2','boots'].map(slot=>{
   const g=gearItem(w.equipment?.[slot]),rarity=g?gearRarity(g):null;
   const button=document.createElement('button');button.type='button';button.className='paperdoll-slot'+(g?' is-equipped':' is-empty');button.dataset.equipmentSlot=slot;
   button.setAttribute('aria-pressed',String(selectedEquipmentSlot===slot));button.setAttribute('aria-label',equipmentSlots[slot]+' · '+(g?itemName(g.id):'미착용'));
@@ -860,6 +860,7 @@ function renderEquipmentShowcase(){
  }));
  if(focusedSlot)$('equip-paperdoll').querySelector(`[data-equipment-slot="${focusedSlot}"]`)?.focus({preventScroll:true});
  $('equip-selected').replaceChildren(makeEquippedSlotCard(selectedEquipmentSlot,'equip'));
+ const bpCard=$('equip-backpack-card');if(bpCard)bpCard.replaceChildren(makeEquippedSlotCard('backpack','equip'));
 }
 function renderEquippedViews(){
  if(!state)return;
