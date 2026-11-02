@@ -13,7 +13,7 @@ FACILITY_SPECS = {
     'purifier': ('정수장', '생산', '식수 정제', 'water', [8,4], {'wood':5,'metal':6,'circuits':2}),
     'bloodbank': ('혈액 보관소', '생산', '원혈 배양·혈액 안정화', 'blood', [4,8], {'wood':5,'metal':6,'chemicals':3}),
     'archive': ('기록 보관소', '연구', '강화 주문서·스킬북 복원', 'storage', [-4,8], {'wood':8,'metal':4,'cloth':3}),
-    'backpack_workshop': ('가방 공방', '장비', '전술 가방 제작 및 테트리스 수납 공간 확장', 'storage', [6,-2], {'wood':6,'metal':4,'cloth':4}),
+    'backpack_workshop': ('가방 공방', '장비', '전술 가방 제작 및 배낭 수납 공간 확장', 'storage', [6,-2], {'wood':6,'metal':4,'cloth':4}),
 }
 FACILITY_SPECS = {key:dict(name=v[0],category=v[1],description=v[2],prop=v[3],offset=v[4],cost=v[5]) for key,v in FACILITY_SPECS.items()}
 EXTRA_RECIPES = {

@@ -948,13 +948,13 @@ function renderInventory(){
   for(let i=ids.length;i<20;i++){const empty=document.createElement('span');empty.className='item-slot empty-slot';empty.setAttribute('aria-hidden','true');slots.push(empty);}
   $('inventory').replaceChildren(...slots);inventoryLayout=layout;
 
- // Tarkov Tactical Backpack Tetris Grid
+ // Tactical Backpack Grid
  const bagGrid = $('bag-tetris-grid');
  if(bagGrid){
   const bp = getTarkovBackpack();
   const isMobile = window.innerWidth <= 600;
   const cSize = isMobile ? 32 : 40;
-  $('bag-tetris-title').textContent = `🎒 전술 배낭 테트리스 수납함 · ${bp.name} (${bp.w}×${bp.h})`;
+  $('bag-tetris-title').textContent = `🎒 전술 배낭 수납함 · ${bp.name} (${bp.w}×${bp.h})`;
   const bpItems = [];
   for(const g of (state.world.gear||[])){
    if(!Object.values(state.world.equipment||{}).includes(g.id)){
@@ -1521,7 +1521,7 @@ function openLootBox(source){
  renderLootBox();
 }
 
-/* Tarkov Tetris Grid System */
+/* Tactical Backpack Grid System */
 const ITEM_DIMENSIONS = {
  weapon: [2, 3],
  armor: [2, 2],
@@ -1703,6 +1703,51 @@ function renderLootBox(){
   $('loot-selected').disabled=cd>0||lootChecks.size===0||isBagFull();
   $('loot-all').textContent='모두 파밍 · F';
   $('loot-all').disabled=cd>0||isBagFull();
+
+  // Unified Tactical Backpack & Farming Grid Rendering for POI
+  const lootWrap = $('tarkov-loot-wrap');
+  if(lootWrap){
+   const bp = getTarkovBackpack();
+   const isMobile = window.innerWidth <= 600;
+   const cSize = isMobile ? 30 : 38;
+   const poiGridItems = contents.map(([k, amt]) => ({
+    id: k, itemKey: k, gear: null, name: state.items[k]||k, icon: itemIcon(k), count: amt
+   }));
+   $('tarkov-backpack-label').textContent = `🎒 내 전술 배낭 (${bp.w}×${bp.h})`;
+   $('tarkov-loot-count').textContent = `${poiGridItems.length}종 자원`;
+
+   renderTarkovGrid($('tarkov-loot-grid'), poiGridItems, 5, 4, (item) => {
+    if(cd <= 0 && !isBagFull()){
+     command('gather', { id: poi.id, items: [item.id] });
+     closeLootBox();
+    }
+   }, cSize);
+
+   const bpItems = [];
+   for(const g of (w.gear||[])){
+    if(!Object.values(w.equipment||{}).includes(g.id)){
+     bpItems.push({ id: g.id, itemKey: g.slot, gear: g, name: g.name, icon: g.slot, count: 1 });
+    }
+   }
+   for(const [k, amt] of Object.entries(w.inventory||{})){
+    if(amt > 0 && k !== 'gold'){
+     bpItems.push({ id: k, itemKey: k, gear: null, name: state.items[k]||k, icon: itemIcon(k), count: amt });
+    }
+   }
+   const { occ } = packTarkovItems(bpItems, bp.w, bp.h);
+   const usedCells = occ.flat().filter(Boolean).length;
+   const totalCells = bp.w * bp.h;
+   $('tarkov-backpack-cells').textContent = `${usedCells}/${totalCells} 칸 (${Math.round(usedCells/totalCells*100)}%)`;
+
+   renderTarkovGrid($('tarkov-backpack-grid'), bpItems, bp.w, bp.h, (item) => {
+    selectedItem = item.id;
+    toast(`${item.name} (${item.w}×${item.h}) 선택됨 - R키로 회전`);
+   }, cSize);
+
+   const rotBtn = $('tarkov-rotate-btn');
+   if(rotBtn) rotBtn.onclick = () => rotateCurrentTarkovItem();
+  }
+
   $('loot-box').hidden=false;
  }else if(activeLoot.type==='drop'){
   const drop=(w.drops||[]).find(d=>d.id===activeLoot.id);
