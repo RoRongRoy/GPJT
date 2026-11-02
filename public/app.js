@@ -860,7 +860,7 @@ function renderEquipmentShowcase(){
  }));
  if(focusedSlot)$('equip-paperdoll').querySelector(`[data-equipment-slot="${focusedSlot}"]`)?.focus({preventScroll:true});
  $('equip-selected').replaceChildren(makeEquippedSlotCard(selectedEquipmentSlot,'equip'));
- const bpCard=$('equip-backpack-card');if(bpCard)bpCard.replaceChildren(makeEquippedSlotCard('backpack','equip'));
+
 }
 function renderEquippedViews(){
  if(!state)return;
