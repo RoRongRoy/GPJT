@@ -84,3 +84,23 @@ for family,title,min_level,power,rarity,facility_level,cost in [
         RECIPES['make_'+key]=dict(name=model['name'],facility=facility,level=facility_level,
             combat_level=min_level,cost=dict(cost),gear_slot=slot,power=model['power'],rarity=rarity,
             min_level=min_level,model=key,seconds=45)
+
+# Expedition equipment: 28 models, each with a hunt-and-salvage recipe.
+EXPEDITION_MODELS={}
+for family,title,weapon,shape,mat in [
+    ('ranger','황야 개척자','톱날 장검',(1,3),'hardened_hide'),
+    ('recon','도시 정찰대','접이식 정찰 소총',(3,2),'charged_core'),
+    ('nightstalker','밤의 추적자','쌍날 혈조',(2,2),'mutant_tendon'),
+    ('ritualist','묘역 의식술사','흑요 의식 지팡이',(1,3),'night_essence'),
+]:
+    for slot,label,facility in [('weapon',weapon,'forge'),('armor','야전 외투','tailor'),('pants','탐사 하의','tailor'),
+                                 ('boots','탐사 장화','tailor'),('gloves','작업 장갑','tailor'),
+                                 ('necklace','탐사 부적','archive'),('ring','탐사 인장','archive')]:
+        key=family+'_'+slot
+        dims=shape if slot=='weapon' else (3,3) if slot=='armor' else (2,2) if slot in ('pants','boots') else (1,2) if slot=='gloves' else (1,1)
+        model=dict(name=title+' '+label,slot=slot,power=52 if slot=='weapon' else 24,
+                   min_level=30,rarity='rare',model=key,shape=dims)
+        EXPEDITION_MODELS[key]=model;GEAR_MODELS[key]=model
+        RECIPES['make_'+key]=dict(name=model['name'],facility=facility,level=2,combat_level=30,
+            cost={mat:3,'relic_fragment':1,'circuit_board':2,'cured_hide':3,'gold':90},
+            gear_slot=slot,power=model['power'],rarity='rare',min_level=30,model=key,shape=dims,seconds=90)

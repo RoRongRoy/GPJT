@@ -63,6 +63,7 @@ jobs:
             /tmp/nocturne-*.png
             /tmp/skill-fx-*.png
             /tmp/equipment-upgrade-*.png
+            /tmp/expedition-*.png
           if-no-files-found: ignore
           retention-days: 7
 

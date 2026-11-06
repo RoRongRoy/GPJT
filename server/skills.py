@@ -69,6 +69,35 @@ EXCLUSIVE_SKILLS = {
 }
 
 
+
+SPECIALIZATIONS={
+ ('human','warrior'):{
+  'hw_riposte':skill('개척검 반격',35,'근거리',range=2.8,damage=160,stun=1.2,cooldown=16,fx_family='cross',discipline='검술'),
+  'hw_breach':skill('철벽 파쇄',45,'근거리',range=3.2,damage=125,aoe=True,stun=2,cooldown=22,fx_family='nova',discipline='제압'),
+  'hw_rescue':skill('생존자의 맹세',60,'회복',heal=70,cleanse=80,cooldown=35,fx_family='sanctuary',discipline='생존'),
+  'hw_dawn':skill('여명 검무',80,'근거리',range=3.8,damage=230,aoe=True,cooldown=40,fx_family='slash',discipline='검술'),
+ },
+ ('human','ranged'):{
+  'hr_burst':skill('정찰 연속사격',35,'원거리',range=8,damage=155,cooldown=15,fx_family='volley',discipline='사격'),
+  'hr_cluster':skill('집속 소이탄',45,'원거리',range=7.5,damage=135,blast_radius=3.2,cooldown=24,fx_family='bomb',discipline='폭파'),
+  'hr_resupply':skill('전술 응급 처치',60,'회복',heal=65,cleanse=90,cooldown=35,fx_family='heal',discipline='생존'),
+  'hr_piercer':skill('태양 관통탄',80,'원거리',range=10,damage=260,blast_radius=1.5,cooldown=40,fx_family='beam',discipline='사격'),
+ },
+ ('vampire','warrior'):{
+  'vw_lacerate':skill('밤사냥 열상',35,'근거리',range=2.8,damage=150,leech_mult=.35,cooldown=16,fx_family='cross',discipline='혈조'),
+  'vw_terror':skill('심연의 속박',45,'근거리',range=3.5,damage=115,aoe=True,stun=2.5,cooldown=24,fx_family='chains',discipline='공포'),
+  'vw_rebirth':skill('불멸의 탈피',60,'회복',heal=75,cleanse=60,cooldown=35,fx_family='sanctuary',discipline='생존'),
+  'vw_requiem':skill('혈왕 난무',80,'근거리',range=3.8,damage=220,aoe=True,leech_mult=.4,cooldown=40,fx_family='slash',discipline='혈조'),
+ },
+ ('vampire','ranged'):{
+  'vr_spear':skill('진홍의 창',35,'원거리',range=8,damage=155,cooldown=16,fx_family='beam',discipline='혈마법'),
+  'vr_storm':skill('묘역 뇌폭',45,'원거리',range=8,damage=130,blast_radius=3.2,stun=1.2,cooldown=24,fx_family='lightning',discipline='저주'),
+  'vr_pact':skill('불사의 계약',60,'회복',heal=70,cleanse=80,cooldown=35,fx_family='sanctuary',discipline='생존'),
+  'vr_moonfall':skill('혈월 낙하',80,'원거리',range=9,damage=240,blast_radius=3.5,cooldown=40,fx_family='orb',discipline='혈마법'),
+ },
+}
+for key,specs in SPECIALIZATIONS.items():EXCLUSIVE_SKILLS[key].update(specs)
+
 def register_skills(combat, jobs):
     for (species, job), specs in EXCLUSIVE_SKILLS.items():
         for key, spec in specs.items():

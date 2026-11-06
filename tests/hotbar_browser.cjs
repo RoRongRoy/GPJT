@@ -24,7 +24,7 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
    if(url.pathname.includes('socket.io'))return route.fulfill({contentType:'text/javascript',body:''});
    if(url.pathname.startsWith('/api/')){
     if(url.pathname==='/api/action'){const cmd=route.request().postDataJSON().command;commands.push(cmd);fixture.world.revision++;if(cmd.action==='learn_skill'){const p=fixture.world.player; p.learned_skills.push(p.species+':'+p.job+':'+cmd.skill);fixture.world.inventory[fixture.job_skills[p.species+'_'+p.job][cmd.skill].book_id]--;}}
-    fixture.snapshot_time=Date.now()/1000;
+    delete fixture.backpack;fixture.snapshot_time=Date.now()/1000;
     return route.fulfill({json:fixture});
    }
    return route.fulfill({path:path.join(root,'public',url.pathname==='/'?'index.html':url.pathname)});
@@ -192,8 +192,8 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   assert.equal(commands.at(-1)?.action,'build');assert.equal(commands.at(-1)?.facility,'forge');
   await page.keyboard.press('Escape');await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
   await page.locator('[data-view=camp] [data-panel=craft]').click();
-  assert.equal(await page.locator('#recipe-choices button').count(),77);
-  await page.locator('#craft-category').selectOption('장비');assert.equal(await page.locator('#recipe-choices button').count(),50);
+  assert.equal(await page.locator('#recipe-choices button').count(),125);
+  await page.locator('#craft-category').selectOption('장비');assert.equal(await page.locator('#recipe-choices button').count(),78);
   await page.locator('[data-craft=make_ring]').click();await page.locator('#craft-submit')[mobile?'tap':'click']();await delay(200);
   assert.equal(commands.at(-1)?.recipe,'make_ring');
   await page.screenshot({path:`/tmp/settlement-crafting-${layout}.png`});
@@ -209,7 +209,7 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   fixture.world.player.species='human';fixture.world.player.job='warrior';fixture.world.player.combat_level=30;
   fixture.world.player.learned_skills=['sweep','recover'];fixture.world.inventory.skillbook=10;fixture.world.inventory.skillbook_human_warrior_hw_slash=1;fixture.world.inventory.skillbook_human_warrior_hw_execution=1;
   await page.keyboard.press('k');
-  await until(()=>page.locator('#skills-list .skill-card').count().then(n=>n===14),'14 skills for the active class');
+  await until(()=>page.locator('#skills-list .skill-card').count().then(n=>n===18),'18 skills for the active class');
   assert.equal(await page.locator('#skills-list [data-skill=hr_shot]').count(),0);
   await page.locator('#skill-filter').selectOption('available');
   await until(()=>page.locator('#skills-list [data-skill=hw_slash] > button').isEnabled(),'Named book ready');
@@ -228,14 +228,14 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   await until(()=>Promise.resolve(fixture.world.player.learned_skills.includes('human:warrior:hw_execution')),'High level skill can be chosen without prerequisites');
   assert.equal(fixture.world.inventory.skillbook,10);
   await page.locator('#skill-filter').selectOption('heal');
-  assert.equal(await page.locator('#skills-list .skill-card').count(),4);
+  assert.equal(await page.locator('#skills-list .skill-card').count(),5);
   await page.screenshot({path:`/tmp/skills-expanded-${layout}.png`});
   fixture.world.player.species='vampire';fixture.world.player.job='ranged';
   await page.locator('#skill-filter').selectOption('all');
   await until(()=>page.locator('#skills-list [data-skill=vr_bolt]').count().then(n=>n===1),'Vampire ranged catalog appears');
   assert.equal(await page.locator('#skills-list [data-skill=hw_slash]').count(),0);
   assert.equal((await mapping())['1'],null,'Wrong class skill is cleared from active slots');
-  assert.equal(await page.locator('#skills-list .skill-card').count(),14);
+  assert.equal(await page.locator('#skills-list .skill-card').count(),18);
   await page.keyboard.press('Escape');
   fixture.world.player.species='human';fixture.world.player.job='warrior';fixture.world.player.combat_level=100;
   fixture.world.player.x=340;fixture.world.player.y=330;
@@ -247,14 +247,14 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   assert.ok((await page.locator('#item-description').textContent()).includes('몬스터 처치'));
   assert.ok(await page.locator('#item-art').evaluate(img=>img.complete&&img.naturalWidth>0),'New material icon loads');
   await page.locator('[data-filter=materials]').click();
-  assert.equal(await page.locator('[data-inventory-item=ancient_core]').count(),0);
+  assert.equal(await page.locator('[data-inventory-item=ancient_core].is-filtered').count(),1);
   await page.locator('[data-inventory-item=plank]').click();
   assert.ok((await page.locator('#item-category').textContent()).includes('건설'));
   assert.ok(await page.locator('#item-art').evaluate(img=>img.complete&&img.naturalWidth>0));
   await page.locator('[data-filter=scrolls]').click();
   assert.equal(await page.locator('[data-inventory-item=blessed_scroll]').count(),1);
   await page.locator('[data-filter=currency]').click();
-  assert.equal(await page.locator('#inventory [data-inventory-item]').count(),1);
+  assert.equal(await page.locator('#inventory [data-inventory-item=gold]').count(),0);
   await page.locator('[data-filter=growth]').click();
   await page.locator('[data-inventory-item=blessing_crystal]').click();
   assert.ok((await page.locator('#item-effect').textContent()).includes('+20%p'));
@@ -264,7 +264,7 @@ async function until(check,msg){for(let i=0;i<100;i++){if(await check())return;a
   await page.keyboard.press('Escape');await page.locator('#menu-camp').click();await page.locator('#settlement-manage').click();
   await page.locator('[data-view=camp] [data-panel=craft]').click();
   await page.locator('#craft-slot').selectOption('weapon');
-  assert.equal(await page.locator('#recipe-choices button').count(),17);
+  assert.equal(await page.locator('#recipe-choices button').count(),21);
   await page.locator('[data-craft=make_abyssal_weapon_staff]').click();
   assert.ok((await page.locator('#recipe-effect').textContent()).includes('희귀'));
   await page.locator('#craft-submit').click();await delay(200);

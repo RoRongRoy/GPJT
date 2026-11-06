@@ -20,7 +20,7 @@ assert.equal(gun.targetDistance,Math.hypot(6*34,6*17));
 assert.ok(gun.body(260).x<0&&Math.abs(gun.body(260).x)<=2,'Ranged cast should recoil, not lunge');
 gun.draw(ctx,(x,y)=>[(x-y)*34,(x+y)*17],1,350);assert.equal(depth,0);
 console.log('Ranged presentation passed: nearest target distance, small recoil, target blast, balanced canvas state.');
-// Exercise all 56 class-specific skill definitions, not just representative visuals.
+// Exercise all 72 class-specific skill definitions, not just representative visuals.
 const {execFileSync}=require('node:child_process');
 const catalogs=JSON.parse(execFileSync('python',['-c',"import json;from server.game import JOB_SKILLS,COMBAT;print(json.dumps([{'species':sp,'job':job,'skills':{k:{**COMBAT[k],**v,'id':k} for k,v in skills.items()}} for (sp,job),skills in JOB_SKILLS.items()]))"],{encoding:'utf8'}));
 let verified=0;
@@ -43,4 +43,4 @@ for(const catalog of catalogs)for(const [id,spec] of Object.entries(catalog.skil
  assert.equal(quiet.shake(quiet.impactAt+20).x,0);assert.equal(quiet.reaction(1,quiet.impactAt+20).flash,false);
  sandbox.window.matchMedia=()=>({matches:false});verified++;
 }
-assert.equal(verified,56);console.log('All 56 skill effects passed: phases, bounded shake, confirmed hits, reduced motion, immutable snapshots.');
+assert.equal(verified,72);console.log('All 72 skill effects passed: phases, bounded shake, confirmed hits, reduced motion, immutable snapshots.');

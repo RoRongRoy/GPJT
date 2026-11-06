@@ -8,7 +8,7 @@ from server.storage import Store
 
 
 class SkillExpansionTests(unittest.TestCase):
-    def world(self, species='human', job='warrior', level=30):
+    def world(self, species='human', job='warrior', level=100):
         w = new_world()
         w['player'].update(chosen=True, species=species, job=job, combat_level=level,
                            x=100, y=100, hp=50, food=100, blood=100, mp=100)
@@ -21,7 +21,7 @@ class SkillExpansionTests(unittest.TestCase):
 
     def test_all_32_exclusive_skills_can_be_selected_and_cast(self):
         for (species, job), skills in EXCLUSIVE_SKILLS.items():
-            self.assertEqual(len(JOB_SKILLS[(species, job)]), 14)
+            self.assertEqual(len(JOB_SKILLS[(species, job)]), 18)
             for key, spec in skills.items():
                 with self.subTest(skill=key):
                     w = self.world(species, job, spec['unlock_level'])

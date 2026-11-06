@@ -4448,3 +4448,42 @@ body.field-ui{--hud-gold:#b9a16e;--hud-ink:#100f0dcc;overflow:hidden}
 
 }
 
+
+/* One inventory: wearable equipment and actual rectangular cargo. */
+#menu-dialog[data-panel="bag"]{width:min(1180px,96vw);max-width:1180px}
+.inventory-workspace{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;align-items:start}
+.inventory-worn{padding:12px;background:linear-gradient(135deg,#262b2e,#121416);border:1px solid #625846}
+.inventory-worn h3{margin:0 0 12px;color:#d4bc86}
+.inventory-worn .equipped-slot-grid{display:grid;grid-template-columns:1fr;gap:6px}
+.inventory-worn .equip-slot-card{padding:7px;min-width:0}
+.inventory-worn .equip-slot-card img{width:28px;height:28px}
+.inventory-worn .equip-slot-stat{font-size:10px}
+.inventory-cargo{min-width:0}
+#inventory{display:block!important;width:100%;overflow-x:auto}
+#bag-tetris-grid{max-width:none;gap:2px;background:#080c0e;padding:4px;border:1px solid #71654c}
+.tarkov-item{cursor:pointer;min-width:0;min-height:0;margin:0;padding:3px;background:linear-gradient(145deg,#38433d,#171e20);border:1px solid var(--item-color,#7b826c);border-radius:3px}
+.tarkov-item.is-filtered{opacity:.16}
+.tarkov-item.is-selected,.tarkov-item[aria-pressed="true"]{outline:2px solid #efc67c;outline-offset:-2px}
+.tarkov-item.is-overflow{display:flex;align-items:center;justify-content:space-between;border-color:#c08b5c;background:#33251d}
+.tarkov-item img{object-fit:contain;max-height:60%;max-width:70%}
+.tarkov-item-title{font-size:10px;line-height:1.1;overflow:hidden}
+.tarkov-item-size{font-size:9px}.tarkov-item-count{font-size:11px}
+.inventory-cargo>.item-detail{margin-top:12px;min-height:0;text-align:left;padding:12px}
+.inventory-cargo>.item-detail>img{float:left;margin-right:12px}
+@media(max-width:700px){
+ .inventory-workspace{grid-template-columns:1fr;gap:10px}
+ .inventory-worn .equipped-slot-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .inventory-worn .equip-slot-card{padding:5px;font-size:10px}
+ .inventory-worn .equip-slot-stat{display:none}
+ .inventory-worn .equip-slot-actions button{padding:4px;font-size:10px;min-height:28px}
+ .inventory-worn .equip-slot-card strong{font-size:10px;word-break:break-all}
+ .inventory-cargo .tarkov-item-title{font-size:8px}
+ .inventory-cargo .tarkov-item-size{font-size:7px}
+ #menu-dialog[data-panel="bag"]{width:98vw}
+}
+@media(max-width:700px){
+ [data-view="bag"]>.filter-tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;padding:4px;max-width:100%}
+ [data-view="bag"]>.filter-tabs button{flex:0 0 auto;white-space:nowrap;word-break:keep-all;padding:8px 12px;min-height:36px}
+ .inventory-worn .equip-slot-actions{gap:3px}
+ .inventory-worn .equip-slot-actions button{padding:4px 2px;font-size:9px;white-space:nowrap}
+}

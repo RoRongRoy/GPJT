@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261102-unified-bag1"><style>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10121a"><title>BLOODFALL · 격리구역</title><link rel="stylesheet" href="/style.css?v=20261028-6"><link rel="stylesheet" href="/gothic.css?v=20261106-expedition1"><style>
  .welcome-quick-resume{background:rgba(217,79,112,0.15);border:1px solid rgba(217,79,112,0.45);border-radius:6px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
  .welcome-quick-resume strong{color:#ffcfd9;font-size:12.5px;display:block}
  .welcome-quick-resume strong .highlight{color:#ff5277;font-weight:bold}
@@ -213,9 +213,9 @@
    <div id="skills-summary" class="equip-stats-box"></div>
    <details class="skill-class-options"><summary>직업·성별 설정</summary><div id="class-switcher" class="class-switcher"></div></details>
    <h3 class="section-label">직업 스킬 도감 · 원하는 기술을 골라 배우세요</h3>
-   <label>스킬 분류 <select id="skill-filter"><option value="all">전체 · 레벨 순</option><option value="available">지금 배울 수 있는 스킬</option><option value="learned">습득한 스킬</option><option value="attack">공격·제압</option><option value="heal">회복·정화</option></select></label>
+   <label>스킬 분류 <select id="skill-discipline" aria-label="기술 전문 분야"><option value="all">모든 전문 분야</option></select><select id="skill-filter"><option value="all">전체 · 레벨 순</option><option value="available">지금 배울 수 있는 스킬</option><option value="learned">습득한 스킬</option><option value="attack">공격·제압</option><option value="heal">회복·정화</option></select></label>
    <div id="skills-list" class="equip-gear-list"></div>
-   <p class="panel-note">각 직업 14종: 기본 2종은 즉시 사용, 나머지는 요구 레벨을 달성한 뒤 직접 선택해 습득합니다. 신규 Lv.2 스킬은 무료이고 다른 스킬은 고대 스킬북을 사용합니다. 선행 스킬 없이 원하는 순서로 배우세요. 전직·종족 변경 시 전용 스킬은 비활성화되며 돌아오면 다시 사용할 수 있습니다. 배우기만 해서는 슬롯에 자동 등록되지 않습니다.</p>
+   <p class="panel-note">각 직업 18종: 기본 2종은 즉시 사용하고, 나머지는 요구 레벨과 해당 기술의 전용 스킬북이 필요합니다. 탐색과 사냥으로 재료를 모아 아지트 서고에서 고레벨 전용 스킬북을 연구할 수도 있습니다. 선행 스킬 없이 원하는 순서로 배우세요. 전직·종족 변경 시 전용 스킬은 비활성화되며 돌아오면 다시 사용할 수 있습니다. 배우기만 해서는 슬롯에 자동 등록되지 않습니다.</p>
   </section>
   <section data-view="dungeons" hidden><p id="dungeon-reset" class="panel-note"></p><div id="dungeon-current" class="equip-stats-box"></div><div id="dungeon-list" class="equip-gear-list"></div><p class="panel-note">캐릭터별 하루 입장 제한 · 한국 시간 자정 초기화 · 제한 시간 20분. 입장 시 횟수가 차감됩니다. 전투 불능·중도 퇴장 시 횟수는 돌아오지 않습니다. 귀환 전에 전리품을 회수하세요.</p></section>
   <section data-view="equip" hidden>
@@ -236,24 +236,19 @@
   </section>
   <section data-view="bag" hidden>
    <div class="filter-tabs" role="group" aria-label="인벤토리 분류"><button data-filter="all" aria-pressed="true">전체</button><button data-filter="materials" aria-pressed="false">파밍·재료</button><button data-filter="monster" aria-pressed="false">전리품 전체</button><button data-filter="crafting" aria-pressed="false">장비 재료</button><button data-filter="scrolls" aria-pressed="false">주문서</button><button data-filter="currency" aria-pressed="false">골드</button><button data-filter="supplies" aria-pressed="false">소모품</button><button data-filter="equipment" aria-pressed="false">장비</button><button data-filter="growth" aria-pressed="false">강화</button></div>
-   <!-- Tactical Backpack Grid View -->
-   <div class="tarkov-bag-panel">
-    <div class="tarkov-subhead">
-     <strong id="bag-tetris-title">🎒 전술 배낭 수납함</strong>
-     <div class="tarkov-toolbar">
-      <button id="bag-rotate-btn" type="button" class="tarkov-tool-btn" title="아이템 회전 (R)">🔄 회전 (R)</button>
-      <span id="bag-tetris-capacity" class="tarkov-badge"></span>
-     </div>
+   <div class="inventory-workspace">
+    <aside class="inventory-worn"><h3>착용 장비</h3><div id="bag-equipped-slots" class="equipped-slot-grid"></div><p id="equipped-summary" class="panel-note"></p></aside>
+    <div class="inventory-cargo">
+     <div class="tarkov-subhead"><strong id="bag-tetris-title">탐험 배낭</strong><button id="bag-rotate-btn" type="button" class="tarkov-tool-btn">회전 (R)</button></div>
+     <div id="bag-tetris-capacity" class="panel-note"></div>
+     <div id="inventory"><div id="bag-tetris-grid" class="tarkov-grid"></div></div>
+     <p id="inventory-empty" hidden>선택한 분류의 아이템이 없습니다.</p>
+     <div class="bag-summary"><span>배낭 · 착용 제외</span><strong id="bag-count"></strong></div>
+     <aside class="item-detail" aria-label="선택한 아이템"><img id="item-art" alt="" width="64" height="64"><span id="item-category" class="eyebrow"></span><h3 id="item-name">아이템 선택</h3><p id="item-description"></p><p id="item-owned"></p><p id="item-effect"></p><label id="ring-target-label" hidden>반지 장착 위치 <select id="ring-target"><option value="ring1">반지 1</option><option value="ring2">반지 2</option></select></label><button id="item-use" class="wide accent" disabled>사용</button><p id="item-use-reason" role="status"></p></aside>
     </div>
-    <div id="bag-tetris-grid" class="tarkov-grid"></div>
    </div>
-   <div id="bag-equipped-slots" class="equipped-slot-grid"></div>
-   <p id="equipped-summary" class="panel-note"></p>
-   <div class="bag-summary"><span>소지 아이템</span><strong id="bag-count"></strong></div>
-   <div class="bag-layout"><div><div id="inventory" aria-label="아이템 슬롯"></div><p id="inventory-empty" hidden>이 분류에 보유한 아이템이 없습니다.</p></div>
-   <aside class="item-detail" aria-label="선택한 아이템"><img id="item-art" alt="" width="64" height="64"><span id="item-category" class="eyebrow"></span><h3 id="item-name">아이템 선택</h3><p id="item-description"></p><p id="item-owned"></p><p id="item-effect"></p><label id="ring-target-label" hidden>반지 장착 위치 <select id="ring-target"><option value="ring1">반지 1</option><option value="ring2">반지 2</option></select></label><button id="item-use" class="wide accent" disabled>사용</button><p id="item-use-reason" role="status"></p></aside></div>
-   <details class="panel-note" open><summary>장비 등급 및 몬스터 드랍 확률 (리니지식 하드코어 밸런스)</summary><p><strong>[5단계 장비 등급]</strong> 일반(5%) · 고급(1%) · 희귀(0.1%) · 영웅(0.01%) · 전설(0.001%) / 미획득 93.889%.<br><strong>[몬스터 전리품]</strong> 처치 시 강화 주문서·부품 기본 드랍, 치료제 20% 확률 드랍, 중·고렙 지역 몬스터는 원혈·약초·강화혈액 및 고티어(T2~T8) 장비를 추가 드랍합니다.</p></details>
-   <p class="panel-note">아이템을 클릭하면 상세 정보를 볼 수 있습니다. 아지트와 보관품을 공유합니다.</p>
+   <details class="panel-note" open><summary>장비 등급 및 몬스터 드랍 확률 (리니지식 하드코어 밸런스)</summary><p><strong>[5단계 장비 등급]</strong> 일반(5%) · 고급(1%) · 희귀(0.1%) · 영웅(0.01%) · 전설(0.001%) / 미획득 93.889%.<br><strong>[몬스터 전리품]</strong> 강화 주문서는 레벨별 3~5% 확률로 1장 드랍, 치료제 20% 확률 드랍, 중·고렙 지역 몬스터는 원혈·약초·강화혈액 및 고티어(T2~T8) 장비를 추가 드랍합니다.</p></details>
+   <p class="panel-note">아이템을 클릭하면 상세 정보를 볼 수 있습니다. 재료는 묶음 한도까지 쌓이며 큰 부품과 장비는 여러 칸을 차지합니다. 추가 보관 물품은 삭제되지 않습니다.</p>
   </section>
   <section data-view="shop" hidden><h3 id="shop-merchant-name">거래할 상인에게 말을 거세요</h3>
    <div class="shop-header">
@@ -377,5 +372,5 @@
 </dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <footer>BLOODFALL 0.8.0 · Socket.IO 멀티플레이 · 서버 상태 관리</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261101-bat-facing1"></script><script src="/sprites.js?v=20261101-bat-facing1"></script><script src="/combat.js?v=20261101-bat-facing1"></script><script src="/themes.js?v=20261101-bat-facing1"></script><script src="/world.js?v=20261101-bat-facing1"></script><script src="/app.js?v=20261101-bat-facing1" type="module"></script>
+<script src="/socket.io/socket.io.js"></script><script src="/gothic.js?v=20261028-movement1"></script><script src="/sprite-manifest.js?v=20261106-expedition1"></script><script src="/sprites.js?v=20261106-expedition1"></script><script src="/combat.js?v=20261106-expedition1"></script><script src="/themes.js?v=20261106-expedition1"></script><script src="/world.js?v=20261106-expedition1"></script><script src="/app.js?v=20261106-expedition1" type="module"></script>
 </body></html>

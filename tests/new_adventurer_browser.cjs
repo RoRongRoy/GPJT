@@ -40,9 +40,8 @@ s=Store(sys.argv[1]);s.save(new_world());s.save_account('legacy-player','test-pa
    assert.ok((await page.locator('[data-view=equip]').textContent()).includes('[일반]'));
    await page.keyboard.press('Escape');await page.locator('#menu-bag').click();
    await page.locator('[data-filter=equipment]').click();
-   assert.equal(await page.locator('[data-inventory-item]').count(),3);
-   await page.locator('[data-inventory-item="gear:starter-weapon"]').click();
-   assert.equal(await page.locator('#item-category').textContent(),'일반 무기');
+   assert.equal(await page.locator('[data-inventory-item="gear:starter-weapon"]').count(),0);
+   assert.ok((await page.locator('#bag-equipped-slots').textContent()).includes('[일반]'));
    await page.keyboard.press('Escape');const coords=await page.locator('#coordinates').textContent();
    await page.keyboard.down('d');await delay(700);await page.keyboard.up('d');
    await until(()=>page.locator('#coordinates').textContent().then(t=>t!==coords),'Movement blocked after starting');
@@ -53,7 +52,7 @@ s=Store(sys.argv[1]);s.save(new_world());s.save_account('legacy-player','test-pa
    await page.locator('#welcome').waitFor({state:'hidden'});
    await until(()=>page.locator('#field-equip').textContent().then(t=>t.includes('[일반]')),'Legacy gear did not render');
    await page.locator('#menu-bag').click();await page.locator('[data-filter=materials]').click();
-   await page.locator('[data-inventory-item=wood]').click();
+   await page.locator('[data-inventory-item=wood]').first().click();
    assert.ok((await page.locator('#item-owned').textContent()).includes('77'),'Saved inventory was reset');
    if(transport==='http'&&species==='human'){
     // A cached/older server or an unknown future tier must not crash any gear view.
@@ -64,8 +63,7 @@ s=Store(sys.argv[1]);s.save(new_world());s.save_account('legacy-player','test-pa
     });
     await until(()=>page.locator('#field-equip').textContent().then(t=>t.includes('[미확인]')&&t.includes('[일반]')),'Fallback rarity display failed');
     await page.locator('[data-filter=equipment]').click();
-    await page.locator('[data-inventory-item="gear:starter-armor"]').click();
-    assert.equal(await page.locator('#item-category').textContent(),'미확인 상의');
+    assert.ok((await page.locator('#bag-equipped-slots').textContent()).includes('[미확인]'));
    }
    assert.deepEqual(errors,[]);
    console.log(`Passed ${transport} / ${species}: start, gear, movement, legacy account`);

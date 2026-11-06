@@ -20,7 +20,7 @@ class ResourceEconomyTests(unittest.TestCase):
             act(w,dict(action='gather',id=node['id']))
             found.update(w['inventory'])
             self.assertLessEqual(set(w['inventory']),set(FARM_MATERIALS))
-        self.assertEqual(found,set(FARM_MATERIALS));self.assertEqual(len(found),42)
+        self.assertEqual(found,set(FARM_MATERIALS));self.assertEqual(len(found),54)
         uses={key for spec in FACILITY_SPECS.values() for level in range(3) for key in facility_cost(spec,level)}
         self.assertEqual(uses,set(FARM_MATERIALS))
         # A stale client cannot request a former scroll in an object.
@@ -41,10 +41,10 @@ class ResourceEconomyTests(unittest.TestCase):
         from server.skillbooks import roll_book
         for faction in ('human','vampire'):
             found.update(roll_book(SKILL_BOOKS,faction,100,i/100) for i in range(101))
-        self.assertEqual(found,set(DROP_ITEMS));self.assertEqual(len(found),79)
+        self.assertEqual(found,set(DROP_ITEMS));self.assertEqual(len(found),103)
         self.assertFalse(set(FARM_MATERIALS)&set(DROP_ITEMS))
         for r in RECIPES.values():
-            if r.get('gear_slot'):self.assertLessEqual(set(r['cost']),set(DROP_ITEMS))
+            if r.get('gear_slot'):self.assertLessEqual(set(r['cost']),set(DROP_ITEMS)|set(FARM_MATERIALS))
         self.assertNotIn('ancient_core',{key for i in range(100) for key in extra_drop({'level':1},i/400)})
 
     def test_catalysts_raise_chance_and_spend_atomically(self):

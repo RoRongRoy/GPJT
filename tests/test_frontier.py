@@ -65,10 +65,11 @@ class FrontierTests(unittest.TestCase):
         self.assertEqual(materials,set(MATERIALS)-{'alloy','thread','essence','blessed_ink'})
 
     def test_all_40_models_have_recipes_and_level_checks(self):
-        self.assertEqual(len(GEAR_MODELS),40)
+        self.assertEqual(len(GEAR_MODELS),68)
         for key,model in GEAR_MODELS.items():
             with self.subTest(model=key):
                 w=self.world();recipe='make_'+key
+                w['inventory']=dict(RECIPES[recipe]['cost'])
                 act(w,{'action':'craft','recipe':recipe})
                 item=w['gear'][-1]
                 self.assertEqual(item['model'],key)

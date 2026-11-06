@@ -1,8 +1,10 @@
 """Server-owned prototype rules. No HTTP, disk, browser, or wall-clock dependencies."""
+import copy
 import math
 import random
 import uuid
 from . import dungeons
+from . import backpack
 from .mobility import MOBILITY
 from .skillbooks import register_books, has_skill, learned_key, roll_book
 from .survival import DRAIN, SPRINT_DRAIN, SUPPLY_PRICES, RESOURCE_LOOT
@@ -11,7 +13,7 @@ from .worldmap import SIZE, POIS, MOVEMENT, ENEMY_SPAWNS, new_enemy, BASE_USE_RA
 
 from .equipment import RARITIES, roll_equipment, equipment_power, EQUIPMENT_SLOTS, SLOT_NAMES, slot_type, equipped_slot, armor_power, BACKPACK_TIERS, ITEM_DIMENSIONS
 
-from .settlement import FACILITY_SPECS, EXTRA_RECIPES, MATERIALS
+from .settlement import FACILITY_SPECS, EXTRA_RECIPES, MATERIALS, SEARCH_BONUSES
 from .resources import DROP_ITEMS, ENHANCEMENT, extra_drop, facility_cost
 from .skills import register_skills, configure_ranged_skills
 from .frontier import MAX_COMBAT_LEVEL, CONSUMABLES
@@ -346,6 +348,12 @@ for _catalog in SHOP_BUY_CATALOG.values():
 from .resources import ITEM_CATEGORIES
 ITEM_CATEGORIES.update({key:dict(origin='monster',category='books',label='전용 스킬북 · 사용 시 해당 기술 습득') for key in SKILL_BOOKS})
 ITEMS['skillbook']='구형 고대 스킬북 (판매용)'
+for _book,_spec in SKILL_BOOKS.items():
+    if _spec['level']>=35:
+        RECIPES['research_'+_book]=dict(name=_spec['name']+' 연구',facility='archive',level=2 if _spec['level']<60 else 3,
+            combat_level=_spec['level'],cost={'sealed_research':2,'relic_fragment':2,'parchment':4,'arcane_dust':4},
+            output=_book,amount=1,fixed_yield=True,seconds=180)
+
 
 
 def resolve_skill_spec(species, job, skill):
@@ -440,24 +448,17 @@ def sync_starter_gear_names(w):
 
 
 def bag_capacity(w):
-    storage_lvl = w['base']['facilities'].get('storage', 0) if (w.get('base') and w['base'].get('established', True)) else 0
-    if p_instance := dungeons.current(w):storage_lvl=p_instance.get('storage_level',0)
-    bp_id = w.get('equipment', {}).get('backpack')
-    bp_bonus = 0
-    if bp_id:
-        bp_item = next((g for g in w.get('gear', []) if g.get('id') == bp_id), None)
-        if bp_item:
-            tier = bp_item.get('tier', 0)
-            bp_bonus = 30 + tier * 25
-    return 160 + storage_lvl * 50 + (w['player'].get('combat_level', 1) - 1) * 10 + bp_bonus
+    spec=backpack.dimensions(w)
+    return spec['w']*spec['h']
 
 
 def bag_used(w):
-    return sum(v for k, v in w['inventory'].items() if k != 'gold') + len(w.get('gear', [])) * 4
+    return backpack.layout(w)['total']
 
 
 def bag_full(w):
-    return bag_used(w) >= bag_capacity(w) or len(w.get('gear', [])) >= 20
+    pack=backpack.layout(w)
+    return bool(pack['overflow']) or pack['used']>=pack['capacity']
 
 
 def gain_xp(w, amount):
@@ -575,6 +576,21 @@ def cooldown(w, key, seconds):
 
 
 def act(w, command, rng=random.random):
+    # Inventory transactions validate the final packed shape before any spend commits.
+    if isinstance(command,dict) and command.get('action') in ('gather','loot','craft','equip','unequip','shop_buy','rotate_item'):
+        before=backpack.layout(w)
+        candidate=copy.deepcopy(w)
+        _dispatch_act(candidate,command,rng)
+        after=backpack.layout(candidate)
+        require(not after['overflow'] or (before['overflow'] and after['total']<=before['total'] and after['capacity']>=before['capacity']),
+                '배낭에 물품 크기에 맞는 공간이 없습니다. 정리하거나 더 큰 배낭을 착용하세요.')
+        for key,value in candidate.items():
+            if key not in w or w[key]!=value:w[key]=value
+        return
+    _dispatch_act(w,command,rng)
+
+
+def _dispatch_act(w, command, rng=random.random):
     require(isinstance(command, dict), '명령 형식 오류')
     action=command.get('action')
     if action=='dungeon_enter':
@@ -586,7 +602,7 @@ def act(w, command, rng=random.random):
         require(not w['paused'], '일시정지를 해제하세요.')
         dungeons.claim(w);return
     if dungeons.current(w):
-        require(action in ('move','attack','skill','loot','consume','equip','unequip','pause','learn_skill'), '던전에서 귀환한 뒤 이용하세요.')
+        require(action in ('move','attack','skill','loot','consume','equip','unequip','pause','learn_skill','rotate_item'), '던전에서 귀환한 뒤 이용하세요.')
         local=dungeons.view(w)
         _act(local,command,rng)
         instance=dungeons.current(w)
@@ -638,6 +654,15 @@ def _act(w, command, rng=random.random):
         note(w, f"{sp_name} {g_name} · [{town_name}]에서 [{cls['style']}] {cls['name']}({cls['weapon_type']})로 시작합니다. ({cls['starter_weapon']} 착용 · {trait})")
         return
     require(p['chosen'], '먼저 시작 종족을 선택하세요.')
+    if action == 'rotate_item':
+        item=command.get('item')
+        require(isinstance(item,str) and any(e['id']==item for e in backpack.entries(w)), '배낭 아이템을 선택하세요.')
+        rotations=p.setdefault('bag_rotations',{})
+        pack=backpack.layout(w)
+        entry=next(e for e in pack['entries']+pack['overflow'] if e['id']==item)
+        original=next(e for e in backpack.entries(w) if e['id']==item)
+        rotations[item]=entry['w']==original['w']
+        return
     if action == 'change_class':
         gender = command.get('gender', p.get('gender', 'male'))
         job = command.get('job', p.get('job', 'warrior'))
@@ -683,18 +708,20 @@ def _act(w, command, rng=random.random):
             selected = list(node.get('loot') or dict(POI_CONTENTS[node['kind']]))
         if selected is not None:
             require(isinstance(selected, list) and len(selected) > 0, '파밍할 아이템을 선택하세요.')
-            require(not bag_full(w), '인벤토리가 가득 찼습니다.')
             allowed = dict(node.get('loot') or POI_CONTENTS.get(node['kind'], [(node['kind'], 3), ('metal', 1)]))
             require(all(isinstance(k, str) and k in allowed for k in selected), '선택한 아이템 오류')
             cooldown(w, node['id'], node.get('seconds', 3))
             gained = []
             for k in dict.fromkeys(selected):
-                space = max(0, bag_capacity(w) - bag_used(w))
-                take = allowed[k] if k == 'gold' else min(allowed[k], space)
+                take = backpack.fit_amount(w,k,allowed[k])
                 if take > 0:
                     w['inventory'][k] = w['inventory'].get(k, 0) + take
                     gained.append(f"{ITEMS[k]} +{take}")
             require(gained, '인벤토리가 가득 찼습니다.')
+            bonus=SEARCH_BONUSES.get(node.get('site_type'))
+            if bonus and rng()<.12 and backpack.fit_amount(w,bonus,1):
+                w['inventory'][bonus]=w['inventory'].get(bonus,0)+1
+                gained.append('희귀 발견! '+ITEMS[bonus]+' +1')
             w['quest']['collected'] += 1
             note(w, '선택 파밍 · ' + ' · '.join(gained))
     elif action == 'loot':
@@ -702,21 +729,19 @@ def _act(w, command, rng=random.random):
         drop_id = command.get('id')
         drop = next((d for d in drops if d['id'] == drop_id), None) if drop_id else min((d for d in drops if dist(p, d) <= 3.5), key=lambda d: dist(p, d), default=None)
         require(drop and dist(p, drop) <= 3.5, '전리품 가까이 이동하세요.')
-        require(not bag_full(w), '인벤토리가 가득 찼습니다.')
         target_item = command.get('item')
         gained = []
         if target_item and target_item != 'all':
             if isinstance(target_item, str) and target_item.startswith('gear:'):
                 g = next((x for x in drop.get('gear', []) if x['id'] == target_item), None)
                 require(g, '이미 획득한 장비입니다.')
-                require(len(w['gear']) < 20 and bag_used(w) + 4 <= bag_capacity(w), '인벤토리가 가득 찼습니다.')
+                require(backpack.can_add_gear(w,g), '배낭에 장비 크기에 맞는 공간이 없습니다.')
                 drop['gear'].remove(g)
                 w['gear'].append(g)
                 gained.append(f"[{RARITIES[g['rarity']]['name']}] {g['name']}")
             else:
                 require(isinstance(target_item, str) and target_item in drop.get('items', {}), '이미 획득한 아이템입니다.')
-                space = max(0, bag_capacity(w) - bag_used(w))
-                take = min(drop['items'][target_item], space)
+                take = backpack.fit_amount(w,target_item,drop['items'][target_item])
                 require(take > 0, '인벤토리가 가득 찼습니다.')
                 w['inventory'][target_item] = w['inventory'].get(target_item, 0) + take
                 drop['items'][target_item] -= take
@@ -725,13 +750,12 @@ def _act(w, command, rng=random.random):
                 gained.append(f"{ITEMS[target_item]} +{take}")
         else:
             for g in list(drop.get('gear', [])):
-                if len(w['gear']) < 20 and bag_used(w) + 4 <= bag_capacity(w):
+                if backpack.can_add_gear(w,g):
                     drop['gear'].remove(g)
                     w['gear'].append(g)
                     gained.append(f"[{RARITIES[g['rarity']]['name']}] {g['name']}")
             for k, amount in list(drop.get('items', {}).items()):
-                space = max(0, bag_capacity(w) - bag_used(w))
-                take = min(amount, space)
+                take = backpack.fit_amount(w,k,amount)
                 if take > 0:
                     w['inventory'][k] = w['inventory'].get(k, 0) + take
                     drop['items'][k] -= take
@@ -771,16 +795,14 @@ def _act(w, command, rng=random.random):
         require(level >= recipe.get('level', 1), '필요한 시설 레벨을 먼저 건설·개선하세요.')
         require(all(w['inventory'].get(k, 0) >= v for k,v in recipe['cost'].items()), '재료가 부족합니다.')
         amount = recipe.get('amount', 1) + (0 if recipe.get('fixed_yield') else level - 1)
-        used_after = bag_used(w) - sum(v for k,v in recipe['cost'].items() if k != 'gold')
-        require(used_after + (4 if recipe.get('gear_slot') else amount) <= bag_capacity(w), '인벤토리가 가득 찼습니다.')
         if recipe.get('gear_slot'):
-            require(len(w['gear']) < 20, '장비 보관 한도입니다.')
+            require(len(w['gear']) < 128, '장비 보관 한도입니다.')
         if recipe.get('seconds'):
             cooldown(w, 'craft:'+command['recipe'], recipe['seconds'])
         spend(w, recipe['cost'])
         if recipe.get('gear_slot'):
             tier = recipe.get('tier', 1)
-            extra_data = {k:recipe[k] for k in ('model','min_level') if k in recipe}
+            extra_data = {k:recipe[k] for k in ('model','min_level','shape') if k in recipe}
             if recipe['gear_slot'] == 'backpack':
                 bp_info = BACKPACK_TIERS.get(tier, {'w': 6, 'h': 4})
                 extra_data['grid_w'] = bp_info['w']
@@ -1004,9 +1026,8 @@ def _act(w, command, rng=random.random):
         require(merchant['role'] == merchant_role(item), '이 상인이 취급하지 않는 품목입니다.')
         total = entry['price'] * count
         require(w['inventory'].get('gold', 0) >= total, f'골드가 부족합니다. (필요: {total} G / 보유: {w["inventory"].get("gold", 0)} G)')
-        require(bag_used(w) + count * (4 if merchant_role(item) == 'equipment' else 1) <= bag_capacity(w), '가방 용량이 가득 찼습니다.')
         if merchant_role(item) == 'equipment':
-            require(len(w['gear']) + count <= 20, '장비 보관 한도입니다.')
+            require(len(w['gear']) + count <= 128, '장비 보관 한도입니다.')
         w['inventory']['gold'] -= total
         if merchant_role(item) == 'equipment':
             for _ in range(count):

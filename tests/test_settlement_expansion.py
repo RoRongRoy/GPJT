@@ -15,7 +15,7 @@ class SettlementExpansionTests(unittest.TestCase):
         return w
 
     def test_every_facility_and_recipe_has_real_output(self):
-        self.assertEqual(len(FACILITIES),14);self.assertEqual(len(RECIPES),77)
+        self.assertEqual(len(FACILITIES),14);self.assertEqual(len(RECIPES),125)
         for key,spec in RECIPES.items():
             with self.subTest(recipe=key):
                 w=self.world();facility=spec['facility']
@@ -46,6 +46,7 @@ class SettlementExpansionTests(unittest.TestCase):
         with self.assertRaises(RuleError):act(w,{'action':'craft','recipe':'restore_skillbook'})
         self.assertEqual(w,before)
         w['base']['facilities']['forge']=2
+        w['inventory']=dict(RECIPES['make_weapon']['cost'])
         act(w,{'action':'craft','recipe':'make_weapon'})
         self.assertEqual(w['gear'][-1]['power'],5)
         w['player']['x']+=20;before=copy.deepcopy(w)
@@ -83,8 +84,12 @@ class SettlementExpansionTests(unittest.TestCase):
             store=Store(Path(d)/'world.sqlite3');store.save(w);self.assertEqual(store.load(),w);store.close()
         w['inventory']={k:0 for k in ITEMS};w['player']['combat_level']=1;w['inventory']['wood']=159
         w['player'].update(x=node['x'],y=node['y']);w['elapsed']=w['cooldowns'][node['id']]
+        before=copy.deepcopy(w)
+        with self.assertRaises(RuleError):act(w,{'action':'gather','id':node['id']})
+        self.assertEqual(w,before)
+        w['inventory']={}
         act(w,{'action':'gather','id':node['id']})
-        self.assertEqual(sum(v for k,v in w['inventory'].items() if k!='gold'),160)
+        self.assertTrue(w['inventory'])
 
     def test_new_sites_do_not_overlap_own_base(self):
         w=self.world();node=next(n for n in POIS if n.get('site_type')=='warehouse')

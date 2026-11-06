@@ -54,7 +54,7 @@ class CombatEffects {
    heal:['hw_aid','hr_medkit','vw_mend'],
    sanctuary:['hw_sanctuary','vr_restore']
   };
-  let family=Object.keys(groups).find(k=>groups[k].includes(this.skillId));
+  let family=this.spec?.fx_family||Object.keys(groups).find(k=>groups[k].includes(this.skillId));
   if(!family)family=this.isHeal?(this.kind==='purify'?'sanctuary':'heal'):this.job==='ranged'?(this.vampire?(this.spec?.blast_radius?'orb':'beam'):(this.spec?.blast_radius?'bomb':'volley')):this.kind==='ultimate'?'nova':this.kind==='sweep'?'slash':'cross';
   const power=this.kind==='ultimate'||(this.spec?.unlock_level||0)>=25?3:(this.spec?.unlock_level||0)>=15?2:1;
   const colors=this.vampire?['#f04b81','#b86cec','#ff9aa9']:this.job==='ranged'?['#7bdaff','#ffc16d','#c1edff']:['#ffe4a1','#8bdbff','#fff0c9'];
@@ -170,7 +170,17 @@ class CombatEffects {
      c.fillRect(hx+Math.cos(a)*spread*speed,hy+Math.sin(a)*spread*.6+q*q*18,2+power,2+power);
     }
    }
-   if(this.spec?.blast_radius&&this.hits.length)this.ring(c,tx,ty,34*this.spec.blast_radius*(.25+q*.75),color,(1-q)*.5);
+   if(this.spec?.discipline&&this.hits.length&&!this.reduced){
+   const pulse=Math.max(0,1-Math.abs(q-.3)*2);
+   this.ring(c,tx,ty+20,45+q*75,core,pulse*.35);
+   if(['cross','slash'].includes(family)){
+    c.strokeStyle=core;c.lineWidth=2;c.globalAlpha=(1-q)*.65;
+    for(let i=0;i<3;i++){c.beginPath();c.arc(tx,ty-18,25+i*12,this.angle-.9+q,this.angle+.5+q);c.stroke();}
+   }else if(['orb','bomb','lightning'].includes(family)){
+    this.rays(c,tx,ty-22,80,8,color,q,this.seed*.03);
+   }
+  }
+  if(this.spec?.blast_radius&&this.hits.length)this.ring(c,tx,ty,34*this.spec.blast_radius*(.25+q*.75),color,(1-q)*.5);
   }
   c.restore();
  }

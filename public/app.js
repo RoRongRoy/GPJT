@@ -102,9 +102,10 @@ const poiContents={
 };
 let activeLoot=null,lootChecks=new Set(),inspectOnArrive=false;
 function searchContents(poi){return poi?.loot?Object.entries(poi.loot).map(([id,amount])=>[id,amount,'전문 재료']):poiContents[poi?.kind]||[[poi?.kind,3,'자원']];}
-function bagCapacity(w=state?.world){const sl=w?.player?.dungeon?.storage_level??((w?.base&&w.base.established!==false)?(w.base.facilities?.storage||0):0);return w?160+sl*50+((w.player.combat_level||1)-1)*10:160;}
-function bagUsed(w=state?.world){return w?Object.entries(w.inventory).reduce((sum,[id,amount])=>sum+(id==='gold'?0:amount),0)+(w.gear?.length||0)*4:0;}
-function isBagFull(w=state?.world){return !w||bagUsed(w)>=bagCapacity(w)||(w.gear?.length||0)>=20;}
+function bagCapacity(w=state?.world){if(!w)return 120;if(w===state?.world&&state.backpack)return state.backpack.capacity;const b=getTarkovBackpack();return b.w*b.h;}
+function bagUsed(w=state?.world){if(!w)return 0;if(w===state?.world&&state.backpack)return state.backpack.total;return backpackEntries(w).reduce((n,e)=>{const [a,b]=getItemDimensions(e.itemKey,e.gear);return n+a*b;},0);}
+function isBagFull(w=state?.world){return !w||Boolean(state?.backpack?.overflow?.length);}
+
 function toast(message) { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600); }
 let socket=null,moveBusy=false,lastSocketAt=0;
 function updateConnectionBadge(){
@@ -759,7 +760,7 @@ function expandedItemInfo(id){
 
  const spec=state.consumables?.[id],names={hp:'체력',mp:'MP',food:'포만',water:'수분',blood:'혈액',stability:'안정도'};
  if(spec)return ['제작 소모품',spec.species==='human'?'인간용 보급 식량':spec.species==='vampire'?'뱀파이어용 혈청':'공용 회복 약품',Object.entries(spec.effects).map(([key,value])=>`${names[key]||key} +${value}`).join(' · ')+(spec.cleanse?` · 감염 −${spec.cleanse}`:'')];
- if(state.materials?.[id]){
+ if(state.materials?.[id]||state.item_categories?.[id]){
   const places=[...new Set((state.pois||[]).filter(n=>n.loot?.[id]).map(n=>n.label))];
   const outputs=Object.values(state.recipes||{}).filter(r=>r.output===id).map(r=>r.name);
   const uses=Object.values(state.recipes||{}).filter(r=>r.cost?.[id]).slice(0,4).map(r=>r.name);
@@ -803,7 +804,7 @@ function gearRarity(g){
  return state?.rarities?.[id]||{name:id==='normal'?'일반':'미확인',color:'#c6c9c5'};
 }
 function itemName(id){const g=gearItem(id);return g?`[${gearRarity(g).name}] ${g.name}${g.enhancement?' +'+g.enhancement:''}`:state.items[id];}
-function itemIcon(id){return id?.startsWith('skillbook_')?'skillbook':gearItem(id)?.slot||id;}
+function itemIcon(id){return id?.startsWith('skillbook_')?'skillbook':gearItem(id)?.slot||state?.item_icons?.[id]||id;}
 function makeEquippedSlotCard(slot,mode='equip'){
  const g=gearItem(state.world.equipment?.[slot]),rarity=g?gearRarity(g):null;
  const card=document.createElement('div');card.className='equip-slot-card';
@@ -932,61 +933,31 @@ function renderInventory(){
  }
 
  inventoryGroups.supplies=[...new Set([...inventoryGroups.supplies,...Object.keys(state.consumables||{})])];
- const gear=state.world.gear||[],allIds=[...inventoryGroups[inventoryFilter],...(['all','equipment','monster'].includes(inventoryFilter)?gear.map(g=>g.id):[])];
- const ids=allIds.filter(id=>gearItem(id)||state.world.inventory[id]>0);
- if(!allIds.includes(selectedItem))selectedItem=ids[0]||null;
- const layout=inventoryFilter+':'+ids.join(',');
- if(layout!==inventoryLayout){
-  const slots=ids.map(id=>{
-   if(!itemSlots.has(id)){
-    const button=document.createElement('button'),img=document.createElement('img'),name=span('slot-name',itemName(id)),count=span('slot-count','');
-    button.className='item-slot';button.dataset.inventoryItem=id;img.src='/icons/'+itemIcon(id)+'.svg';img.alt='';img.width=48;img.height=48;
-    button.append(img,name,count);button.onclick=()=>{selectedItem=id;renderInventory();};itemSlots.set(id,{button,count});
-   }
-   return itemSlots.get(id).button;
-  });
-  for(let i=ids.length;i<20;i++){const empty=document.createElement('span');empty.className='item-slot empty-slot';empty.setAttribute('aria-hidden','true');slots.push(empty);}
-  $('inventory').replaceChildren(...slots);inventoryLayout=layout;
-
- // Tactical Backpack Grid
- const bagGrid = $('bag-tetris-grid');
- if(bagGrid){
-  const bp = getTarkovBackpack();
-  const isMobile = window.innerWidth <= 600;
-  const cSize = isMobile ? 32 : 40;
-  $('bag-tetris-title').textContent = `🎒 전술 배낭 수납함 · ${bp.name} (${bp.w}×${bp.h})`;
-  const bpItems = [];
-  for(const g of (state.world.gear||[])){
-   if(!Object.values(state.world.equipment||{}).includes(g.id)){
-    bpItems.push({ id: g.id, itemKey: g.slot, gear: g, name: g.name, icon: g.slot, count: 1 });
-   }
+ const gear=(state.world.gear||[]).filter(g=>!equippedSlot(g));
+ const allIds=[...inventoryGroups[inventoryFilter],...(['all','equipment','monster'].includes(inventoryFilter)?gear.map(g=>g.id):[])];
+ const ids=allIds.filter(id=>gearItem(id)?!equippedSlot(gearItem(id)):state.world.inventory[id]>0&&id!=='gold');
+ if(!selectedItem||(!gearItem(selectedItem)&&!(state.world.inventory[selectedItem]>0)))selectedItem=ids[0]||null;
+ const bp=getTarkovBackpack(),bpItems=backpackEntries();
+ const gridKey=JSON.stringify([bpItems,bp,selectedItem,inventoryFilter,state.backpack?.overflow,window.innerWidth]);
+ if(inventoryLayout!==gridKey){
+  inventoryLayout=gridKey;
+  $('bag-tetris-title').textContent=bp.name+' · '+bp.w+'×'+bp.h;
+  $('bag-tetris-capacity').textContent=`${bagUsed()}/${bagCapacity()}칸 · 착용 장비 제외`;
+  const available=Math.max(240,Math.min(760,(window.innerWidth||1000)-((window.innerWidth||1000)>900?420:64)));
+  const cell=Math.max(12,Math.min(40,Math.floor((available-8)/bp.w)-2));
+  renderTarkovGrid($('bag-tetris-grid'),bpItems,bp.w,bp.h,item=>{
+   selectedItem=item.itemKey;selectedTarkovItem=item.id;inventoryLayout='';renderInventory();
+  },cell);
+  for(const el of $('bag-tetris-grid').querySelectorAll?.('[data-inventory-item]')||[]){
+   el.classList.toggle('is-filtered',!ids.includes(el.dataset.inventoryItem));
+   el.setAttribute('aria-pressed',String(el.dataset.inventoryItem===selectedItem));
   }
-  for(const [k, amt] of Object.entries(state.world.inventory||{})){
-   if(amt > 0 && k !== 'gold'){
-    bpItems.push({ id: k, itemKey: k, gear: null, name: state.items[k]||k, icon: itemIcon(k), count: amt });
-   }
-  }
-  const { occ } = packTarkovItems(bpItems, bp.w, bp.h);
-  const usedCells = occ.flat().filter(Boolean).length;
-  const totalCells = bp.w * bp.h;
-  $('bag-tetris-capacity').textContent = `수납 칸: ${usedCells}/${totalCells} (${Math.round(usedCells/totalCells*100)}%)`;
-
-  renderTarkovGrid(bagGrid, bpItems, bp.w, bp.h, (item) => {
-   selectedItem = item.id;
-   renderInventory();
-   toast(`${item.name} (${item.w}×${item.h}) - R키로 회전`);
-  }, cSize);
-
-  const bagRotBtn = $('bag-rotate-btn');
-  if(bagRotBtn) bagRotBtn.onclick = () => rotateCurrentTarkovItem();
  }
- }
- for(const id of ids){const {button,count}=itemSlots.get(id),g=gearItem(id),amount=state.world.inventory[id];
-  count.textContent=g?(Boolean(equippedSlot(g))?'착용':'장비'):amount;
-  button.style.color=g?gearRarity(g).color:'';button.style.borderColor=g?gearRarity(g).color:'';
-  button.setAttribute('aria-label',g?itemName(id)+' '+count.textContent:itemName(id)+' '+amount+'개');button.setAttribute('aria-pressed',String(id===selectedItem));}
- $('equipped-summary').textContent=Object.keys(equipmentSlots).map(slot=>{const g=gearItem(state.world.equipment?.[slot]);return equipmentSlots[slot]+' · '+(g?itemName(g.id):'미착용');}).join(' / ');
- $('bag-count').textContent=Object.values(state.world.inventory).filter(n=>n>0).length+'종 · 장비 '+gear.length+'개 · 용량 '+bagUsed()+'/'+bagCapacity();$('inventory-empty').hidden=ids.length>0;
+ $('bag-rotate-btn').onclick=()=>rotateCurrentTarkovItem();
+ $('bag-rotate-btn').disabled=!selectedTarkovItem;
+ $('equipped-summary').textContent='착용한 장비는 배낭 공간을 차지하지 않습니다.';
+ $('bag-count').textContent=`보유 ${ids.length}종 · 골드 ${state.world.inventory.gold||0} · ${bagUsed()}/${bagCapacity()}칸`;
+ $('inventory-empty').hidden=ids.length>0;
  const g=gearItem(selectedItem),rarity=g?gearRarity(g):null,equipped=g&&Boolean(equippedSlot(g));
  const comparedSlot=g?(g.slot==='ring'&&!equipped?$('ring-target').value:targetSlot(g)):null;
  const powerDiff=g?g.power-(gearItem(state.world.equipment[comparedSlot])?.power||0):0;
@@ -1104,7 +1075,7 @@ function renderShop(){
 if($('shop-tab-buy'))$('shop-tab-buy').onclick=()=>{shopMode='buy';renderShop();};
 if($('shop-tab-sell'))$('shop-tab-sell').onclick=()=>{shopMode='sell';renderShop();};
 function skillIds(){return Object.keys(state?.combat||{}).filter(id=>id!=='attack'&&activeSkillSpec(id)).sort((a,b)=>(activeSkillSpec(a).unlock_level||1)-(activeSkillSpec(b).unlock_level||1));}
-let skillFilter='all';
+let skillFilter='all',skillDiscipline='all';
 const HOTBAR_KEYS=['1','2','3','4','5','6'];
 const DEFAULT_HOTBAR=Object.fromEntries(HOTBAR_KEYS.map(key=>[key,null]));
 let hotbarMap={...DEFAULT_HOTBAR},selectedAssignSkill=null,selectedAssignSlot=null,skillsLayout='';
@@ -1167,12 +1138,12 @@ function skillIconStamp(id){return id?`${state.world.player.species}:${state.wor
 function skillIconMarkup(id){
  const spec=activeSkillSpec(id);let art=SKILL_ART[id]||SKILL_ART.strike;
  if(spec?.requires_learning){
-  const rank=[2,4,6,10,15,20,25,30].indexOf(spec.unlock_level);
+  const rank=([2,4,6,10,15,20,25,30,35,45,60,80].indexOf(spec.unlock_level)%8);
   const frame=spec.species==='vampire'?(spec.job==='ranged'?'<path d="M38 8a21 21 0 1 0 0 32M39 16l-3 8 3 8"/>':'<path d="m4 8 4 7-4 25m40-32-4 7 4 25M13 42l11-3 11 3"/>'):(spec.job==='ranged'?'<path d="M4 15V4h11m18 0h11v11M4 33v11h11m18 0h11V33"/>':'<path d="M5 5h38v26L24 44 5 31z"/>');
   art=frame+(SPECIAL_SKILL_ART[rank]||SKILL_ART.strike);
  }
  if(state.world.player.job==='ranged'){
-  const rank=spec?.requires_learning?[2,4,6,10,15,20,25,30].indexOf(spec.unlock_level):({sweep:2,recover:3,strike:0,ranged:4,purify:3,ultimate:6})[id];
+  const rank=spec?.requires_learning?([2,4,6,10,15,20,25,30,35,45,60,80].indexOf(spec.unlock_level)%8):({sweep:2,recover:3,strike:0,ranged:4,purify:3,ultimate:6})[id];
   art=RANGED_SKILL_ART[state.world.player.species]?.[rank]||art;
  }
  return `<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${art}</svg>`;
@@ -1299,13 +1270,14 @@ function skillStatus(id){
  const reason=!connected?'연결 중':w.paused?'일시정지':!levelMet?`Lv.${unlockLevel} 필요`:!learned?`${spec.book_name||'전용 스킬북'} 필요`:p.mounted?'하차 후 사용':remaining>0?remaining.toFixed(1)+'초':!isVamp&&(p.mp??100)<mpCost?'MP 부족':isVamp&&p.hp<=hpCost?'체력 부족':p[meter]<cost?'자원 부족':isHeal&&p.hp>=100&&(!spec.cleanse||(p.infection||0)<=0)?'체력 가득':!isHeal&&!w.enemies.some(e=>e.hp>0&&(e.faction||'infected')!==p.species&&Math.hypot(e.x-p.x,e.y-p.y)<=effRange)?'적에게 접근':'';
  return {reason,spec,meter,cost,mpCost,hpCost,remaining,unlocked,unlockLevel,levelMet,learned,bookCost,booksHave,canLearn,isHeal,effRange};
 }
+if($('skill-discipline'))$('skill-discipline').onchange=()=>{skillDiscipline=$('skill-discipline').value;skillsLayout='';renderSkillsMenu();};
 if($('skill-filter'))$('skill-filter').onchange=()=>{skillFilter=$('skill-filter').value;renderSkillsMenu();};
 function renderSkillsMenu(){
  if(!state||activePanel!=='skills'||!$('skills-list'))return;
  const w=state.world,p=w.player,isVamp=p.species==='vampire',job=p.job||'warrior',gender=p.gender||'male',lvl=p.combat_level||1;
  const cls=classInfo(p.species,job),gName=genderName(gender),booksHave=Object.entries(w.inventory||{}).filter(([k])=>k.startsWith('skillbook_')).reduce((n,[,v])=>n+v,0);
  const wepPow=gearItem(w.equipment?.weapon)?.power||0,lvlAtk=(lvl-1)*3,enhMult=1+(p.level||0)*.02;
- const layout=JSON.stringify([p.species,job,gender,lvl,p.level,wepPow,w.inventory,p.learned_skills,connected,w.paused,hotbarMap,skillFilter]);
+ const layout=JSON.stringify([p.species,job,gender,lvl,p.level,wepPow,w.inventory,p.learned_skills,connected,w.paused,hotbarMap,skillFilter,skillDiscipline]);
  if(layout===skillsLayout)return;
  skillsLayout=layout;
  const learnedCount=skillIds().filter(id=>skillStatus(id).unlocked).length;
@@ -1334,7 +1306,13 @@ function renderSkillsMenu(){
   });
   $('class-switcher').replaceChildren(gBar,...jobCards);
  }
- $('skills-list').replaceChildren(...skillIds().filter(id=>{const st=skillStatus(id);return skillFilter==='all'||(skillFilter==='learned'&&st.learned)||(skillFilter==='available'&&st.canLearn)||(skillFilter==='attack'&&!st.isHeal)||(skillFilter==='heal'&&st.isHeal);}).map(id=>{
+ const disciplines=[...new Set(skillIds().map(id=>activeSkillSpec(id)?.discipline||'기초 기술'))];
+ const disciplineSelect=$('skill-discipline');
+ if(disciplineSelect&&disciplineSelect.dataset.signature!==disciplines.join('|')){
+  disciplineSelect.replaceChildren(...['all',...disciplines].map(v=>{const o=document.createElement('option');o.value=v;o.textContent=v==='all'?'모든 전문 분야':v;return o;}));
+  skillDiscipline='all';disciplineSelect.value='all';disciplineSelect.dataset.signature=disciplines.join('|');
+ }
+ $('skills-list').replaceChildren(...skillIds().filter(id=>skillDiscipline==='all'||(activeSkillSpec(id)?.discipline||'기초 기술')===skillDiscipline).filter(id=>{const st=skillStatus(id);return skillFilter==='all'||(skillFilter==='learned'&&st.learned)||(skillFilter==='available'&&st.canLearn)||(skillFilter==='attack'&&!st.isHeal)||(skillFilter==='heal'&&st.isHeal);}).map(id=>{
   const {reason,spec,mpCost,hpCost,cost,unlocked,unlockLevel,levelMet,learned,bookCost,booksHave,canLearn,isHeal,effRange}=skillStatus(id);
   if(!spec)return document.createElement('div');
   const name=skillNameFor(spec,p.species,job),altJob=job==='warrior'?'ranged':'warrior',altJobCls=classInfo(p.species,altJob),altJobName=skillNameFor(state.combat?.[id],p.species,altJob);
@@ -1396,7 +1374,15 @@ function renderSkillsMenu(){
    btn.disabled=Boolean(reason);
    btn.onclick=()=>useSkill(id);
   }
-  card.append(left,btn);return card;
+  card.append(left,btn);
+  const researchKey='research_'+spec.book_id;
+  if(!learned&&state.recipes?.[researchKey]){
+   const research=document.createElement('button');research.type='button';research.className='skill-research';
+   research.textContent='아지트에서 스킬북 연구';research.title='봉인 연구 기록·성유물 파편·양피지·마력 가루로 제작';
+   research.onclick=()=>{if(!canUseCamp()){toast('아지트 서고에서 연구할 수 있습니다. 봉인 연구 기록과 성유물 파편을 모으세요.');return;}$('craft-category').value='';$('craft-slot').value='';recipeChoicesKey='';selectedRecipe=researchKey;openPanel('craft');renderRecipe();};
+   card.append(research);
+  }
+  return card;
  }));
 }
 function updateSkills(){
@@ -1535,35 +1521,40 @@ const ITEM_DIMENSIONS = {
  scroll: [1, 1],
  weapon_core: [2, 2],
  armor_plate: [2, 2],
+ wood:[3,2],plank:[3,2],rebar:[3,2],water:[1,2],blood:[1,2],engine_block:[3,3],motor:[3,3],armor_plate:[2,2],
  default: [1, 1]
 };
 const tarkovRotations = new Set();
 let selectedTarkovItem = null;
 
-function getItemDimensions(itemKey, g){
- if(g) return ITEM_DIMENSIONS[g.slot] || [1, 1];
- if(itemKey?.startsWith('skillbook')) return [1, 2];
- if(itemKey?.includes('scroll')) return [1, 1];
- if(['weapon_core','armor_plate'].includes(itemKey)) return [2, 2];
- return [1, 1];
+function getItemDimensions(itemKey,g){
+ const spec=state?.item_layouts?.[itemKey];
+ if(g)return g.shape||state?.gear_shapes?.[g.slot]||ITEM_DIMENSIONS[g.slot]||[1,1];
+ if(spec)return [spec.w,spec.h];
+ return itemKey?.startsWith('skillbook')?[1,2]:ITEM_DIMENSIONS[itemKey]||[1,1];
 }
-
 function getTarkovBackpack(){
- const bpId = state?.world?.equipment?.backpack;
- const g = bpId ? gearItem(bpId) : null;
- if(!g) return { name: '수련자의 기본 전술 배낭', w: 6, h: 4, tier: 0 };
- return {
-  name: g.name,
-  w: g.grid_w || (g.tier === 3 ? 8 : g.tier === 2 ? 7 : 6),
-  h: g.grid_h || (g.tier === 3 ? 7 : g.tier === 2 ? 6 : g.tier === 1 ? 5 : 4),
-  tier: g.tier || 0
- };
+ if(state?.backpack)return state.backpack;
+ const bp=gearItem(state?.world?.equipment?.backpack),tier=Math.max(0,Math.min(3,bp?.tier||0));
+ return {name:bp?.name||'기본 휴대 공간',w:bp?12+tier*2:10,h:bp?10+tier*2:8};
+}
+function backpackEntries(world=state?.world){
+ if(world===state?.world&&state?.backpack)return [...state.backpack.entries,...state.backpack.overflow.map(e=>({...e,unplaced:true}))].map(e=>({
+  ...e,itemKey:e.item,name:e.gear?itemName(e.item):state.items[e.item]||e.item,icon:itemIcon(e.item),fixed:true
+ }));
+ const worn=new Set(Object.values(world?.equipment||{})),result=[];
+ for(const g of world?.gear||[])if(!worn.has(g.id))result.push({id:g.id,itemKey:g.id,gear:g,name:g.name,icon:g.slot,count:1});
+ for(const [key,count] of Object.entries(world?.inventory||{})){
+  if(key==='gold'||count<=0)continue;const stack=state?.item_layouts?.[key]?.stack||20;
+  for(let i=0;i<Math.ceil(count/stack);i++)result.push({id:key+'#'+i,itemKey:key,name:state.items[key]||key,icon:itemIcon(key),count:Math.min(stack,count-i*stack)});
+ }
+ return result;
 }
 
 function packTarkovItems(items, gridW, gridH){
  const occ = Array.from({length: gridH}, () => Array(gridW).fill(false));
  const placed = [];
- for(const item of items){
+ for(const item of [...items].sort((a,b)=>{const [aw,ah]=getItemDimensions(a.itemKey,a.gear),[bw,bh]=getItemDimensions(b.itemKey,b.gear);return bw*bh-aw*ah||(a.id<b.id?-1:1);})){
   const rotated = tarkovRotations.has(item.id);
   const [origW, origH] = getItemDimensions(item.itemKey, item.gear);
   const w = rotated ? origH : origW;
@@ -1617,11 +1608,12 @@ function renderTarkovGrid(container, items, gridW, gridH, onItemClick, cellSize 
   }
  }
 
- const { placed } = packTarkovItems(items, gridW, gridH);
+ const { placed } = items.every(e=>e.fixed)?{placed:items}:packTarkovItems(items, gridW, gridH);
  for(const item of placed){
-  if(item.unplaced) continue;
-  const block = document.createElement('div');
-  block.className = 'tarkov-item' + (selectedTarkovItem === item.id ? ' is-selected' : '');
+  const block = document.createElement('button');block.type='button';
+  block.dataset.inventoryItem=item.itemKey;block.dataset.stackId=item.id;
+  block.setAttribute('aria-label',item.name+' '+item.w+'×'+item.h+' · '+item.count+'개');
+  block.className = 'tarkov-item'+(item.unplaced?' is-overflow':'') + (selectedTarkovItem === item.id ? ' is-selected' : '');
   block.style.gridColumn = `${item.x + 1} / span ${item.w}`;
   block.style.gridRow = `${item.y + 1} / span ${item.h}`;
   const rarity = item.gear ? gearRarity(item.gear) : null;
@@ -1653,20 +1645,21 @@ function renderTarkovGrid(container, items, gridW, gridH, onItemClick, cellSize 
    selectedTarkovItem = item.id;
    if(onItemClick) onItemClick(item);
   };
+  if(item.unplaced){
+   block.style.gridColumn='1 / -1';block.style.gridRow='auto';block.style.minHeight='50px';
+   title.textContent='추가 보관 · '+item.name;size.textContent='공간 정리 필요 · '+item.w+'×'+item.h;
+  }
   container.append(block);
  }
 }
 
 function rotateCurrentTarkovItem(){
- if(!selectedTarkovItem) return;
- if(tarkovRotations.has(selectedTarkovItem)) tarkovRotations.delete(selectedTarkovItem);
- else tarkovRotations.add(selectedTarkovItem);
- renderLootBox();
- renderInventory();
+ if(!selectedTarkovItem||!state?.backpack)return;
+ command('rotate_item',{item:selectedTarkovItem});inventoryLayout='';
 }
 
 window.addEventListener('keydown', (e) => {
- if(e.key === 'r' || e.key === 'R' || e.key === 'ㄱ'){
+ if((activePanel==='bag'||activeLoot)&&(e.key === 'r' || e.key === 'R' || e.key === 'ㄱ')){
   const activeTag = document.activeElement?.tagName;
   if(activeTag !== 'INPUT' && activeTag !== 'TEXTAREA'){
    rotateCurrentTarkovItem();
@@ -1683,7 +1676,7 @@ function renderLootBox(){
   if(!poi||Math.hypot(poi.x-p.x,poi.y-p.y)>3.6){closeLootBox();return;}
   const cd=Math.max(0,Math.ceil((w.cooldowns[poi.id]||0)-w.elapsed));
   $('loot-eyebrow').textContent=['bat_cave','mine_entrance','sewer'].includes(poi.site_type)?'EXPLORATION · 동굴·터널 입구 수색':'OBJECT INSPECTION · 오브젝트 선택 파밍';
-  $('loot-title').textContent=poi.label;
+  $('loot-title').textContent=poi.label+(state.search_bonuses?.[poi.site_type]?' · 희귀 발견 12%':'');
   $('loot-subtitle').textContent=cd?`재생성 대기 중 (${cd}초) · 내부 자원을 확인하세요`:`원하는 자원을 체크해 선택 파밍하거나 단독 파밍하세요`;
   const contents=searchContents(poi);
   $('loot-list').replaceChildren(...contents.map(([k,amt,desc])=>{
@@ -1723,17 +1716,7 @@ function renderLootBox(){
     }
    }, cSize);
 
-   const bpItems = [];
-   for(const g of (w.gear||[])){
-    if(!Object.values(w.equipment||{}).includes(g.id)){
-     bpItems.push({ id: g.id, itemKey: g.slot, gear: g, name: g.name, icon: g.slot, count: 1 });
-    }
-   }
-   for(const [k, amt] of Object.entries(w.inventory||{})){
-    if(amt > 0 && k !== 'gold'){
-     bpItems.push({ id: k, itemKey: k, gear: null, name: state.items[k]||k, icon: itemIcon(k), count: amt });
-    }
-   }
+   const bpItems = backpackEntries();
    const { occ } = packTarkovItems(bpItems, bp.w, bp.h);
    const usedCells = occ.flat().filter(Boolean).length;
    const totalCells = bp.w * bp.h;
@@ -1809,17 +1792,7 @@ function renderLootBox(){
     command('loot', { id: drop.id, item: item.id });
    }, cSize);
 
-   const bpItems = [];
-   for(const g of (w.gear||[])){
-    if(!Object.values(w.equipment||{}).includes(g.id)){
-     bpItems.push({ id: g.id, itemKey: g.slot, gear: g, name: g.name, icon: g.slot, count: 1 });
-    }
-   }
-   for(const [k, amt] of Object.entries(w.inventory||{})){
-    if(amt > 0 && k !== 'gold'){
-     bpItems.push({ id: k, itemKey: k, gear: null, name: state.items[k]||k, icon: itemIcon(k), count: amt });
-    }
-   }
+   const bpItems = backpackEntries();
    const { occ } = packTarkovItems(bpItems, bp.w, bp.h);
    const usedCells = occ.flat().filter(Boolean).length;
    const totalCells = bp.w * bp.h;

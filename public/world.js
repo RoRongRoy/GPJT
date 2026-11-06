@@ -347,6 +347,9 @@ class WorldView {
     this.points.push({x:sx,y:sy-22*scale,id:e.id,left:sx-halfWidth,right:sx+halfWidth,top:sy-(e.site_type?siteHeight+15:e.kind==='wood'?210:e.kind==='blood'?137:110)*scale,bottom:sy+12*scale});
    }
    if(e.type==='urban'&&this.themes){this.themes.draw(sx,sy,scale*.8,e.model,'human');continue;}
+   if(e.type==='town_wall'&&this.themes){
+    this.themes.wallSegment(sx,sy,scale,e.axis,e.faction,Math.abs(Math.round(e.x+e.y))%3);continue;
+   }
    if(e.type==='town_wall'){
     const [ex,ey]=project(e.x+(e.axis==='y'?0:1),e.y+(e.axis==='y'?1:0));
     const dark=e.faction!=='human',h=(dark?47:30)*scale;

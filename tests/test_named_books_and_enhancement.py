@@ -21,7 +21,7 @@ class NamedBooksAndEnhancementTests(unittest.TestCase):
         self.assertEqual(w,before)
 
     def test_every_book_unlocks_exact_skill_and_is_scoped(self):
-        self.assertEqual(len(SKILL_BOOKS),48)
+        self.assertEqual(len(SKILL_BOOKS),64)
         for key,book in SKILL_BOOKS.items():
             w=self.world()
             w['player'].update(species=book['species'],job=book['job'])
@@ -50,10 +50,10 @@ class NamedBooksAndEnhancementTests(unittest.TestCase):
     def test_real_monster_drops_reach_every_named_book_then_sell(self):
         found=set()
         for species in ('human','vampire'):
-            for i in range(24):
+            for i in range(32):
                 w=self.world();w['player']['species']=species
                 enemy=w['enemies'][0];enemy.update(hp=1,level=100,materials={})
-                rolls=iter([0,1,(i+.5)/24])
+                rolls=iter([0,1,(i+.5)/32])
                 damage_enemy(w,enemy,1,lambda:next(rolls))
                 books=set(w['drops'][-1]['items'])&set(SKILL_BOOKS)
                 self.assertEqual(len(books),1)

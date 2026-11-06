@@ -1,5 +1,7 @@
 """Server-authoritative multiplayer development server with Socket.IO support."""
 from .game import SKILL_BOOKS
+from .settlement import SEARCH_BONUSES
+from .backpack import layout as bag_layout, item_spec, GEAR_SHAPES
 import math
 import argparse
 import copy
@@ -333,6 +335,9 @@ class Runtime:
             'dungeons':{key:{**spec,'used':usage.get(key,0)} for key,spec in dungeons.DUNGEONS.items()},
             'dungeon_day':day,
             'world': world_view,
+            'backpack': bag_layout(world_view),
+            'item_layouts': {key:item_spec(key) for key in ITEMS},
+            'gear_shapes': GEAR_SHAPES,
             'snapshot_time': time.time(),
             'movement': self.movement.snapshot(active_token, now),
             'others': others,
@@ -342,6 +347,7 @@ class Runtime:
             'items': ITEMS,
             'materials': MATERIALS,
             'item_categories': ITEM_CATEGORIES,
+            'search_bonuses': SEARCH_BONUSES,
             'enhancement_materials': ENHANCEMENT,
             'consumables': CONSUMABLES,
             'map': map_view,

@@ -4,7 +4,7 @@ FACILITY_SPECS = {
     'kitchen': ('주방', '생활', '식사 제작', 'kitchen', [-4,2], {'wood':3,'metal':2}),
     'alchemy': ('연금대', '생활', '안정화 혈액 제작', 'alchemy', [3,-4], {'wood':3,'metal':2}),
     'medical': ('의료실', '생활', '치료제 제작·종족 전환', 'medical', [2,4], {'wood':3,'metal':2}),
-    'storage': ('저장고', '생활', '레벨당 가방 용량 +50', 'storage', [5,0], {'wood':3,'metal':2}),
+    'storage': ('저장고', '생활', '레벨당 배낭 2행 확장 (최대 6행)', 'storage', [5,0], {'wood':3,'metal':2}),
     'forge': ('대장간', '장비', '무기·상의 제작', 'kitchen', [-8,-4], {'wood':8,'metal':6,'ore':4}),
     'tailor': ('재봉소', '장비', '하의·장화·장갑 제작', 'storage', [-8,2], {'wood':6,'metal':3,'cloth':4}),
     'jeweler': ('장신구 공방', '장비', '반지·목걸이 제작', 'alchemy', [-4,-8], {'wood':6,'metal':5,'ore':3}),
@@ -107,5 +107,19 @@ EXTRA_RECIPES['restore_scroll'].update(level=2,cost={'arcane_dust':4,'blessed_in
 for key,amount in [('weapon_scroll',1),('armor_scroll',1),('blessed_scroll',3)]:
     EXTRA_RECIPES['decode_'+key].update(amount=amount,seconds=120,fixed_yield=True)
 
-EXTRA_RECIPES['make_backpack_t2'] = dict(name='특수작전 전술 군장 (7x6)',facility='backpack_workshop',level=2,cost={'spirit_fiber':8,'iron_fragment':5,'weapon_core':1,'armor_plate':1},gear_slot='backpack',tier=2,power=4,seconds=35)
-EXTRA_RECIPES['make_backpack_t3'] = dict(name='공간확장 심연 배낭 (8x7)',facility='backpack_workshop',level=3,cost={'spirit_fiber':12,'blood_pearl':3,'weapon_core':1,'armor_plate':2},gear_slot='backpack',tier=3,power=8,seconds=60)
+EXTRA_RECIPES['make_backpack_t2'] = dict(name='특수작전 전술 군장 (16×14)',facility='backpack_workshop',level=2,cost={'spirit_fiber':8,'iron_fragment':5,'weapon_core':1,'armor_plate':1},gear_slot='backpack',tier=2,power=4,seconds=35)
+EXTRA_RECIPES['make_backpack_t3'] = dict(name='공간확장 심연 배낭 (18×16)',facility='backpack_workshop',level=3,cost={'spirit_fiber':12,'blood_pearl':3,'weapon_core':1,'armor_plate':2},gear_slot='backpack',tier=3,power=8,seconds=60)
+
+for key,name,cost,facility in [
+    ('treated_timber','방부 목재 가공',{'wood':6,'resin':2},'workshop'),
+    ('cured_hide','내후 가죽 무두질',{'leather':3,'antiseptic':1},'tailor'),
+    ('circuit_board','회로 기판 복원',{'circuits':3,'wire':2},'workshop'),
+    ('medical_resin','의료용 수지 정제',{'herb':3,'chemicals':2},'medical'),
+]:
+    EXTRA_RECIPES['process_'+key]=dict(name=name,cost=cost,facility=facility,output=key,amount=1,seconds=60)
+# Rare discoveries are bonuses on a successful search, not guaranteed refill stock.
+SEARCH_BONUSES={
+    'car':'engine_block','wreck_truck':'radiator','generator':'generator_rotor',
+    'checkpoint':'optical_array','warehouse':'steel_beam','library':'sealed_research',
+    'ancient_vault':'inscribed_stone','pharmacy':'medical_resin','substation':'solar_panel',
+}

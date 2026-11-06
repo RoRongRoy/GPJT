@@ -11,6 +11,12 @@ FARM_MATERIALS = {
     'antiseptic':'시설 소독액','parchment':'기록용 양피지','binding':'제본 끈',
     'gothic_stone':'성곽 장식석','iron_mesh':'방호 철망',
 }
+FARM_MATERIALS.update({
+    'engine_block':'폐차 엔진 블록','generator_rotor':'발전기 회전자','radiator':'냉각 라디에이터',
+    'solar_panel':'태양광 패널','steel_beam':'구조용 강재','optical_array':'정밀 광학 장치',
+    'treated_timber':'방부 목재','cured_hide':'무두질 가죽','circuit_board':'복원 회로 기판',
+    'medical_resin':'의료용 수지','inscribed_stone':'각인 석판','sealed_research':'봉인 연구 기록',
+})
 CRAFT_MATERIALS = {
     'leather':'변이 가죽','bone':'단단한 뼈','silver':'은광석','sulfur':'유황',
     'crystal':'마력 수정','mutagen':'변이 촉매','obsidian':'흑요석','ancient_core':'고대 핵',
@@ -18,6 +24,11 @@ CRAFT_MATERIALS = {
     'iron_fragment':'마수 철편','weapon_core':'무기 핵','armor_plate':'괴수 갑각',
     'arcane_dust':'마력 가루','spirit_fiber':'영혼 섬유','blood_pearl':'혈정 진주',
 }
+CRAFT_MATERIALS.update({
+    'hardened_hide':'괴수 경화 가죽','chitin_plate':'포식자 등껍질','blood_crystal':'응혈 결정',
+    'relic_fragment':'성유물 파편','silver_fang':'은빛 송곳니','night_essence':'밤의 정수',
+    'mutant_tendon':'변이 힘줄','charged_core':'과충전 핵',
+})
 ENHANCEMENT = {
     'temper_powder':dict(name='담금질 가루',bonus=.05),
     'whetstone':dict(name='강화 숫돌',bonus=.08),
@@ -39,6 +50,8 @@ for category,items in [('crafting',CRAFT_MATERIALS),('enhancement',ENHANCEMENT),
 def extra_drop(enemy, roll):
     level=enemy.get('level',1)
     pool=['leather','bone']+['iron_fragment','weapon_core','armor_plate','arcane_dust','spirit_fiber','blood_pearl','temper_powder','whetstone']
+    if level>=10: pool+=['hardened_hide','chitin_plate','mutant_tendon','silver_fang']
+    if level>=30: pool+=['blood_crystal','relic_fragment','night_essence','charged_core']
     if level>=15: pool+=['silver','sulfur','alloy','thread','essence','blessed_ink','moon_shard','bloodstone','weapon_scroll','armor_scroll']
     if level>=35: pool+=['crystal','mutagen','sunstone','blessing_crystal','blessed_scroll']
     if level>=60:pool+=['obsidian','ancient_core']

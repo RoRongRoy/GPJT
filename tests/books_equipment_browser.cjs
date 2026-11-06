@@ -21,10 +21,11 @@ with tempfile.TemporaryDirectory() as d:
    if(url.pathname.includes('socket.io'))return route.fulfill({body:'',contentType:'text/javascript'});
    if(url.pathname==='/api/action'){
     const command=route.request().postDataJSON().command;
-    fixture.world=JSON.parse(execFileSync('python',['-c',`import sys,json
+    Object.assign(fixture,JSON.parse(execFileSync('python',['-c',`import sys,json
 from server.game import act
+from server.backpack import layout
 data=json.load(sys.stdin);w=data['world'];act(w,data['command'],lambda:0);w['revision']+=1
-print(json.dumps(w))`],{cwd:root,encoding:'utf8',input:JSON.stringify({world:fixture.world,command})}));
+print(json.dumps({'world':w,'backpack':layout(w)}))`],{cwd:root,encoding:'utf8',input:JSON.stringify({world:fixture.world,command})})));
    }
    if(url.pathname.startsWith('/api/'))return route.fulfill({json:fixture});
    return route.fulfill({path:path.join(root,'public',url.pathname==='/'?'index.html':url.pathname)});

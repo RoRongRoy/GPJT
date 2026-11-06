@@ -1,5 +1,5 @@
 """Server-owned equipment catalog and Lineage-inspired low per-kill probabilities."""
-from .frontier import GEAR_MODELS
+from .frontier import GEAR_MODELS, EXPEDITION_MODELS
 
 RARITIES = {
     'normal': {'name': '일반', 'color': '#c6c9c5', 'chance': .05, 'bonus': 0},
@@ -56,13 +56,13 @@ SLOT_NAMES = {'weapon': '무기', 'armor': '상의', 'pants': '하의', 'boots':
 
 ITEM_DIMENSIONS = {
     'weapon': (2, 3),
-    'armor': (2, 2),
+    'armor': (3, 3),
     'pants': (2, 2),
     'boots': (2, 2),
-    'gloves': (2, 1),
+    'gloves': (1, 2),
     'necklace': (1, 1),
     'ring': (1, 1),
-    'backpack': (2, 2),
+    'backpack': (3, 3),
     'skillbook': (1, 2),
     'scroll': (1, 1),
     'material': (1, 1),
@@ -70,10 +70,10 @@ ITEM_DIMENSIONS = {
 }
 
 BACKPACK_TIERS = {
-    0: {'name': '수련자의 기본 전술 배낭', 'w': 6, 'h': 4, 'power': 1},
-    1: {'name': '모험가의 방수 배낭', 'w': 6, 'h': 5, 'power': 2},
-    2: {'name': '특수작전 전술 군장', 'w': 7, 'h': 6, 'power': 4},
-    3: {'name': '공간확장 심연 배낭', 'w': 8, 'h': 7, 'power': 8},
+    0: {'name': '수련자의 기본 전술 배낭', 'w': 12, 'h': 10, 'power': 1},
+    1: {'name': '모험가의 방수 배낭', 'w': 14, 'h': 12, 'power': 2},
+    2: {'name': '특수작전 전술 군장', 'w': 16, 'h': 14, 'power': 4},
+    3: {'name': '공간확장 심연 배낭', 'w': 18, 'h': 16, 'power': 8},
 }
 
 
@@ -103,12 +103,19 @@ def roll_equipment(world, enemy, rng, collect=True):
             item = {'id': 'gear:' + str(world['next_gear_id']), 'slot': slot, 'rarity': rarity,
                     'name': f'{base_name} T{tier}',
                     'power': (4*tier if slot == 'weapon' else 2*tier) + spec['bonus']}
-            if enemy['level'] >= 15:
+            if slot == 'backpack':
+                item.update(tier=min(3,enemy['level']//25), **{k:v for k,v in BACKPACK_TIERS[min(3,enemy['level']//25)].items() if k in ('name','power')})
+            if enemy['level'] >= 15 and slot != 'backpack':
                 family = 'abyssal' if enemy['level'] >= 80 else 'eclipse' if enemy['level'] >= 60 else 'silverguard' if enemy['level'] >= 35 else 'hunter'
                 kind = {('human','warrior'):'sword',('human','ranged'):'rifle',('vampire','warrior'):'claw',('vampire','ranged'):'staff'}.get((p.get('species','human'),p.get('job','warrior')), 'sword')
                 model = GEAR_MODELS[family+'_'+('weapon_'+kind if slot=='weapon' else slot)]
                 item.update(name=f"{model['name']} T{tier}", model=model['model'], min_level=model['min_level'],
                             power=max(item['power'], model['power'] + spec['bonus']))
+            if enemy['level']>=30 and slot!='backpack' and rarity in ('rare','epic','legendary'):
+                family={('human','warrior'):'ranger',('human','ranged'):'recon',('vampire','warrior'):'nightstalker',('vampire','ranged'):'ritualist'}.get((p.get('species'),p.get('job','warrior')),'ranger')
+                model=EXPEDITION_MODELS[family+'_'+slot]
+                item.update(name=model['name'],model=model['model'],shape=model['shape'],min_level=model['min_level'],
+                            power=max(item['power'],model['power']+spec['bonus']))
             world['next_gear_id'] += 1
             if collect:
                 world['gear'].append(item)

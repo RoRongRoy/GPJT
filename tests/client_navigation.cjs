@@ -142,4 +142,4 @@ console.log('Contextual menu checks passed: camp radius, leaving camp, remote ac
  console.log('Input latency checks passed: throttled input retry, one-step prediction, authoritative reconciliation, delayed response/key release, reversal, rejection, sprint and map bounds.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
 
-assert.equal(vm.runInContext('bagUsed({...state.world,inventory:{gold:100000,wood:3},gear:[]})',sandbox),3,'Gold must not consume bag capacity or disable purchases');
+assert.equal(vm.runInContext('bagUsed({...state.world,inventory:{gold:100000,wood:3},gear:[]})',sandbox),6,'Gold must not consume bag capacity or disable purchases');

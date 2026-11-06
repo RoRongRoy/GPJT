@@ -51,7 +51,7 @@ with tempfile.TemporaryDirectory() as d:
    const quiet=await page.evaluate(({before,spec})=>{const after=structuredClone(before);after.enemies[0].hp-=10;window.__fxView.playCombat(before,after,'ranged',spec);const fx=window.__fxView.combat;return {shake:fx.shake(fx.start+fx.impactAt+30),reaction:fx.reaction(after.enemies[0].id,fx.start+fx.impactAt+30)};},{before:fixture.world,spec:{...skills[first],id:first}});
    assert.equal(quiet.shake.x,0);assert.equal(quiet.reaction.flash,false);
    const median=await page.evaluate(()=>{const a=window.__fxTimes.sort((a,b)=>a-b);return a[Math.floor(a.length/2)];});assert.ok(median<100);
-   assert.deepEqual(errors,[]);console.log(`${species} ${job}: 14 skill renders, real hotbar dispatch, overlap cap, reduced motion; median ${median.toFixed(1)}ms.`);
+   assert.deepEqual(errors,[]);console.log(`${species} ${job}: 18 skill renders, real hotbar dispatch, overlap cap, reduced motion; median ${median.toFixed(1)}ms.`);
    await page.unrouteAll({behavior:'ignoreErrors'});await context.close();
   }
  }finally{await browser.close();}
