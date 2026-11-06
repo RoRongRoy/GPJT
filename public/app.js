@@ -1,4 +1,9 @@
 const $ = id => document.getElementById(id);
+// Suppress browser image ghosts; deliberate skill-slot drag handlers remain active.
+document.addEventListener('dragstart',event=>{
+ const target=event.target;
+ if(target instanceof Element && target.matches('img') && !target.closest('[draggable="true"]'))event.preventDefault();
+});
 const query = new URLSearchParams(location.hash.slice(1));
 if(query.has('key')) { sessionStorage.setItem('bloodfall-key', query.get('key')); history.replaceState(null,'',location.pathname); }
 // A localhost restart can use a different key while the tab retains the old one.

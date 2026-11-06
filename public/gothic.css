@@ -4487,3 +4487,23 @@ body.field-ui{--hud-gold:#b9a16e;--hud-ink:#100f0dcc;overflow:hidden}
  .inventory-worn .equip-slot-actions{gap:3px}
  .inventory-worn .equip-slot-actions button{padding:4px 2px;font-size:9px;white-space:nowrap}
 }
+
+/* Game chrome should not behave like selectable web-document text. */
+#menu-dialog,.loot-box{user-select:none;-webkit-user-select:none}
+#menu-dialog input,#menu-dialog textarea,.loot-box input,.loot-box textarea,
+#menu-dialog [contenteditable="true"]{user-select:text;-webkit-user-select:text}
+#menu-dialog img,.loot-box img,.field-ui .hud-portrait-button img{-webkit-user-drag:none}
+/* Keep category choices visible and use one unobtrusive scroll surface per menu. */
+[data-view="bag"]>.filter-tabs{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));overflow:visible;gap:4px}
+[data-view="bag"]>.filter-tabs button{min-width:0;white-space:nowrap;padding:8px 3px}
+#menu-dialog .menu-subnav{flex-wrap:wrap;overflow:visible}
+#menu-dialog .shop-items-grid,#menu-dialog #recipe-choices{max-height:none;overflow:visible;padding-right:0}
+#menu-dialog .menu-body,.loot-box,#welcome{scrollbar-width:thin;scrollbar-color:#796c5266 transparent}
+#menu-dialog .menu-body::-webkit-scrollbar,.loot-box::-webkit-scrollbar,#welcome::-webkit-scrollbar{width:4px;height:4px}
+#menu-dialog .menu-body::-webkit-scrollbar-track,.loot-box::-webkit-scrollbar-track,#welcome::-webkit-scrollbar-track{background:transparent}
+#menu-dialog .menu-body::-webkit-scrollbar-thumb,.loot-box::-webkit-scrollbar-thumb,#welcome::-webkit-scrollbar-thumb{background:#796c5266;border:0;border-radius:4px}
+.loot-box .tarkov-loot-wrap{max-height:none;overflow:visible;flex-wrap:wrap}
+@media(max-width:700px){
+ [data-view="bag"]>.filter-tabs{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:10px}
+ [data-view="bag"]>.filter-tabs button{padding:6px 3px;min-height:30px;font-size:10px}
+}
